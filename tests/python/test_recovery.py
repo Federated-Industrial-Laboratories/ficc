@@ -144,3 +144,25 @@ async def test_poller_recovers_after_transient_storage_failure(tmp_path, monkeyp
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
         service.store.close()
+
+
+async def test_revoked_refresh_does_not_replace_node_state(tmp_path, monkeypatch):
+    app = create_app(Settings(state_dir=tmp_path / "state", control=False))
+    service = app.state.service
+    initial = node()
+    service.store.save_node(initial)
+    _, actor = service.auth.issue("token")
+
+    async def probe(value, check=None):
+        service.auth.revoke(actor.id)
+        check()
+        return sample()
+
+    monkeypatch.setattr(service.ssh, "probe", probe)
+    try:
+        with pytest.raises(Failure) as denied:
+            await service.refresh([initial["id"]], actor=actor.id)
+        assert denied.value.code == "unauthenticated"
+        assert service.store.node(initial["id"]) == initial
+    finally:
+        service.store.close()

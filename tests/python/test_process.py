@@ -19,7 +19,9 @@ async def test_cleanup_when_parent_exits_before_descendant(tmp_path, ending):
     emit = "os.write(1,b'x'*4096)" if ending == "overflow" else "pass"
     script = ("import os,time,pathlib\n"
               "if os.fork() == 0:\n"
-              f" pathlib.Path({str(pid_file)!r}).write_text(str(os.getpid()))\n"
+              f" p=pathlib.Path({str(pid_file)!r})\n"
+              " p.with_suffix('.pending').write_text(str(os.getpid()))\n"
+              " p.with_suffix('.pending').rename(p)\n"
               f" {emit}\n time.sleep(30)\n"
               "else:\n os._exit(0)\n")
     pending = asyncio.create_task(run([sys.executable, "-c", script],
@@ -43,7 +45,7 @@ async def test_cleanup_when_parent_exits_before_descendant(tmp_path, ending):
                 try:
                     if status.read_text().split()[2] == "Z":
                         break
-                except FileNotFoundError:
+                except (FileNotFoundError, ProcessLookupError):
                     break
                 await asyncio.sleep(0.01)
     finally:

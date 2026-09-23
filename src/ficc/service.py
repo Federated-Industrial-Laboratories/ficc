@@ -161,6 +161,8 @@ class Service:
                                 boot_id=sample["boot_id"], observed_at=sample["observed_at"],
                                 sequence=node.get("sequence", 0) + 1)
                 except Failure as exc:
+                    if exc.status in (401, 403):
+                        raise
                     state = exc.code if exc.code in {"host_key_changed", "authentication_failed", "unreachable"} else "degraded"
                     node.update(state=state, error={"code": exc.code, "message": exc.message})
                 try:
