@@ -16,6 +16,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from .errors import Failure
+from .job_response import validate as validate_job_response
 from .process import run
 from .schema import Sample
 from .settings import Settings, private_directory
@@ -44,7 +45,10 @@ def archive() -> bytes:
     root = importlib.resources.files("ficc_node")
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as bundle:
         bundle.writestr("__main__.py", "from ficc_node.__main__ import main\nraise SystemExit(main())\n")
-        for name in ("__init__.py", "__main__.py", "collect.py"):
+        for item in sorted(root.iterdir(), key=lambda item: item.name):
+            name = item.name
+            if not name.endswith(".py"):
+                continue
             bundle.writestr("ficc_node/" + name, root.joinpath(name).read_bytes())
     return output.getvalue()
 
@@ -200,3 +204,28 @@ class SSH:
             return sample
         except (ValidationError, ValueError, json.JSONDecodeError) as exc:
             raise Failure("invalid_sample", "The node returned an unsupported resource sample.", 502) from exc
+
+    async def job(self, node: dict, payload: dict, check: Callable[[], None] | None = None) -> dict:
+        code, output, stderr = await self.command(
+            node, PROBE, json.dumps({"version": "2", **payload}, allow_nan=False).encode() + b"\n", check=check)
+        if code == 42:
+            raise Failure("helper_missing", "The node helper is not installed.", 409)
+        try:
+            value = json.loads(output)
+        except (ValueError, UnicodeDecodeError):
+            raise transport_failure(stderr) from None
+        if not isinstance(value, dict):
+            raise Failure("invalid_job_response", "The node returned an invalid job response.", 502)
+        if code == 1 and value.get("error") == "sample_unavailable":
+            raise Failure("helper_upgrade_required", "Upgrade the node helper to use managed jobs.", 409)
+        if code == 65 and value.get("error"):
+            name = "job_uncertain" if value.get("uncertain", True) else "job_refused"
+            raise Failure(name, str(value["error"])[:256], 409)
+        if code:
+            raise transport_failure(stderr)
+        if value.get("version") != "2" or not isinstance(value.get("result"), dict):
+            raise Failure("helper_upgrade_required", "Upgrade the node helper to use managed jobs.", 409)
+        try:
+            return validate_job_response(payload["action"], value["result"])
+        except (ValueError, TypeError) as exc:
+            raise Failure("invalid_job_response", "The node returned an invalid job response.", 502) from exc

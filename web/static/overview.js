@@ -4,6 +4,7 @@ import { allowed, getSession, request } from './api.js';
 import { age, announce, badge, button, bytes, confirmation, details, el, errorPanel,
   heading, isStale, metric, notice, panel, percent, state, table, time } from './components.js';
 import { enroll } from './enroll.js';
+import { upgradeHelper } from './helper-upgrade.js';
 
 export function overview() {
   let nodes = [], selected = null, active = true, timer, loading = false;
@@ -125,6 +126,9 @@ function nodeDetail(node, disconnected, refresh) {
     el('p', { class: 'muted' }, 'Pinned SSH host fingerprint'), el('code', { class: 'fingerprint' }, node.fingerprint),
     details(Object.entries(node.capabilities).map(([key, value]) => [key.replaceAll('_', ' '), String(value)])));
   body.append(trust);
+  if (allowed('nodes:write') && getSession().principal.node_ids == null && getSession().mode !== 'demo') {
+    body.append(button('Upgrade helper', () => upgradeHelper(node, refresh), { class: 'quiet' }));
+  }
   if (allowed('nodes:write') && getSession().mode !== 'demo') body.append(button('Forget node', () => confirmation('Forget this node?',
     `Remove ${node.name} from this inventory. The remote account and helper remain installed.`, 'Forget node', async () => {
       await request(`/nodes/${encodeURIComponent(node.id)}`, { method: 'DELETE' });

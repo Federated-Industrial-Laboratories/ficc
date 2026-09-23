@@ -1,0 +1,32 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Keep job controls, previews and bounded text output readable at each width. */
+textarea { width: 100%; min-height: 70px; resize: vertical; font: 13px/1.6 JetBrains, monospace; padding: 10px; border: 1px solid #7a8792; border-radius: 2px; color: var(--ink); background: #fff; }
+.job-dialog { width: min(860px, calc(100vw - 32px)); }
+.job-fieldset { min-width: 0; padding: 14px; border: 1px solid #a2a8ae; margin: 18px 0; }
+.job-fieldset legend { font-weight: 600; padding: 0 8px; }
+.job-node-list { max-height: 330px; overflow: auto; margin-top: 10px; border-top: 1px solid #bdc5cc; }
+.job-node-option { padding: 4px 10px 10px; border-bottom: 1px solid #bdc5cc; background: #fff; }
+.job-node-option .check-label { margin: 12px 0 8px; }
+.job-node-option p { margin: 0 0 3px 31px; font-size: 14px; }
+.gpu-options { margin-left: 30px; }
+.gpu-option { border-left: 3px solid #d97a12; padding-left: 12px; margin: 10px 0 16px; }
+.gpu-option .check-label { overflow-wrap: anywhere; }
+.gpu-option input[type='number'] { max-width: 190px; }
+.job-limit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; }
+.job-limit-grid > div { min-width: 0; }
+.job-request { font: 12px/1.6 JetBrains, monospace; padding: 14px; background: #eff1f3; border: 1px solid #bdc5cc; max-height: 300px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.job-targets table, .jobs-history table { min-width: 600px; }
+.job-targets .table-scroll { max-height: 480px; }
+.jobs-history .table-scroll { max-height: 360px; }
+.job-dialog .table-scroll { max-height: 300px; }
+.job-dialog table { min-width: 500px; }
+.job-states { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.job-states > span { white-space: nowrap; }
+.job-cancel-actions { margin: 16px 0; }
+.job-log-section { padding: 17px; border: 1px solid #969fa8; background: #fff; margin-bottom: 20px; box-shadow: 0 2px #dddfe1; }
+.job-log-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 14px 20px; margin-bottom: 16px; }
+.job-log-controls .check-label { margin: 0 0 10px; }
+.job-log-controls label { margin-top: 0; }
+.job-output { background: #242a31; color: #f6f4ef; border: 1px solid #10151b; box-shadow: inset 0 2px 4px #0005; font: 13px/1.7 JetBrains, monospace; padding: 18px; margin-bottom: 0; max-height: 420px; min-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 800px) { .sidebar { flex-wrap: wrap; }nav { min-width: 250px; } }
+@media (max-width: 520px) { .job-limit-grid { grid-template-columns: minmax(0, 1fr); }.job-fieldset { padding: 10px; }.gpu-options { margin-left: 0; }.job-log-section { padding: 12px; }.job-output { padding: 12px; } }

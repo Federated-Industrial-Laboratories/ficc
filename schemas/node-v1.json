@@ -283,7 +283,10 @@
       "$ref": "#/$defs/Resources"
     },
     "helper_version": {
-      "const": "1",
+      "enum": [
+        "1",
+        "2"
+      ],
       "title": "Helper Version",
       "type": "string"
     },

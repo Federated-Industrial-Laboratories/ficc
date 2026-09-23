@@ -13,12 +13,13 @@ export class ApiError extends Error {
   }
 }
 
-export async function request(path, { method = 'GET', body, signal } = {}) {
+export async function request(path, { method = 'GET', body, signal, idempotencyKey } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 35000);
   const abort = () => controller.abort();
   signal?.addEventListener('abort', abort, { once: true });
   const headers = { Accept: 'application/json' };
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (method !== 'GET' && session) headers['X-CSRF-Token'] = session.csrf;
   try {

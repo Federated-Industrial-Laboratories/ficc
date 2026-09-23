@@ -10,8 +10,10 @@ enrollment, CPU/RAM/storage/network observations, optional NVIDIA reporting,
 scoped API tokens and audit history. It distinguishes old samples, unavailable
 metrics, authentication failures and changed host keys.
 
-Task execution, file management, interactive terminals and shared remote access
-are not included in this version. Existing SSH tools continue to work.
+Managed jobs add bounded CPU/RAM use, durable output and recovery after a local
+controller restart. GPU reservations are advisory. File management, interactive
+terminals and shared remote access remain outside this development version.
+Existing SSH tools continue to work.
 
 ## Requirements
 
@@ -93,6 +95,21 @@ ficc enroll --profile rack-01 --name 'Rack 01'
 After reviewing the preview, repeat with `--fingerprint SHA256:...` and, when
 required, `--install-helper`. Use the actual independently verified fingerprint.
 
+## Start from the desktop
+
+After installation, stop the foreground service and retain its state directory.
+Install a launcher with the same approved profiles and settings:
+
+```sh
+ficc install-launcher --profile rack-01
+ficc launch
+```
+
+Select **FICC Cluster Commander** in the application menu to start the service
+and open the console. It starts on demand by default. Use `ficc status` to check
+it and `ficc stop` to stop the local service. See [operations](docs/operations.md)
+for existing state, alternate configurations and optional sign-in startup.
+
 ## Access and operation
 
 The local owner can create an expiring token in a protected file:
@@ -106,7 +123,7 @@ Add `--node ID` to restrict it to specific machines. Revoke a token in Access
 or with `ficc token-revoke ID`. Keep the output file private and delete it when
 no longer needed. Never put token values in shell arguments or source files.
 
-See [API](docs/api.md), [operations](docs/operations.md),
+See [managed jobs](docs/jobs.md), [API](docs/api.md), [operations](docs/operations.md),
 [architecture](docs/architecture.md), [security](SECURITY.md),
 [testing](docs/testing.md) and [contribution procedure](CONTRIBUTING.md).
 

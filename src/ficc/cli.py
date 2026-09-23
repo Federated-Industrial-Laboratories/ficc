@@ -7,15 +7,15 @@ import os
 import socket
 import stat
 import sys
-import webbrowser
 from contextlib import suppress
 from pathlib import Path
-from urllib.parse import quote
 
 import httpx
 import uvicorn
 
+from . import launcher
 from .api import create_app
+from .launcher_config import config_path
 from .settings import Settings, default_state_dir, private_directory
 
 
@@ -44,7 +44,7 @@ def local_request(state_dir: Path, request: dict) -> dict:
 
 
 def parser() -> argparse.ArgumentParser:
-    result = argparse.ArgumentParser(prog="ficc", description="Local cluster observation console.")
+    result = argparse.ArgumentParser(prog="ficc", description="Local cluster management console.")
     commands = result.add_subparsers(dest="command", required=True)
     for name in ("serve", "open", "nodes", "token-create", "token-revoke", "enroll", "refresh"):
         item = commands.add_parser(name)
@@ -71,6 +71,19 @@ def parser() -> argparse.ArgumentParser:
             item.add_argument("--install-helper", action="store_true")
         elif name == "refresh":
             item.add_argument("node_ids", nargs="+")
+    for name in ("install-launcher", "start", "status", "stop", "launch"):
+        item = commands.add_parser(name)
+        item.add_argument("--launcher-config", type=Path, default=config_path())
+        if name == "install-launcher":
+            item.add_argument("--state-dir", type=Path, default=default_state_dir())
+            item.add_argument("--port", type=int, default=8170)
+            item.add_argument("--profile", action="append", default=[])
+            item.add_argument("--ssh-config", type=Path)
+            item.add_argument("--demo", action="store_true")
+            item.add_argument("--name", default="ficc")
+            item.add_argument("--autostart", action="store_true")
+    from .job_cli import add_commands
+    add_commands(commands)
     return result
 
 
@@ -109,12 +122,19 @@ def main(argv: list[str] | None = None) -> int:
                         access_log=False, proxy_headers=False, server_header=False,
                         limit_concurrency=64, timeout_keep_alive=5)
         elif args.command == "open":
-            grant = local_request(args.state_dir, {"action": "bootstrap"})
-            url = grant["origin"] + "/#bootstrap=" + quote(grant["credential"], safe="")
-            if args.print_url:
-                print(url)
-            elif not webbrowser.open(url):
-                raise ValueError("The browser could not open. Use --print-url explicitly.")
+            launcher.open_console(args.state_dir, args.print_url)
+        elif args.command == "install-launcher":
+            print(json.dumps(launcher.install(args), indent=2))
+        elif args.command == "start":
+            config = launcher.start(args.launcher_config)
+            print(json.dumps({"ready": True, "origin": f"http://127.0.0.1:{config.port}"}))
+        elif args.command in {"status", "stop"}:
+            print(json.dumps(getattr(launcher, args.command)(args.launcher_config), indent=2))
+        elif args.command == "launch":
+            launcher.launch(args.launcher_config)
+        elif args.command.startswith("job-") or args.command == "helper-upgrade":
+            from .job_cli import execute
+            execute(args)
         elif args.command == "token-create":
             fd = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
             try:
@@ -138,8 +158,15 @@ def main(argv: list[str] | None = None) -> int:
         else:
             api_command(args)
         return 0
-    except (OSError, ValueError, httpx.HTTPError):
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        if args.command == "launch":
+            launcher.notify_failure(str(exc))
+        return 1
+    except (OSError, httpx.HTTPError):
         print("The request failed. Check service access, permissions, and connection settings.", file=sys.stderr)
+        if args.command == "launch":
+            launcher.notify_failure("FICC could not start. Run ficc status in a terminal for details.")
         return 1
 
 

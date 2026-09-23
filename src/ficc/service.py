@@ -9,6 +9,7 @@ import time
 
 from .auth import Auth
 from .errors import Failure
+from .jobs import Jobs
 from .settings import MAX_NODES, Settings
 from .ssh import SSH
 from .store import Store
@@ -22,6 +23,7 @@ class Service:
         self.settings = settings
         self.store = Store(settings.state_dir / "state.sqlite3")
         self.auth = Auth(self.store)
+        self.jobs = Jobs(self)
         self.ssh = SSH(settings)
         self.previews: dict[str, dict] = {}
         self.workers = asyncio.Semaphore(16)
@@ -152,27 +154,56 @@ class Service:
                         self.authorize(actor, "nodes:read", node["id"])
                         self.authorize(actor, "resources:read", node["id"])
                 check()
-                try:
-                    sample = await self.ssh.probe(node, check=check)
-                    if sample is None:
-                        raise Failure("helper_missing", "The node helper is unavailable.", 502)
-                    node.update(resources=sample["resources"], capabilities=sample["capabilities"],
-                                last_seen=time.time(), state="ready", error=None,
-                                boot_id=sample["boot_id"], observed_at=sample["observed_at"],
-                                sequence=node.get("sequence", 0) + 1)
-                except Failure as exc:
-                    if exc.status in (401, 403):
-                        raise
-                    state = exc.code if exc.code in {"host_key_changed", "authentication_failed", "unreachable"} else "degraded"
-                    node.update(state=state, error={"code": exc.code, "message": exc.message})
-                try:
-                    self.store.node(node["id"])
-                except Failure:
-                    return self.view(node)
-                self.store.save_node(node)
-                return self.view(node)
+                return await self.observe(node, check)
 
         return await asyncio.gather(*(one(node) for node in nodes))
+
+    async def observe(self, node: dict, check) -> dict:
+        try:
+            sample = await self.ssh.probe(node, check=check)
+            if sample is None:
+                raise Failure("helper_missing", "The node helper is unavailable.", 502)
+            node.update(resources=sample["resources"], capabilities=sample["capabilities"],
+                        last_seen=time.time(), state="ready", error=None,
+                        boot_id=sample["boot_id"], observed_at=sample["observed_at"],
+                        helper_version=sample["helper_version"], sequence=node.get("sequence", 0) + 1)
+        except Failure as exc:
+            if exc.status in (401, 403):
+                raise
+            status = exc.code if exc.code in {"host_key_changed", "authentication_failed", "unreachable"} else "degraded"
+            node.update(state=status, error={"code": exc.code, "message": exc.message})
+        try:
+            self.store.node(node["id"])
+        except Failure:
+            return self.view(node)
+        self.store.save_node(node)
+        return self.view(node)
+
+    async def upgrade(self, node_id: str, expected: str, actor: str) -> dict:
+        self.live()
+        lock = self.locks.setdefault(node_id, asyncio.Lock())
+        async with self.enrollment, self.jobs.admission, lock:
+            def check():
+                self.authorize(actor, "nodes:write", node_id)
+            check()
+            node = self.store.node(node_id)
+            if node["fingerprint"] != expected:
+                raise Failure("host_key_changed", "The expected fingerprint does not match the enrolled machine.", 409)
+            if self.jobs.store.active(node_id):
+                raise Failure("node_busy", "Resolve active or unknown jobs before upgrading the helper.", 409)
+            self.store.audit("helper.upgrade", node_id, "requested", actor)
+            try:
+                async with self.connections:
+                    await self.ssh.install(node, check=check)
+                async with self.workers:
+                    result = await self.observe(node, check)
+                if self.store.node(node_id).get("helper_version") != "2" or result["error"]:
+                    raise Failure("helper_upgrade_failed", "The upgraded helper could not be verified. Refresh and retry.", 502)
+            except Failure:
+                self.store.audit("helper.upgrade", node_id, "failed", actor)
+                raise
+            self.store.audit("helper.upgrade", node_id, result["state"], actor)
+            return result
 
     async def poll(self) -> None:
         if self.settings.demo:

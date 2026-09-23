@@ -63,6 +63,9 @@ class Control:
                 auth = self.service.auth
                 if action == "bootstrap":
                     secret, principal = auth.issue("bootstrap", lifetime=60)
+                elif action == "job-credential":
+                    secret, principal = auth.issue("token", "Local job CLI", lifetime=3600)
+                    self.service.store.audit("credential.create", principal.id)
                 elif action == "ephemeral":
                     secret, principal = auth.issue("token", "Local CLI", lifetime=60)
                 elif action == "token":

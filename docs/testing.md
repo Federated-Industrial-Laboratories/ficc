@@ -14,7 +14,12 @@ must fail when restricted content is present. A clean source scan is not proof
 that all possible secrets are absent.
 
 Python tests cover the API, authentication, token revocation, batched requests,
-SSH trust and resource schema. Run actual SSH integration with a distribution
+SSH trust and resource schema. Managed-job checks cover distinct 1-node and
+64-node batches, durable deduplication, revoked grants, unknown outcomes,
+resource controls, cancellation, output bounds and CLI recovery. Launcher checks
+cover path quoting, service identity and readiness.
+
+Run actual SSH integration with a distribution
 OpenSSH server binary. The test server listens on a temporary loopback port and
 uses generated keys, a temporary home and a private configuration.
 
@@ -42,7 +47,11 @@ FICC_STATE_DIR=/tmp/ficc-browser-state FICC_URL=http://127.0.0.1:8171 \
 
 Keep captures outside the repository. Check narrow and wide layouts, browser
 zoom, keyboard operation, focus, stale data, errors, access limits and logout.
-Inspect the rendered result as well as the assertions.
+Inspect the rendered result as well as the assertions. Job browser fixtures cover
+preview and confirmation, permission separation, output following, recovery and
+cancellation. These fixtures do not qualify a remote systemd implementation.
+Exercise installed helpers on supported machines with bounded CPU jobs before
+claiming job execution, effective limits or desktop startup support.
 
 Package checks install the wheel in a fresh environment. Verify that the node
 helper and web assets are present without access to the source checkout.
