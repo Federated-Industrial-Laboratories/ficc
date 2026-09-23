@@ -18,3 +18,4 @@ coverage/
 *.log
 test-results/
 playwright-report/
+src/ficc/static/

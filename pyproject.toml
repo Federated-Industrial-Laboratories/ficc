@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools==84.0.0", "wheel==0.48.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ficc"
+version = "0.1.0.dev1"
+description = "Local Linux cluster console with OpenSSH connections."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+dependencies = ["fastapi==0.141.1", "uvicorn==0.53.0", "httpx==0.28.1"]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==9.1.1", "pytest-asyncio==1.4.0", "ruff==0.16.8", "mypy==2.3.1",
+  "build==1.6.1", "pip-tools==7.6.1", "pip-audit==2.10.1",
+]
+
+[project.scripts]
+ficc = "ficc.cli:main"
+
+[project.urls]
+Repository = "https://github.com/Federated-Industrial-Laboratories/ficc"
+
+[tool.setuptools.package-dir]
+"" = "src"
+ficc_node = "node/ficc_node"
+
+[tool.setuptools.packages.find]
+where = ["src", "node"]
+include = ["ficc*", "ficc_node*"]
+
+[tool.setuptools.package-data]
+ficc = ["static/**/*", "static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python", "tests/tools"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["src/ficc/static"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = true
+warn_unused_ignores = true
+files = ["src/ficc", "node/ficc_node"]
+exclude = ["static/"]
+
+[[tool.mypy.overrides]]
+module = "pynvml"
+ignore_missing_imports = true

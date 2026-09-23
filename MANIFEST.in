@@ -1,0 +1,5 @@
+include LICENSE NOTICE
+recursive-include src/ficc/static *
+recursive-include node/ficc_node *.py
+prune tests
+prune web/node_modules

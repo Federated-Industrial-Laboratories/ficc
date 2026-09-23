@@ -1,0 +1,309 @@
+{
+  "$defs": {
+    "GPU": {
+      "additionalProperties": false,
+      "properties": {
+        "uuid": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Uuid",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "memory_total_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Memory Total Bytes"
+        },
+        "memory_used_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Memory Used Bytes"
+        },
+        "utilization_percent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Utilization Percent"
+        },
+        "temperature_c": {
+          "anyOf": [
+            {
+              "maximum": 300,
+              "minimum": -100,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Temperature C"
+        }
+      },
+      "required": [
+        "uuid",
+        "name",
+        "memory_total_bytes",
+        "memory_used_bytes",
+        "utilization_percent",
+        "temperature_c"
+      ],
+      "title": "GPU",
+      "type": "object"
+    },
+    "Network": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "rx_bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "title": "Rx Bytes",
+          "type": "integer"
+        },
+        "tx_bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "title": "Tx Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "rx_bytes",
+        "tx_bytes"
+      ],
+      "title": "Network",
+      "type": "object"
+    },
+    "Resources": {
+      "additionalProperties": false,
+      "properties": {
+        "cpu_percent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cpu Percent"
+        },
+        "cpu_count": {
+          "maximum": 65536,
+          "minimum": 1,
+          "title": "Cpu Count",
+          "type": "integer"
+        },
+        "load": {
+          "items": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Load",
+          "type": "array"
+        },
+        "memory_total_bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "title": "Memory Total Bytes",
+          "type": "integer"
+        },
+        "memory_available_bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "title": "Memory Available Bytes",
+          "type": "integer"
+        },
+        "uptime_seconds": {
+          "minimum": 0,
+          "title": "Uptime Seconds",
+          "type": "number"
+        },
+        "storage": {
+          "items": {
+            "$ref": "#/$defs/Storage"
+          },
+          "maxItems": 64,
+          "title": "Storage",
+          "type": "array"
+        },
+        "network": {
+          "items": {
+            "$ref": "#/$defs/Network"
+          },
+          "maxItems": 64,
+          "title": "Network",
+          "type": "array"
+        },
+        "gpus": {
+          "items": {
+            "$ref": "#/$defs/GPU"
+          },
+          "maxItems": 64,
+          "title": "Gpus",
+          "type": "array"
+        },
+        "gpu_status": {
+          "enum": [
+            "available",
+            "unavailable",
+            "unsupported"
+          ],
+          "title": "Gpu Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cpu_percent",
+        "cpu_count",
+        "load",
+        "memory_total_bytes",
+        "memory_available_bytes",
+        "uptime_seconds",
+        "storage",
+        "network",
+        "gpus",
+        "gpu_status"
+      ],
+      "title": "Resources",
+      "type": "object"
+    },
+    "Storage": {
+      "additionalProperties": false,
+      "properties": {
+        "mount": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Mount",
+          "type": "string"
+        },
+        "total_bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "title": "Total Bytes",
+          "type": "integer"
+        },
+        "available_bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "title": "Available Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "mount",
+        "total_bytes",
+        "available_bytes"
+      ],
+      "title": "Storage",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "1",
+      "title": "Version",
+      "type": "string"
+    },
+    "boot_id": {
+      "pattern": "^[0-9a-f-]{36}$",
+      "title": "Boot Id",
+      "type": "string"
+    },
+    "observed_at": {
+      "minimum": 0,
+      "title": "Observed At",
+      "type": "number"
+    },
+    "monotonic_seconds": {
+      "minimum": 0,
+      "title": "Monotonic Seconds",
+      "type": "number"
+    },
+    "capabilities": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          }
+        ]
+      },
+      "maxProperties": 16,
+      "propertyNames": {
+        "maxLength": 256,
+        "minLength": 1
+      },
+      "title": "Capabilities",
+      "type": "object"
+    },
+    "resources": {
+      "$ref": "#/$defs/Resources"
+    },
+    "helper_version": {
+      "const": "1",
+      "title": "Helper Version",
+      "type": "string"
+    },
+    "python_version": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Python Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "boot_id",
+    "observed_at",
+    "monotonic_seconds",
+    "capabilities",
+    "resources",
+    "helper_version",
+    "python_version"
+  ],
+  "title": "Sample",
+  "type": "object"
+}
