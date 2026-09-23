@@ -104,3 +104,47 @@ def locked(controller):
         yield
     finally:
         os.close(fd)
+
+
+def sync_directory(path):
+    fd = os.open(path, os.O_DIRECTORY | os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def prelaunch_files(path, request_allowed=False):
+    directory(path)
+    entries = list(path.iterdir())
+    allowed = {"runner.pyz", "request.json"} if request_allowed else {"runner.pyz"}
+    if len(entries) > 8 or any(entry.name not in allowed and not entry.name.startswith(".write-") for entry in entries):
+        raise ValueError("Incomplete job state requires explicit recovery.")
+    for entry in entries:
+        checked(entry)
+    return entries
+
+
+def discard_prelaunch(path, request_allowed=False):
+    for entry in prelaunch_files(path, request_allowed):
+        entry.unlink()
+    path.rmdir()
+    sync_directory(path.parent)
+
+
+@contextmanager
+def staging(path):
+    temporary = path.parent / (".pending-" + path.name)
+    temporary.mkdir(mode=0o700)
+    try:
+        yield temporary
+    finally:
+        if temporary.exists() or temporary.is_symlink():
+            discard_prelaunch(temporary, request_allowed=True)
+
+
+def publish(temporary, path):
+    if path.exists() or path.is_symlink():
+        raise ValueError("A job record already uses this identity.")
+    os.rename(temporary, path)
+    sync_directory(path.parent)

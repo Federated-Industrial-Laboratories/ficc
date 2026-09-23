@@ -11,7 +11,7 @@ from pathlib import Path
 
 from . import job_state as state
 from .collect import gpu_metrics
-from .job_spec import LOG_CAP, RECEIPT_CAP, TERMINAL, TOTAL_LOG_CAP, validate_job
+from .job_spec import ID, LOG_CAP, RECEIPT_CAP, TERMINAL, TOTAL_LOG_CAP, validate_job
 from .job_system import capability, command, properties, start
 
 
@@ -92,9 +92,23 @@ def pin_runner(path):
     return name, hashlib.sha256(data).hexdigest()
 
 
+def recover_prelaunch(controller):
+    for entry in state.root().iterdir():
+        if entry.name.startswith(".pending-") and ID.fullmatch(entry.name.removeprefix(".pending-")):
+            # The fixed runner can only open published, opaque job directories.
+            state.discard_prelaunch(entry, request_allowed=True)
+        elif ID.fullmatch(entry.name) and not (entry / "request.json").exists():
+            state.prelaunch_files(entry)
+            unit = f"ficc-{controller}-{entry.name}.service"
+            if properties(unit).get("LoadState") != "not-found":
+                raise ValueError("An incomplete job record has a retained unit. Explicit recovery is required.")
+            state.discard_prelaunch(entry)
+
+
 def submit(body):
     job = validate_job(body["job"])
     path = state.job_path(body["job_id"])
+    recover_prelaunch(body["controller_id"])
     digest = state.digest({"job": job, "node_id": body["node_id"]})
     if path.exists():
         old = state.read(path / "request.json")
@@ -136,17 +150,18 @@ def submit(body):
                 raise ValueError("GPU capacity cannot be verified.")
             if reservation["memory_bytes"] > gpu["memory_total_bytes"] - gpu["memory_used_bytes"]:
                 raise ValueError("The GPU reservation exceeds observed free memory.")
-    state.directory(path)
-    runner, runner_digest = pin_runner(path)
-    request = {"controller_id": body["controller_id"], "job_id": body["job_id"],
-               "job": job, "digest": digest, "boot_id": state.boot_id(), "runner_digest": runner_digest,
-               "unit": f'ficc-{body["controller_id"]}-{body["job_id"]}.service',
-               "description": f'FICC:{body["controller_id"]}:{body["job_id"]}:{digest}',
-               "session_lifetime": not caps["logout_persistent"], "reservations": reservations,
-               "created_at": time.time()}
-    state.write(path / "request.json", request)
+    with state.staging(path) as temporary:
+        _, runner_digest = pin_runner(temporary)
+        request = {"controller_id": body["controller_id"], "job_id": body["job_id"],
+                   "job": job, "digest": digest, "boot_id": state.boot_id(), "runner_digest": runner_digest,
+                   "unit": f'ficc-{body["controller_id"]}-{body["job_id"]}.service',
+                   "description": f'FICC:{body["controller_id"]}:{body["job_id"]}:{digest}',
+                   "session_lifetime": not caps["logout_persistent"], "reservations": reservations,
+                   "created_at": time.time()}
+        state.write(temporary / "request.json", request)
+        state.publish(temporary, path)
     try:
-        start(request, runner)
+        start(request, path / "runner.pyz")
     except (OSError, ValueError) as exc:
         # A saved intent is never resubmitted after an ambiguous acknowledgement.
         state.write(path / "launch_error.json", {"message": str(exc)[:256]})

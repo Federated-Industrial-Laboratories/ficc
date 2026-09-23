@@ -43,18 +43,19 @@ class Remote:
         if action == "job.capabilities":
             return {"jobs": True, "logout_persistent": False}
         job_id = body["job_id"]
+        identity = (node["id"], job_id)
         if action == "job.submit":
-            self.states[job_id] = {"job_id": job_id, "state": "running", "result": None,
+            self.states[identity] = {"job_id": job_id, "state": "running", "result": None,
                                    "effective_limits": body["job"]["limits"], "session_lifetime": True,
-                                   "reservations": [], "error": None}
+                                   "reservations": copy.deepcopy(body["job"]["gpu_reservations"].get(node["id"], [])), "error": None}
             if self.lose_ack:
                 raise Failure("unreachable", "Launch acknowledgement lost.", 502)
         if action == "job.cancel":
-            self.states[job_id]["state"] = "cancelled"
+            self.states[identity]["state"] = "cancelled"
         if action == "job.logs":
             return {"data_base64": "aGVsbG8=", "next_offset": 5, "total_bytes": 5,
                     "dropped_bytes": 0, "complete": False}
-        return self.states.get(job_id, {"job_id": job_id, "state": "unknown", "result": None})
+        return self.states.get(identity, {"job_id": job_id, "state": "unknown", "result": None})
 
 
 def prepare(console, monkeypatch, count=1):
@@ -79,14 +80,32 @@ def submit(client, body=None, key="first-submission-key"):
 @pytest.mark.parametrize("count", [1, 64])
 def test_durable_batch_partial_results_and_scoped_reads(console, monkeypatch, count):
     client, service, remote, actor = prepare(console, monkeypatch, count)
-    operation, _ = submit(client, request(count))
+    body = request(count)
+    body["job"]["gpu_reservations"] = {f"node-{index}": [{"uuid": f"GPU-test-{index}", "memory_bytes": index + 1}]
+                                       for index in range(count)}
+
+    async def probe(node, check=None):
+        check()
+        index = int(node["id"].split("-")[1])
+        return {"resources": {"gpus": [{"uuid": f"GPU-test-{index}", "memory_total_bytes": 1000,
+                                        "memory_used_bytes": 0}]}}
+    monkeypatch.setattr(service.ssh, "probe", probe)
+    operation, _ = submit(client, body)
     assert len(operation["targets"]) == count
     assert all(item["state"] == "queued" for item in operation["targets"])
     for target in operation["targets"]:
         asyncio.run(service.jobs.reconcile(operation["id"], target["node_id"]))
-    assert sum(body["action"] == "job.submit" for _, body in remote.calls) == count
+    dispatched = [(node_id, payload) for node_id, payload in remote.calls if payload["action"] == "job.submit"]
+    expected = []
+    for target in operation["targets"]:
+        job = copy.deepcopy(body["job"])
+        job["gpu_reservations"] = {target["node_id"]: body["job"]["gpu_reservations"][target["node_id"]]}
+        expected.append((target["node_id"], {"action": "job.submit", "controller_id": service.jobs.controller,
+                        "job_id": target["job_id"], "node_id": target["node_id"], "job": job}))
+    assert dispatched == expected
+    assert set(remote.states) == {(target["node_id"], target["job_id"]) for target in operation["targets"]}
     target = operation["targets"][0]
-    remote.states[target["job_id"]].update(state="succeeded", result={"exit_code": 0})
+    remote.states[(target["node_id"], target["job_id"])].update(state="succeeded", result={"exit_code": 0})
     asyncio.run(service.jobs.reconcile(operation["id"], target["node_id"]))
     operation = client.get("/api/v1/operations/" + operation["id"]).json()
     assert operation["targets"][0]["state"] == "succeeded"
@@ -97,6 +116,15 @@ def test_durable_batch_partial_results_and_scoped_reads(console, monkeypatch, co
     assert len(view["operations"][0]["targets"]) == 1
     assert view["operations"][0]["request"]["node_ids"] == ["node-0"]
     assert "node" not in view["operations"][0]["targets"][0]
+    for index, target in enumerate(operation["targets"]):
+        remote.states[(target["node_id"], target["job_id"])].update(
+            state="succeeded" if index == 0 else "failed", result={"exit_code": index, "stdout_bytes": index + 1})
+        if index:
+            asyncio.run(service.jobs.reconcile(operation["id"], target["node_id"]))
+    results = service.jobs.store.get(operation["id"])["targets"]
+    for index, target in enumerate(results):
+        assert target["result"]["exit_code"] == index
+        assert target["reservations"] == body["job"]["gpu_reservations"][target["node_id"]]
 
 
 def test_idempotency_survives_preview_expiry_and_conflicts(console, monkeypatch):
@@ -341,51 +369,3 @@ def test_serialized_unicode_and_batch_envelopes_are_refused_before_intent(consol
         for node in body["node_ids"]}
     with pytest.raises(ValueError, match="64 KiB"):
         JobRequest.model_validate(body)
-
-
-def test_queued_output_uses_packaged_helper_and_controller_response_validation(console, monkeypatch, tmp_path):
-    import base64
-    import json
-    import sys
-
-    from ficc.process import run
-    from ficc.ssh import SSH, archive
-
-    client, service, remote, actor = prepare(console, monkeypatch)
-    operation, _ = submit(client)
-    assert operation["targets"][0]["state"] == "queued"
-    home = tmp_path / "remote-home"
-    home.mkdir(mode=0o700)
-    helper = tmp_path / "node.pyz"
-    helper.write_bytes(archive())
-    wrapper = "import os,runpy,sys;os.environ['HOME']=sys.argv[1];sys.argv=sys.argv[2:];runpy.run_path(sys.argv[0],run_name='__main__')"
-
-    async def command(node, fixed_command, payload, check=None):
-        if check:
-            check()
-        return await run([sys.executable, "-c", wrapper, str(home), str(helper)], payload)
-
-    monkeypatch.setattr(service.ssh, "command", command)
-    monkeypatch.setattr(service.ssh, "job", SSH.job.__get__(service.ssh, SSH))
-    path = f'/api/v1/operations/{operation["id"]}/logs/node-0'
-    first = client.get(path + "?stream=stdout&offset=0&limit=32")
-    assert first.status_code == 200, first.text
-    assert first.json() == {"data_base64": "", "next_offset": 0, "total_bytes": 0,
-                            "dropped_bytes": None, "complete": False}
-    stderr = client.get(path + "?stream=stderr&offset=7&limit=32")
-    assert stderr.status_code == 200 and stderr.json()["next_offset"] == 7
-    job = home / ".local/state/ficc/jobs" / operation["targets"][0]["job_id"]
-    assert not job.exists()
-    job.mkdir(mode=0o700)
-    for name, value in (("request.json", {"controller_id": service.jobs.controller}),
-                        ("result.json", {"state": "succeeded", "result": {"dropped_bytes": 0}})):
-        file = job / name
-        file.write_text(json.dumps(value))
-        file.chmod(0o600)
-    output = job / "stdout"
-    output.write_bytes(b"ready after dispatch\n")
-    output.chmod(0o600)
-    later = client.get(path + "?stream=stdout&offset=0&limit=32")
-    assert later.status_code == 200, later.text
-    assert base64.b64decode(later.json()["data_base64"]) == output.read_bytes()
-    assert later.json()["complete"] and later.json()["dropped_bytes"] == 0

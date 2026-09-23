@@ -140,7 +140,7 @@ class Jobs:
         result["request"]["node_ids"] = ids
         result["request"]["job"]["gpu_reservations"] = {node: reservations for node, reservations in result["request"]["job"]["gpu_reservations"].items() if node in ids}
         for target in result["targets"]:
-            for field in ("node", "cancel_actor", "cancel_force"):
+            for field in ("node", "cancel_actor", "cancel_force", "cancel_status", "cancel_revision", "cancel_error"):
                 target.pop(field, None)
         return {key: result[key] for key in ("id", "action", "actor", "created_at", "updated_at", "request", "targets")}
 
@@ -155,6 +155,8 @@ class Jobs:
             operation = self.store.get(operation_id)
             target = next(item for item in operation["targets"] if item["node_id"] == node_id)
             initial = target["state"]
+            if initial in TERMINAL:
+                return
             payload = {"controller_id": self.controller, "job_id": target["job_id"]}
             check = None
             try:
@@ -166,8 +168,11 @@ class Jobs:
                     job["gpu_reservations"] = {node_id: job["gpu_reservations"][node_id]} if node_id in job["gpu_reservations"] else {}
                     payload.update(action="job.submit", job=job, node_id=node_id)
                     self.update(operation_id, node_id, {"state": "dispatching"})
-                elif initial == "cancel_requested" and target.get("cancel_actor"):
+                elif target.get("cancel_actor") and target.get("cancel_status", "pending") == "pending":
                     def check():
+                        current = next(item for item in self.store.get(operation_id)["targets"] if item["node_id"] == node_id)
+                        if current["state"] in TERMINAL or current.get("cancel_revision") != target.get("cancel_revision"):
+                            raise Failure("cancel_superseded", "A newer cancellation request is pending.", 409)
                         self.check(target["cancel_actor"], "jobs:cancel", [node_id])
                     check()
                     payload.update(action="job.cancel", force=target["cancel_force"])
@@ -178,18 +183,50 @@ class Jobs:
                     raise Failure("invalid_job_state", "The node returned an invalid job state.", 502)
                 values = {key: response[key] for key in ("state", "result", "effective_limits", "session_lifetime", "reservations", "error") if key in response}
                 latest = next(item for item in self.store.get(operation_id)["targets"] if item["node_id"] == node_id)
-                if latest["state"] == "cancel_requested" and response["state"] not in TERMINAL and payload["action"] != "job.cancel":
-                    values["state"] = "cancel_requested"
+                if latest["state"] in TERMINAL:
+                    return
+                if latest.get("cancel_actor"):
+                    if response["state"] in TERMINAL:
+                        values.update(cancel_status="complete", cancel_error=None)
+                    elif latest.get("cancel_status", "pending") == "pending":
+                        if payload["action"] == "job.cancel" and latest.get("cancel_revision") == target.get("cancel_revision"):
+                            values["cancel_error"] = None
+                            latest["cancel_error"] = None
+                        values.update(state="cancel_requested", error=self.cancel_message(latest))
+                    else:
+                        values["error"] = self.cancel_message(latest)
                 self.update(operation_id, node_id, values)
                 self.failures.pop(target["job_id"], None)
                 if response["state"] in TERMINAL:
                     self.service.store.audit("job.result", target["job_id"], response["state"], operation["actor"])
             except Failure as exc:
+                latest = next(item for item in self.store.get(operation_id)["targets"] if item["node_id"] == node_id)
+                if latest["state"] in TERMINAL or exc.code == "cancel_superseded":
+                    return
+                if target.get("cancel_actor") and latest.get("cancel_revision") != target.get("cancel_revision"):
+                    return
                 state = "failed" if initial == "queued" and (exc.status in (401, 403) or exc.code == "job_refused") else "unknown"
-                self.update(operation_id, node_id, {"state": state, "error": exc.message})
+                values = {"state": state, "error": exc.message}
+                if latest.get("cancel_actor") and state not in TERMINAL:
+                    denied = target.get("cancel_actor") and exc.status in (401, 403)
+                    status = "denied" if denied else latest.get("cancel_status", "pending")
+                    if status == "pending":
+                        state = "cancel_requested"
+                    detail = latest.get("cancel_error") if status == "denied" and not denied else exc.message
+                    latest.update(cancel_status=status, cancel_error=detail)
+                    values.update(state=state, cancel_status=status, cancel_error=detail,
+                                  error=self.cancel_message(latest))
+                self.update(operation_id, node_id, values)
                 failures = min(self.failures.get(target["job_id"], 0) + 1, 5)
                 self.failures[target["job_id"]] = failures
                 self.retry[target["job_id"]] = time.monotonic() + min(30, 2**failures)
+
+    @staticmethod
+    def cancel_message(target: dict) -> str:
+        if target.get("cancel_status") == "denied":
+            return "Cancellation denied. Request again with a current credential. " + str(target.get("cancel_error") or "")[:180]
+        detail = target.get("cancel_error")
+        return "Cancellation pending." if not detail else "Cancellation pending: " + str(detail)[:220]
 
     async def cancel(self, operation_id: str, nodes: list[str], force: bool, actor: str):
         self.service.live()
@@ -204,7 +241,10 @@ class Jobs:
                                   "signal": None, "stdout_bytes": 0, "stderr_bytes": 0, "dropped_bytes": 0,
                                   "finished_at": time.time()})
                 else:
-                    target.update(state="cancel_requested", cancel_actor=actor, cancel_force=force)
+                    target.update(state="cancel_requested", cancel_actor=actor, cancel_force=force,
+                                  cancel_status="pending", cancel_revision=secrets.token_hex(16),
+                                  cancel_error=None, error="Cancellation pending.")
+                    self.retry.pop(target["job_id"], None)
         self.store.save(operation)
         self.service.store.audit("job.cancel", operation_id, "requested", actor)
         return operation

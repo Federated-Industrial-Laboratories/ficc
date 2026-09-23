@@ -39,7 +39,11 @@ control sequences. Log access needs the separate jobs:logs grant.
 Normal cancellation asks the recorded service to stop, then applies a finite
 grace period. Forced stop is a separate explicit action. The UI shows a request
 before it shows confirmed termination. A lost connection during cancellation
-does not prove that the job stopped. FICC cannot cancel unrelated processes.
+does not prove that the job stopped. The pending request survives a controller
+restart and retries connection failures with its current cancellation grant.
+If that grant expires or is revoked, retries stop and a denial stays visible.
+Request cancellation again with current authority. FICC cannot cancel unrelated
+processes.
 
 ## Limits and reservations
 
@@ -124,6 +128,9 @@ record, so do not reuse its key afterwards.
 
 The controller records intent before SSH dispatch. The helper durably binds a
 job ID to its request digest before starting a deterministic systemd unit.
+The helper stages a complete runner and request before publishing that intent.
+Interrupted staging is recovered under the node lock; published intents and
+records with possible execution evidence are preserved.
 Repeated matching submissions query that job. Different content under the same
 identity is refused. A missing acknowledgement triggers reconciliation, never
 automatic payload replay. This prevents duplicate dispatch within retained
