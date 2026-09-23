@@ -10,6 +10,7 @@ import os
 import shlex
 import time
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -119,11 +120,13 @@ class SSH:
         keys.sort(key=lambda key: key[0] != "ssh-ed25519")
         return keys[0] if keys else None
 
-    async def preview(self, profile: str, name: str) -> dict:
+    async def preview(self, profile: str, name: str, check: Callable[[], None] | None = None) -> dict:
         config = await self.config(profile)
         key = await self.known_key(config)
         trusted = key is not None
         if key is None:
+            if check:
+                check()
             code, output, _ = await run(["ssh-keyscan", "-T", "3", "-p", str(config["port"]),
                                          config["hostname"]], timeout=5)
             keys = [line.split() for line in output.decode("ascii", errors="replace").splitlines()
@@ -137,7 +140,7 @@ class SSH:
                  "trust": "trusted" if trusted else "untrusted", "helper_version": None,
                  "helper_install_required": True, "warnings": [], "expires_at": time.time() + 120}
         if trusted:
-            sample = await self.probe(value, allow_missing=True)
+            sample = await self.probe(value, allow_missing=True, check=check)
             if sample:
                 value["helper_version"] = sample["helper_version"]
                 value["helper_install_required"] = False
@@ -145,7 +148,8 @@ class SSH:
             value["warnings"] = ["Verify this key independently and add it to local known hosts before enrollment."]
         return value
 
-    async def command(self, node: dict, command: str, payload: bytes) -> tuple[int, bytes, bytes]:
+    async def command(self, node: dict, command: str, payload: bytes,
+                      check: Callable[[], None] | None = None) -> tuple[int, bytes, bytes]:
         config = await self.config(node["profile"])
         if (config["hostname"], config["user"], config["port"]) != (
             node["host"], node["account"], node["port"]
@@ -172,16 +176,19 @@ class SSH:
                    "HostKeyAlias=ficc-pin", f"HostKeyAlgorithms={algorithms}",
                    "PermitLocalCommand=no", "RequestTTY=no"]
         args = self.prefix + [part for option in options for part in ("-o", option)]
+        if check:
+            check()
         return await run(args + ["--", node["profile"], command], payload)
 
-    async def install(self, node: dict) -> None:
-        code, _, stderr = await self.command(node, INSTALL, archive())
+    async def install(self, node: dict, check: Callable[[], None] | None = None) -> None:
+        code, _, stderr = await self.command(node, INSTALL, archive(), check=check)
         if code:
             raise transport_failure(stderr)
 
-    async def probe(self, node: dict, allow_missing: bool = False) -> dict | None:
+    async def probe(self, node: dict, allow_missing: bool = False,
+                    check: Callable[[], None] | None = None) -> dict | None:
         code, output, stderr = await self.command(
-            node, PROBE, b'{"version":"1","action":"resources"}\n')
+            node, PROBE, b'{"version":"1","action":"resources"}\n', check=check)
         if code == 42 and allow_missing:
             return None
         if code == 42:

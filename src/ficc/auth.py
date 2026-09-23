@@ -86,6 +86,17 @@ class Auth:
             self.store.db.execute("DELETE FROM credentials WHERE id=?", (credential_id,))
         self.store.audit("credential.revoke", credential_id, actor=actor)
 
+    def current(self, credential_id: str) -> Principal:
+        """Read current grants again before a queued operation is dispatched."""
+        with self.store.lock:
+            row = self.store.db.execute(
+                "SELECT id,label,scopes,nodes,csrf,kind,expires FROM credentials WHERE id=?",
+                (credential_id,)).fetchone()
+        if row is None or row[5] not in ("session", "token") or row[6] <= time.time():
+            raise Failure("unauthenticated", "Sign in to continue.", 401)
+        return Principal(row[0], row[1], json.loads(row[2]), json.loads(row[3]),
+                         row[4], row[5], row[6])
+
     def tokens(self) -> list[dict]:
         with self.store.lock:
             rows = self.store.db.execute(

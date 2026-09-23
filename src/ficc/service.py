@@ -4,6 +4,7 @@
 import asyncio
 import random
 import secrets
+import sqlite3
 import time
 
 from .auth import Auth
@@ -27,6 +28,7 @@ class Service:
         self.connections = asyncio.Semaphore(4)
         self.locks: dict[str, asyncio.Lock] = {}
         self.enrollment = asyncio.Lock()
+        self.poll_error = False
         saved = self.store.get_setting("profiles", [])
         self.profiles = sorted(set(saved) | set(settings.profiles))
         self.store.set_setting("profiles", self.profiles)
@@ -63,6 +65,12 @@ class Service:
         if self.settings.demo:
             raise Failure("demo_read_only", "Live changes are disabled in the simulated console.", 403)
 
+    def authorize(self, actor: str, scope: str, node_id: str | None = None) -> None:
+        value = self.auth.current(actor)
+        value.require(scope, node_id)
+        if scope == "nodes:write" and value.node_ids is not None:
+            raise Failure("denied", "An unrestricted credential is required.", 403)
+
     def view(self, node: dict) -> dict:
         result = {key: node[key] for key in PUBLIC_FIELDS}
         if self.settings.demo and node["id"] == "demo-1":
@@ -83,7 +91,10 @@ class Service:
         if len(self.previews) >= MAX_NODES or self.connections.locked():
             raise Failure("capacity", "The connection queue is full.", 429)
         async with self.connections:
-            value = await self.ssh.preview(profile, name)
+            def check():
+                self.authorize(actor, "nodes:write")
+            check()
+            value = await self.ssh.preview(profile, name, check=check)
         value["preview_id"] = secrets.token_hex(16)
         value["actor"] = actor
         self.previews[value["preview_id"]] = value
@@ -92,6 +103,9 @@ class Service:
     async def enroll(self, preview_id: str, expected: str, install: bool, actor: str) -> dict:
         self.live()
         async with self.enrollment:
+            def check():
+                self.authorize(actor, "nodes:write")
+            check()
             preview = self.previews.get(preview_id)
             if preview is None or preview["expires_at"] <= time.time() or preview["actor"] != actor:
                 raise Failure("preview_expired", "Create a new enrollment preview.", 409)
@@ -111,7 +125,9 @@ class Service:
             try:
                 if preview["helper_install_required"]:
                     async with self.connections:
-                        await self.ssh.install(node)
+                        check()
+                        await self.ssh.install(node, check=check)
+                check()
                 self.store.save_node(node)
                 result = (await self.refresh([node["id"]]))[0]
             except Failure:
@@ -120,7 +136,7 @@ class Service:
             self.store.audit("node.enroll", node["id"], result["state"], actor=actor)
             return result
 
-    async def refresh(self, node_ids: list[str]) -> list[dict]:
+    async def refresh(self, node_ids: list[str], actor: str | None = None) -> list[dict]:
         self.live()
         if len(node_ids) > MAX_NODES or len(set(node_ids)) != len(node_ids):
             raise Failure("invalid_nodes", "Select distinct machines within the limit.")
@@ -131,8 +147,13 @@ class Service:
             if lock.locked():
                 return self.view(self.store.node(node["id"]))
             async with lock, self.workers:
+                def check():
+                    if actor:
+                        self.authorize(actor, "nodes:read", node["id"])
+                        self.authorize(actor, "resources:read", node["id"])
+                check()
                 try:
-                    sample = await self.ssh.probe(node)
+                    sample = await self.ssh.probe(node, check=check)
                     if sample is None:
                         raise Failure("helper_missing", "The node helper is unavailable.", 502)
                     node.update(resources=sample["resources"], capabilities=sample["capabilities"],
@@ -157,6 +178,7 @@ class Service:
         while True:
             try:
                 await self.refresh([node["id"] for node in self.store.nodes()])
-            except Failure:
-                pass
+                self.poll_error = False
+            except (Failure, sqlite3.Error):
+                self.poll_error = True
             await asyncio.sleep(self.settings.poll_interval * random.uniform(0.9, 1.1))

@@ -37,6 +37,7 @@ def create_app(settings: Settings) -> FastAPI:
         if settings.control:
             await control.start()
         poller = asyncio.create_task(service.poll())
+        app.state.poller = poller
         try:
             yield
         finally:
@@ -139,7 +140,9 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.get("/api/v1/health")
     async def health():
-        return {"status": "ok", "version": __version__}
+        poller = getattr(app.state, "poller", None)
+        failed = service.poll_error or (not settings.demo and poller is not None and poller.done())
+        return {"status": "degraded" if failed else "ok", "version": __version__}
 
     @app.post("/api/v1/session")
     async def login(body: Bootstrap, request: Request):
@@ -187,7 +190,7 @@ def create_app(settings: Settings) -> FastAPI:
         value.require("nodes:read")
         for node_id in body.node_ids:
             value.require("resources:read", node_id)
-        return {"nodes": await service.refresh(body.node_ids)}
+        return {"nodes": await service.refresh(body.node_ids, actor=value.id)}
 
     @app.get("/api/v1/profiles")
     async def profiles(request: Request):

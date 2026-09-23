@@ -17,7 +17,7 @@ def test_distinct_batch_observations_are_bounded(console, monkeypatch, count):
     active = maximum = 0
     seen = []
 
-    async def probe(value):
+    async def probe(value, check=None):
         nonlocal active, maximum
         active += 1
         maximum = max(active, maximum)
@@ -48,7 +48,7 @@ def test_partial_failure_retains_sample_and_age(console, monkeypatch):
     value.update(resources=sample()["resources"], last_seen=time.time() - 8000, state="ready")
     service.store.save_node(value)
 
-    async def unavailable(value):
+    async def unavailable(value, check=None):
         raise Failure("unreachable", "The connection timed out.", 502)
 
     monkeypatch.setattr(service.ssh, "probe", unavailable)
@@ -71,14 +71,14 @@ def test_enrollment_requires_preview_actor_key_and_install_consent(console, monk
     client, service = console
     installs = []
 
-    async def preview(profile, name):
+    async def preview(profile, name, check=None):
         return {**node(), "profile": profile, "name": name, "trust": "trusted", "helper_version": None,
                 "helper_install_required": True, "warnings": [], "expires_at": time.time() + 60}
 
-    async def install(value):
+    async def install(value, check=None):
         installs.append(value["profile"])
 
-    async def probe(value):
+    async def probe(value, check=None):
         return sample()
 
     monkeypatch.setattr(service.ssh, "preview", preview)

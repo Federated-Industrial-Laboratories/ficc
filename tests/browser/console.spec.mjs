@@ -93,17 +93,37 @@ test('credential revocation prevents an existing bearer token from reading inven
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 
-test('the primary text palette meets the normal text contrast threshold', async () => {
-  function luminance(hex) {
-    const channels = hex.match(/\w\w/g).map(value => parseInt(value, 16) / 255)
+test('the primary text palette meets the normal text contrast threshold', async ({ page }) => {
+  await login(page);
+  const pairs = await page.evaluate(() => {
+    const main = document.querySelector('main');
+    const button = document.createElement('button');
+    button.className = 'primary'; button.textContent = 'Contrast sample';
+    const notice = document.createElement('div');
+    notice.className = 'notice'; notice.textContent = 'Contrast sample';
+    main.append(button, notice);
+    const select = (selector, background = selector) => {
+      const element = document.querySelector(selector), surface = document.querySelector(background);
+      if (!element || !surface) throw new Error(`Missing contrast surface: ${selector}`);
+      return { selector, foreground: getComputedStyle(element).color,
+        background: getComputedStyle(surface).backgroundColor };
+    };
+    const result = [select('main'), select('.subtitle', 'main'), select('button.primary'),
+      select('.badge.good'), select('.badge.warn'), select('.badge.bad'),
+      select('.status-strip'), select('.mode-banner'), select('.notice')];
+    button.remove(); notice.remove();
+    return result;
+  });
+  function luminance(color) {
+    const values = color.match(/[\d.]+/g).map(Number);
+    expect(values.length === 3 || values[3] === 1, `Opaque color: ${color}`).toBeTruthy();
+    const channels = values.slice(0, 3).map(value => value / 255)
       .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
     return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
   }
-  const pairs = [['202327', 'f6f4ef'], ['505862', 'ffffff'], ['202327', 'd97a12'],
-    ['24583d', 'edf6ef'], ['76400b', 'fff2df'], ['8f2923', 'fcefed'], ['ffffff', '30363d'],
-    ['633805', 'fff0db'], ['24445c', 'eff6fb']];
-  for (const [foreground, background] of pairs) {
+  expect(pairs).toHaveLength(9);
+  for (const { selector, foreground, background } of pairs) {
     const first = luminance(foreground), second = luminance(background);
-    expect((Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05)).toBeGreaterThanOrEqual(4.5);
+    expect((Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05), selector).toBeGreaterThanOrEqual(4.5);
   }
 });
