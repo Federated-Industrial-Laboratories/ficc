@@ -20,7 +20,7 @@ resource controls, cancellation, output bounds and CLI recovery. Launcher checks
 cover path quoting, service identity and readiness.
 
 Run actual SSH integration with a distribution
-OpenSSH server binary. The test server listens on a temporary loopback port and
+OpenSSH server binary and tmux. The test server listens on a temporary loopback port and
 uses generated keys, a temporary home and a private configuration.
 
 ```sh
@@ -57,3 +57,15 @@ Package checks install the wheel in a fresh environment. Verify that the node
 helper and web assets are present without access to the source checkout.
 Record source revision, commands, case counts, skips and exit status for each
 qualification. Performance limits require separate measured evidence.
+
+File checks cover root and entry identity, hostile names, permissions,
+previews, verified transfers, interruption, explicit cleanup and distinct
+1-entry/64-entry selections. Terminal checks use real PTYs and an isolated SSH
+server for binary bytes, resize, tmux detach/reattach and exact stop. Permission,
+ticket and bounded acknowledgement checks also cover active revocation.
+A private tmux fixture installation can use FICC_TEST_EXTRA_PATH for the SSH
+server PATH; production does not read this test setting.
+
+Exercise the complete installed browser workflow with synthetic files before
+claiming file transfer or interactive terminal support. Compare source and
+retrieved hashes independently, and test revocation while a terminal is open.

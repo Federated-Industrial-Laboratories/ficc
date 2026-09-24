@@ -152,8 +152,7 @@ class SSH:
             value["warnings"] = ["Verify this key independently and add it to local known hosts before enrollment."]
         return value
 
-    async def command(self, node: dict, command: str, payload: bytes,
-                      check: Callable[[], None] | None = None) -> tuple[int, bytes, bytes]:
+    async def arguments(self, node: dict, terminal: bool = False) -> list[str]:
         config = await self.config(node["profile"])
         if (config["hostname"], config["user"], config["port"]) != (
             node["host"], node["account"], node["port"]
@@ -178,11 +177,19 @@ class SSH:
                    "ServerAliveInterval=3", "ServerAliveCountMax=1", "UpdateHostKeys=no",
                    "GlobalKnownHostsFile=/dev/null", f"UserKnownHostsFile={key_path}",
                    "HostKeyAlias=ficc-pin", f"HostKeyAlgorithms={algorithms}",
-                   "PermitLocalCommand=no", "RequestTTY=no"]
+                   "PermitLocalCommand=no", "EscapeChar=none", "RemoteCommand=none",
+                   "ForkAfterAuthentication=no", "StdinNull=no", "SessionType=default",
+                   "RequestTTY=force" if terminal else "RequestTTY=no"]
         args = self.prefix + [part for option in options for part in ("-o", option)]
+        return args + ["--", node["profile"]]
+
+    async def command(self, node: dict, command: str, payload: bytes,
+                      check: Callable[[], None] | None = None,
+                      timeout: float = 10) -> tuple[int, bytes, bytes]:
+        args = await self.arguments(node)
         if check:
             check()
-        return await run(args + ["--", node["profile"], command], payload)
+        return await run(args + [command], payload, timeout=timeout)
 
     async def install(self, node: dict, check: Callable[[], None] | None = None) -> None:
         code, _, stderr = await self.command(node, INSTALL, archive(), check=check)

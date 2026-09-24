@@ -13,19 +13,22 @@ export class ApiError extends Error {
   }
 }
 
-export async function request(path, { method = 'GET', body, signal, idempotencyKey } = {}) {
+export async function request(path, { method = 'GET', body, signal, idempotencyKey, bytes, chunkHash } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 35000);
   const abort = () => controller.abort();
   signal?.addEventListener('abort', abort, { once: true });
+  if (signal?.aborted) controller.abort();
   const headers = { Accept: 'application/json' };
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (bytes !== undefined) headers['Content-Type'] = 'application/octet-stream';
+  if (chunkHash) headers['X-Chunk-SHA256'] = chunkHash;
   if (method !== 'GET' && session) headers['X-CSRF-Token'] = session.csrf;
   try {
     const response = await fetch(`/api/v1${path}`, {
       method, headers, credentials: 'same-origin', cache: 'no-store',
-      body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal,
+      body: bytes ?? (body === undefined ? undefined : JSON.stringify(body)), signal: controller.signal,
     });
     const result = await response.json();
     if (!response.ok) {

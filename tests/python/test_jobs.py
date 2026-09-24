@@ -266,7 +266,7 @@ def test_helper_upgrade_keeps_node_id_and_checks_consent(console, monkeypatch):
         if check:
             check()
         value = sample()
-        value.update(helper_version="2", capabilities={"resources": True, "jobs": True, "logout_persistent": False})
+        value.update(helper_version="3", capabilities={"resources": True, "jobs": True, "logout_persistent": False})
         return value
     monkeypatch.setattr(service.ssh, "install", install)
     monkeypatch.setattr(service.ssh, "probe", probe)
@@ -311,7 +311,7 @@ def test_upgrade_serializes_old_observation_and_returns_fresh_capabilities(conso
                 started.set()
                 await release.wait()
             else:
-                value.update(helper_version="2", capabilities={"jobs": True, "logout_persistent": False})
+                value.update(helper_version="3", capabilities={"jobs": True, "logout_persistent": False})
             return value
 
         async def install(node, check=None):
@@ -329,7 +329,7 @@ def test_upgrade_serializes_old_observation_and_returns_fresh_capabilities(conso
         await old
         result = await upgrade
         assert result["capabilities"]["jobs"]
-        assert service.store.node("node-0")["helper_version"] == "2"
+        assert service.store.node("node-0")["helper_version"] == "3"
         assert installed == ["node-0"] and len(probes) == 2
     asyncio.run(scenario())
 
@@ -349,7 +349,7 @@ def test_schema_one_migrates_without_losing_settings(tmp_path):
     store = Store(path)
     assert store.get_setting("preserved", False) is True
     version = store.db.execute("PRAGMA user_version").fetchone()[0]
-    assert version == 2
+    assert version == 3
     store.close()
     reopened = Store(path)
     assert reopened.get_setting("preserved", False) is True

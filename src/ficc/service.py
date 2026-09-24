@@ -6,13 +6,17 @@ import random
 import secrets
 import sqlite3
 import time
+from contextlib import asynccontextmanager
 
 from .auth import Auth
 from .errors import Failure
+from .files import Files
 from .jobs import Jobs
 from .settings import MAX_NODES, Settings
 from .ssh import SSH
 from .store import Store
+from .terminals import Terminals
+from .transfers import Transfers
 
 PUBLIC_FIELDS = {"id", "name", "profile", "host", "account", "fingerprint", "state",
                  "last_seen", "capabilities", "resources", "error"}
@@ -25,6 +29,9 @@ class Service:
         self.auth = Auth(self.store)
         self.jobs = Jobs(self)
         self.ssh = SSH(settings)
+        self.terminals = Terminals(self)
+        self.files = Files(self)
+        self.transfers = Transfers(self)
         self.previews: dict[str, dict] = {}
         self.workers = asyncio.Semaphore(16)
         self.connections = asyncio.Semaphore(4)
@@ -179,25 +186,32 @@ class Service:
         self.store.save_node(node)
         return self.view(node)
 
+    @asynccontextmanager
+    async def configuration(self, node_id: str):
+        lock = self.locks.setdefault(node_id, asyncio.Lock())
+        async with (self.enrollment, self.jobs.admission, self.files.admission,
+                    self.transfers.admission, self.terminals.lock, lock):
+            yield
+
     async def upgrade(self, node_id: str, expected: str, actor: str) -> dict:
         self.live()
-        lock = self.locks.setdefault(node_id, asyncio.Lock())
-        async with self.enrollment, self.jobs.admission, lock:
+        async with self.configuration(node_id):
             def check():
                 self.authorize(actor, "nodes:write", node_id)
             check()
             node = self.store.node(node_id)
             if node["fingerprint"] != expected:
                 raise Failure("host_key_changed", "The expected fingerprint does not match the enrolled machine.", 409)
-            if self.jobs.store.active(node_id):
-                raise Failure("node_busy", "Resolve active or unknown jobs before upgrading the helper.", 409)
+            if (self.jobs.store.active(node_id) or self.terminals.busy(node_id)
+                    or self.files.active(node_id=node_id) or self.transfers.active(node_id=node_id)):
+                raise Failure("node_busy", "Resolve active or unknown work before upgrading the helper.", 409)
             self.store.audit("helper.upgrade", node_id, "requested", actor)
             try:
                 async with self.connections:
                     await self.ssh.install(node, check=check)
                 async with self.workers:
                     result = await self.observe(node, check)
-                if self.store.node(node_id).get("helper_version") != "2" or result["error"]:
+                if self.store.node(node_id).get("helper_version") != "3" or result["error"]:
                     raise Failure("helper_upgrade_failed", "The upgraded helper could not be verified. Refresh and retry.", 502)
             except Failure:
                 self.store.audit("helper.upgrade", node_id, "failed", actor)

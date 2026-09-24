@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ficc"
-version = "0.1.0.dev2"
+version = "0.1.0.dev3"
 description = "Local Linux cluster console with OpenSSH connections."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-dependencies = ["fastapi==0.141.1", "uvicorn==0.53.0", "httpx==0.28.1"]
+dependencies = ["fastapi==0.141.1", "uvicorn==0.53.0", "httpx==0.28.1", "websockets==17.1"]
 
 [project.optional-dependencies]
 dev = [

@@ -22,7 +22,7 @@ configuration text from the browser or store SSH private keys.
 
 Browser sessions use short-lived login credentials and HttpOnly cookies.
 Origin, Host and CSRF checks apply to browser requests. API tokens have explicit
-scope, node access and expiry. Revoke unused credentials in Access or the CLI.
+scope, node/root access and expiry. Revoke unused credentials in Access or the CLI.
 
 Managed execution has the full authority of the remote SSH account. Limits and
 GPU visibility are resource controls, not a sandbox for hostile programs. Grant
@@ -42,3 +42,21 @@ against the account owner or system administrator.
 
 Dependency checks and a source scan run before integration. These checks do not
 replace code review or establish that software has no security defects.
+
+File roots are object capabilities within the trusted local or remote account.
+They refuse symlink traversal and bind registered directory identity. They do
+not isolate another program with the same account: an opened directory remains
+usable after external movement, and hard links can give an object other names.
+Keep root namespaces operator-managed. Detected changes are refused; continuous
+pathname confinement against a concurrent same-account writer is not promised.
+
+Interactive terminal execution has full remote-account authority. Ticket,
+Origin and current-grant checks protect attachment; revocation detaches the
+client. Persistent tmux sessions require a separate confirmed stop. Terminal
+bytes are untrusted, confined to the emulator and not recorded by FICC.
+
+The browser content policy permits inline styles for xterm's generated font,
+RGB color and contrast rules. Scripts remain restricted to local assets.
+Application code constructs labels with text nodes and does not render remote
+HTML. Terminal color values are parsed by the pinned emulator; remote terminal
+data does not become arbitrary CSS or HTML.

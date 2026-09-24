@@ -9,7 +9,9 @@ from pathlib import Path
 
 PROFILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\Z")
 SCOPES = {"nodes:read", "nodes:write", "resources:read", "tokens:manage", "audit:read",
-          "jobs:read", "jobs:execute", "jobs:cancel", "jobs:logs"}
+          "jobs:read", "jobs:execute", "jobs:cancel", "jobs:logs",
+          "files:read", "files:write", "files:mode", "files:delete",
+          "terminals:read", "terminals:execute", "terminals:stop"}
 MAX_NODES = 64
 MAX_MESSAGE = 1024 * 1024
 

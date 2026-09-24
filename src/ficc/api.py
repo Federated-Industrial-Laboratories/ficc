@@ -17,10 +17,13 @@ from . import __version__
 from .auth import Principal
 from .control import Control
 from .errors import Failure
+from .file_routes import install as install_file_routes
 from .job_routes import install as install_job_routes
 from .schema import Bootstrap, EnrolRequest, PreviewRequest, RefreshRequest
 from .service import Service
 from .settings import MAX_MESSAGE, Settings
+from .terminal_routes import install as install_terminal_routes
+from .transfer_routes import install as install_transfer_routes
 
 COOKIE = "ficc_session"
 
@@ -41,14 +44,27 @@ def create_app(settings: Settings) -> FastAPI:
         app.state.poller = poller
         job_poller = asyncio.create_task(service.jobs.poll())
         app.state.job_poller = job_poller
+        transfer_poller = asyncio.create_task(service.transfers.poll())
+        app.state.transfer_poller = transfer_poller
+        file_poller = asyncio.create_task(service.files.poll())
+        app.state.file_poller = file_poller
         try:
             yield
         finally:
             poller.cancel()
             job_poller.cancel()
+            transfer_poller.cancel()
+            file_poller.cancel()
+            with suppress(asyncio.CancelledError):
+                await file_poller
+            with suppress(asyncio.CancelledError):
+                await transfer_poller
+            await service.transfers.close()
+            await service.files.close()
             with suppress(asyncio.CancelledError):
                 await job_poller
             await service.jobs.close()
+            await service.terminals.close()
             with suppress(asyncio.CancelledError):
                 await poller
             if settings.control:
@@ -88,8 +104,10 @@ def create_app(settings: Settings) -> FastAPI:
         except TimeoutError:
             response = failure_response(Failure("request_timeout", "The request timed out.", 408))
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; "
-            "img-src 'self' data:; connect-src 'self'; object-src 'none'; "
+            "default-src 'self'; script-src 'self'; style-src 'self'; "
+            "style-src-elem 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; font-src 'self'; "
+            f"img-src 'self' data:; connect-src 'self' ws://127.0.0.1:{settings.port} "
+            f"ws://localhost:{settings.port}; object-src 'none'; "
             "base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
@@ -149,8 +167,10 @@ def create_app(settings: Settings) -> FastAPI:
     async def health():
         poller = getattr(app.state, "poller", None)
         job_poller = getattr(app.state, "job_poller", None)
-        failed = service.poll_error or service.jobs.failed or (not settings.demo and (
-            (poller is not None and poller.done()) or (job_poller is not None and job_poller.done())))
+        pollers = (poller, job_poller, getattr(app.state, "file_poller", None),
+                   getattr(app.state, "transfer_poller", None))
+        failed = service.poll_error or service.jobs.failed or (not settings.demo and any(
+            task is not None and task.done() for task in pollers))
         return {"status": "degraded" if failed else "ok", "version": __version__}
 
     @app.post("/api/v1/session")
@@ -227,10 +247,14 @@ def create_app(settings: Settings) -> FastAPI:
         service.live()
         service.store.node(node_id)
         unrestricted(value)
-        if service.jobs.store.active(node_id):
-            raise Failure("node_busy", "Resolve active or unknown jobs before forgetting this machine.", 409)
-        service.store.delete_node(node_id)
-        service.store.audit("node.forget", node_id, actor=value.id)
+        async with service.configuration(node_id):
+            service.authorize(value.id, "nodes:write", node_id)
+            if (service.jobs.store.active(node_id) or service.terminals.busy(node_id)
+                    or any(root["node_id"] == node_id for root in service.files.registered())
+                    or service.files.active(node_id=node_id) or service.transfers.active(node_id=node_id)):
+                raise Failure("node_busy", "Remove registered roots and resolve active work before forgetting this machine.", 409)
+            service.store.delete_node(node_id)
+            service.store.audit("node.forget", node_id, actor=value.id)
         if node_id in service.locks and not service.locks[node_id].locked():
             service.locks.pop(node_id)
         return {"ok": True}
@@ -238,7 +262,7 @@ def create_app(settings: Settings) -> FastAPI:
     @app.get("/api/v1/permissions")
     async def permissions(request: Request):
         value = principal(request)
-        return {"scopes": value.scopes, "node_ids": value.node_ids}
+        return {"scopes": value.scopes, "node_ids": value.node_ids, "root_ids": value.root_ids}
 
     @app.get("/api/v1/tokens")
     async def tokens(request: Request):
@@ -257,7 +281,10 @@ def create_app(settings: Settings) -> FastAPI:
         unrestricted(principal(request, "audit:read"))
         return {"events": service.store.events()}
 
+    install_file_routes(app, service, principal)
+    install_transfer_routes(app, service, principal)
     install_job_routes(app, service, principal)
+    install_terminal_routes(app, service, principal, origins, hosts)
 
     static = Path(__file__).parent / "static"
     if static.is_dir():

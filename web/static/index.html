@@ -11,6 +11,8 @@
   <link rel="icon" type="image/svg+xml" href="/static/mark.svg">
   <link rel="stylesheet" href="/static/console.css">
   <link rel="stylesheet" href="/static/jobs.css">
+  <link rel="stylesheet" href="/static/workspace.css">
+  <link rel="stylesheet" href="/static/vendor/xterm/xterm.css">
   <script type="module" src="/static/app.js"></script>
 </head>
 <body>
@@ -28,7 +30,7 @@
     <div class="console-layout">
       <aside class="sidebar">
         <p class="rail-title">CONTROL / 01</p>
-        <nav aria-label="Console"><button data-view="overview" aria-current="page"><span>01</span> Overview</button><button data-view="jobs"><span>02</span> Jobs</button><button data-view="access"><span>03</span> Access</button><button data-view="activity"><span>04</span> Activity</button></nav>
+        <nav aria-label="Console"><button data-view="overview" aria-current="page"><span>01</span> Overview</button><button data-view="jobs"><span>02</span> Jobs</button><button data-view="files"><span>03</span> Files</button><button data-view="terminals"><span>04</span> Terminals</button><button data-view="access"><span>05</span> Access</button><button data-view="activity"><span>06</span> Activity</button></nav>
         <div class="rail-note"><span class="rail-mark" aria-hidden="true">F / I</span><p>Local owner console.<br>Verified SSH transport.</p></div>
         <button id="sign-out" class="quiet" hidden>Sign out</button>
       </aside>
