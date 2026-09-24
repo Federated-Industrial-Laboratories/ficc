@@ -61,3 +61,20 @@ is separate from a token's restricted view of the inventory.
 Demonstration mode uses synthetic records and displays a simulation label.
 It disables remote enrollment, managed-job mutation and SSH collection. Demonstration results do not
 describe real machine health or resource capacity.
+
+## Coding agents and bus
+
+Schema4 adds bounded profiles, agents, runs, messages and delivery tables without
+expanding existing grants. Agent launches create exact ordinary tmux terminal
+records. A separate, host-initiated SSH exchange carries structured inbox items,
+outbox replies and delivery receipts; terminal keyboard bytes are never a bus
+control channel. Native OMP and Codex adapters remain version-gated; other runtimes
+use a registered local inbox tool. Private node spools carry no controller secret.
+
+Two relay exchanges run concurrently with per-agent coordination. Launch admission
+has a separate lock; a blocked node does not hold the healthy-node stop lock.
+Controller and node persistence precede acknowledgement. Runtime uncertainty is
+retained until matching session evidence exists. Closed-run archival publishes
+controller evidence before moving exact quiescent node spools and releasing host
+capacity. Backup and history maintenance include the combined schema and refuse
+unresolved agent work. See [agents](agents.md) and [bus](bus.md).

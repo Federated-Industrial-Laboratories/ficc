@@ -12,7 +12,8 @@ export function files() {
   const status = el('div'), locations = el('div'), history = el('div'), transferArea = el('div');
   const element = el('div', {}, heading('STORAGE / FILES', 'Files', 'Browse registered locations, verify transfers and confirm exact file changes.'),
     demo ? notice('Simulation mode. Live file changes and transfers are unavailable.') : null,
-    notice('Registered roots limit API access. Other programs in the same account are trusted; a shell can bypass these limits. An opened object may remain accessible if another program moves it.'),
+    el('details', { class: 'file-policy' }, el('summary', {}, 'File access boundaries'),
+      el('p', {}, 'Registered roots limit API access. Other programs in the same account are trusted; a shell can bypass these limits. An opened object may remain accessible if another program moves it.')),
     status, locations, transferArea, history);
   function refresh() { left?.refresh(); right?.refresh(); }
   function recorded() { refresh(); operations(); }

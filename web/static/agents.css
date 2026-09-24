@@ -1,0 +1,21 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Present compact process identities, explicit recipients and literal bus text. */
+.agent-dialog { width: min(760px, calc(100vw - 30px)); max-height: 90vh; overflow: auto; }
+.agent-dialog form { display: grid; gap: 9px; }
+.agent-dialog textarea { width: 100%; font: 13px/1.5 JetBrains, monospace; padding: 8px; border: 1px solid #78838e; resize: vertical; }
+.agent-command, .agent-path { overflow-wrap: anywhere; }
+.agent-command { white-space: pre-wrap; }
+.agent-inventory .table-scroll, .bus-inventory .table-scroll { max-height: 380px; }
+.agent-inventory thead, .bus-inventory thead { position: sticky; top: 0; z-index: 1; }
+.agent-inventory td:first-child { min-width: 160px; }
+.bus-recipients { max-height: 230px; overflow: auto; border: 1px solid #9ca6af; background: #fff; }
+.bus-recipients label { padding: 5px; border-bottom: 1px solid #e0e4e7; }
+.bus-recipients small, td > small { display: block; color: #505862; }
+.bus-run-toolbar, .bus-message-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; justify-content: space-between; }
+.bus-run-toolbar code { overflow-wrap: anywhere; min-width: 0; }
+.bus-messages { list-style: none; padding: 0; margin: 12px 0; }
+.bus-messages li { border: 1px solid #a2adb6; margin-bottom: 9px; padding: 10px; background: #fff; overflow-wrap: anywhere; }
+.bus-message-heading { padding-bottom: 6px; border-bottom: 1px solid #d5dbe0; margin-bottom: 5px; }
+.bus-message-heading span, .bus-message-heading time { color: #505862; font-size: 12px; }
+.bus-message-body { white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.5 JetBrains, monospace; margin: 12px 0; }
+.bus-messages p { margin-bottom: 0; }

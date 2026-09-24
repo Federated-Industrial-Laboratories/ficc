@@ -18,6 +18,18 @@ def main() -> int:
         from .terminals import attach
         attach(sys.argv[2], sys.argv[3])
         return 0
+    if len(sys.argv) == 4 and sys.argv[1] == "--run-agent":
+        from .agent_runner import run as run_agent
+        return run_agent(sys.argv[2], sys.argv[3])
+    if len(sys.argv) >= 3 and sys.argv[1] == "--agent-tool":
+        from .agent_tool import main as tool_main
+        return tool_main(sys.argv[2:])
+    if len(sys.argv) == 3 and sys.argv[1] == "--agent-adapter":
+        from .agent_adapter import main as adapter_main
+        raw = sys.stdin.buffer.read(32769)
+        if len(raw) > 32768:
+            raise ValueError("The adapter request exceeds capacity.")
+        return adapter_main(sys.argv[2], raw)
     request = {}
     try:
         raw = sys.stdin.buffer.readline(131073)
@@ -37,9 +49,12 @@ def main() -> int:
             except (OSError, ValueError):
                 files_available = False
             result["capabilities"].update(terminals=True, terminals_ephemeral=True, terminals_tmux=bool(shutil.which("tmux")),
-                                          files=files_available, history_archive=True)
+                                          files=files_available, history_archive=True, agents=bool(shutil.which("tmux")))
         elif isinstance(request, dict) and request.get("version") == "3":
-            if request.get("action") == "history.archive":
+            if str(request.get("action", "")).startswith("agent."):
+                from .agents import dispatch as agent_dispatch
+                result = {"version": "3", "result": agent_dispatch(request)}
+            elif request.get("action") == "history.archive":
                 from .history import dispatch as history_dispatch
                 result = {"version": "3", "result": history_dispatch(request)}
             elif str(request.get("action", "")).startswith("terminal."):
@@ -70,7 +85,7 @@ def main() -> int:
         return 0
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as exc:
         if (isinstance(request, dict) and request.get("version") == "3"
-                and not str(request.get("action", "")).startswith(("terminal.", "history."))):
+                and not str(request.get("action", "")).startswith(("terminal.", "history.", "agent."))):
             print(json.dumps({"version": "3", "error": {"code": "file_unavailable",
                               "message": "The file action could not be completed."}, "data_length": 0}))
             return 65

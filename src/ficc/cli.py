@@ -91,6 +91,8 @@ def parser() -> argparse.ArgumentParser:
     add_backup_commands(commands)
     from .history import add_commands as add_history_commands
     add_history_commands(commands)
+    from .agent_cli import add_commands as add_agent_commands
+    add_agent_commands(commands)
     return result
 
 
@@ -149,6 +151,9 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command.startswith("job-") or args.command == "helper-upgrade":
             from .job_cli import execute
             execute(args)
+        elif args.command.startswith(("agent-profile-", "bus-")):
+            from .agent_cli import execute as execute_agents
+            execute_agents(args)
         elif args.command.startswith("root-"):
             from .file_cli import execute as execute_files
             execute_files(args)

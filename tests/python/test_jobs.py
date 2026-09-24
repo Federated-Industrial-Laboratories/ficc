@@ -349,7 +349,7 @@ def test_schema_one_migrates_without_losing_settings(tmp_path):
     store = Store(path)
     assert store.get_setting("preserved", False) is True
     version = store.db.execute("PRAGMA user_version").fetchone()[0]
-    assert version == 3
+    assert version == 4
     store.close()
     reopened = Store(path)
     assert reopened.get_setting("preserved", False) is True

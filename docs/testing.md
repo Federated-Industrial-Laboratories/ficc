@@ -83,3 +83,16 @@ server PATH; production does not read this test setting.
 Exercise the complete installed browser workflow with synthetic files before
 claiming file transfer or interactive terminal support. Compare source and
 retrieved hashes independently, and test revocation while a terminal is open.
+
+Explorer browser checks cover sorting, filtering, keyboard column resizing,
+opaque selection identities and obsolete listing replies. Terminal workspace
+checks use local xterm rendering for machine tabs, split geometry, focus, hidden
+output, explicit attachment, fullscreen and disposal. Distinct 1-session and
+64-session routing checks reuse the bounded concurrent attachment capacity.
+
+Agent and bus browser checks cover exact launch previews, explicit recipients,
+1-agent and 64-agent selections, lost-response retries, permission loss, literal
+message rendering and receipt stages. Browser fixtures do not establish native
+agent protocol behavior. Test the installed adapter version separately, with
+its actual extension or Unix endpoint, and exercise an isolated node workflow.
+An accepted message is not evidence of completed agent work.

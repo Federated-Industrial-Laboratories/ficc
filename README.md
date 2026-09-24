@@ -13,7 +13,10 @@ metrics, authentication failures and changed host keys.
 Managed jobs add bounded CPU/RAM use, durable output and recovery after a local
 controller restart. GPU reservations are advisory. Registered file roots support
 verified transfers and explicit file changes. Interactive SSH and tmux terminals
-provide one-node access. Shared remote access remains outside this version.
+use a tiled workspace with machine tabs and fullscreen controls. Registered
+coding agents retain their native terminal interface. A host-owned message bus
+provides explicit recipients, direct adapters and a generic tool-readable inbox.
+Shared remote access remains outside this version.
 Existing SSH tools continue to work.
 
 Stopped-controller backups preserve state and remove credentials. An explicit
@@ -132,6 +135,7 @@ or with `ficc token-revoke ID`. Keep the output file private and delete it when
 no longer needed. Never put token values in shell arguments or source files.
 
 See [files](docs/files.md), [terminals](docs/terminals.md),
+[coding agents](docs/agents.md), [agent bus](docs/bus.md),
 [managed jobs](docs/jobs.md), [API](docs/api.md), [operations](docs/operations.md),
 [backup and restore](docs/backup.md), [history archives](docs/history.md),
 [architecture](docs/architecture.md), [security](SECURITY.md),

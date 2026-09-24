@@ -1,3 +1,28 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
-<!-- Identify the cluster console with a geometric monogram. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#d97a12" d="M0 0h48v48H0z"/><path fill="#202327" d="M8 8h24v7H15v6h14v7H15v12H8zm27 0h6v32h-6z"/></svg>
+<!-- Identify the console with three linked, dimensional cluster modules. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <defs>
+    <linearGradient id="top" x2="0.8" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#c9d3dd"/></linearGradient>
+    <linearGradient id="front" x2="0.2" y2="1"><stop stop-color="#f6f8fa"/><stop offset="0.55" stop-color="#becbd6"/><stop offset="1" stop-color="#8296a8"/></linearGradient>
+    <linearGradient id="orange" x2="0.2" y2="1"><stop stop-color="#ffc671"/><stop offset="0.45" stop-color="#ed952c"/><stop offset="1" stop-color="#b85c08"/></linearGradient>
+    <radialGradient id="shadow"><stop stop-color="#324454" stop-opacity=".3"/><stop offset="1" stop-color="#324454" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="41" cy="68" rx="36" ry="10" fill="url(#shadow)"/>
+  <path d="M23 51 40 62 58 51M40 62V35" fill="none" stroke="#738797" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M23 49 40 60 58 49M40 60V34" fill="none" stroke="#f4f7f9" stroke-width="2"/>
+  <g stroke="#536b7d" stroke-width="1.1" stroke-linejoin="round">
+    <path d="m28 10 17-7 16 9-17 8Z" fill="url(#top)"/>
+    <path d="m28 10 16 10v23L28 33Z" fill="url(#front)"/>
+    <path d="m44 20 17-8v22l-17 9Z" fill="#718a9e"/>
+    <path d="m7 40 17-8 16 10-17 8Z" fill="#fff0d8"/>
+    <path d="m7 40 16 10v23L7 63Z" fill="url(#orange)"/>
+    <path d="m23 50 17-8v23l-17 8Z" fill="#a85b16"/>
+    <path d="m45 41 17-8 13 9-16 8Z" fill="url(#top)"/>
+    <path d="m45 41 14 9v22l-14-9Z" fill="url(#front)"/>
+    <path d="m59 50 16-8v22l-16 8Z" fill="#718a9e"/>
+  </g>
+  <g fill="none" stroke-linecap="square">
+    <path d="m31 16 9 6m-9 1 9 6m9-6 8-4m-8 11 8-4m-8 31 7 4m8-7 8-4m-8 11 8-4" stroke="#eaf0f5" stroke-width="1.4"/>
+    <path d="m11 47 8 5m-8 1 8 5m-8 1 8 5" stroke="#fff3d9" stroke-width="1.4"/>
+  </g>
+</svg>

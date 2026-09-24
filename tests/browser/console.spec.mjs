@@ -74,7 +74,7 @@ test('the local console uses local assets and a restrictive content policy', asy
   await login(page);
   await page.evaluate(() => document.fonts.ready);
   expect([...destinations]).toEqual([origin]);
-  expect(await page.evaluate(() => document.fonts.check('16px Barlow'))).toBe(true);
+  expect(await page.evaluate(() => document.fonts.check('21px Michroma'))).toBe(true);
 });
 
 test('credential revocation prevents an existing bearer token from reading inventory', async ({ page }) => {
@@ -106,10 +106,17 @@ test('the primary text palette meets the normal text contrast threshold', async 
     notice.className = 'notice'; notice.textContent = 'Contrast sample';
     main.append(button, notice);
     const select = (selector, background = selector) => {
-      const element = document.querySelector(selector), surface = document.querySelector(background);
+      const element = document.querySelector(selector);
+      let surface = document.querySelector(background);
       if (!element || !surface) throw new Error(`Missing contrast surface: ${selector}`);
       return { selector, foreground: getComputedStyle(element).color,
-        background: getComputedStyle(surface).backgroundColor };
+        background: (() => {
+          let color = getComputedStyle(surface).backgroundColor;
+          while (surface.parentElement && (color === 'transparent' || color === 'rgba(0, 0, 0, 0)')) {
+            surface = surface.parentElement; color = getComputedStyle(surface).backgroundColor;
+          }
+          return color;
+        })() };
     };
     const result = [select('main'), select('.subtitle', 'main'), select('button.primary'),
       select('.badge.good'), select('.badge.warn'), select('.badge.bad'),

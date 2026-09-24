@@ -123,3 +123,44 @@ Binary frames carry raw input/output. Text controls are
 ACK counts newly processed output bytes, not characters or socket receipt.
 The server sends {"type":"status","state":"attached"} and explicit exit/error
 states. See [terminals](terminals.md) for bounds, reattachment and grant semantics.
+
+## Agent and bus routes
+
+GET `/api/v1/agent-profiles` returns registered profiles visible under
+`agents:read`. Owner-only profile registration uses the private local socket.
+GET `/api/v1/agents` and `/api/v1/agents/{id}` return runtime, node, run and
+terminal identities, delivery capability, state and observed contact time.
+
+POST `/api/v1/agent-previews` takes `profile_id`, `label`, `run_id`, `cols` and
+`rows`. It requires `agents:execute` and `bus:send` for the selected enrollment.
+POST `/api/v1/agents` takes `preview_id`, `idempotency_key` and
+`confirm_execution:true`. Repeated matching requests return the saved agent;
+an uncertain launch is never automatically repeated. POST `/{id}/stop` requires
+`agents:stop` and `confirm_stop:true`. POST `/{id}/reconcile` uses
+`agents:execute` and queries the saved identity. POST `/{id}/rebind` requires
+`agents:execute`, `runtime_session_id` and `confirm_rebind:true`; the requested
+ID must equal the node's observed changed session. Attachment uses the ordinary
+terminal ticket route and terminal execution scope.
+
+GET `/api/v1/bus/runs` requires `bus:read`. POST takes `name` and
+`idempotency_key` under `bus:send`. GET `/{id}/messages` takes optional `after`
+(nonnegative ordinal) and `limit` (1-100), returning `messages` and `next_after`
+(null when no further page exists). POST takes `type`, validated `body`, explicit
+`recipient_ids` (at most64), `delivery` (`inbox` or `direct`), optional `reply_to`,
+`idempotency_key` and `confirm_delivery:true`. It returns a canonical `message`
+and separate `deliveries`. POST `/{id}/close` takes `confirm_close:true` and
+refuses unresolved deliveries or active agents. A restricted credential must
+cover every node enrolled in a run before viewing its shared message content.
+
+GET `/api/v1/bus/deliveries` accepts optional `run_id` and returns the newest
+1,000 visible receipts. Receipt states describe storage and inclusion layers,
+never work completion. Node replies bind sender identity and run from the saved
+launch record and use its original grant. No API endpoint accepts a host bus
+file path. See [agents](agents.md) and [bus](bus.md) for tooling, resource limits,
+revocation and explicit archival.
+
+Agent records can include `outbox_rejections`, the latest 16 permanent reply
+refusals. Each summary contains `id`, `code`, `detail` (at most 240 characters),
+and `rejected_at` (Unix seconds). These are separate from bus delivery receipts
+and do not claim host storage. Exact rejected content remains in the node spool
+and is available through the registered local `rejects` and `rejected` tools.

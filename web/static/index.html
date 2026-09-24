@@ -12,6 +12,9 @@
   <link rel="stylesheet" href="/static/console.css">
   <link rel="stylesheet" href="/static/jobs.css">
   <link rel="stylesheet" href="/static/workspace.css">
+  <link rel="stylesheet" href="/static/file-explorer.css">
+  <link rel="stylesheet" href="/static/terminal-workspace.css">
+  <link rel="stylesheet" href="/static/agents.css">
   <link rel="stylesheet" href="/static/vendor/xterm/xterm.css">
   <script type="module" src="/static/app.js"></script>
 </head>
@@ -20,7 +23,7 @@
   <div class="shell">
     <div class="shell-cap" aria-hidden="true"><span></span><i></i><i></i><i></i></div>
     <header class="masthead">
-      <div class="brand"><img src="/static/mark.svg" alt="" width="48" height="48">
+      <div class="brand"><img src="/static/mark.svg" alt="" width="64" height="64">
         <div><span class="wordmark">FICC</span><p>Federated Industrial Cluster Commander</p></div>
       </div>
       <div class="owner"><span class="eyebrow">LOCAL CONTROL INTERFACE</span><strong id="account">Session required</strong></div>
@@ -30,7 +33,7 @@
     <div class="console-layout">
       <aside class="sidebar">
         <p class="rail-title">CONTROL / 01</p>
-        <nav aria-label="Console"><button data-view="overview" aria-current="page"><span>01</span> Overview</button><button data-view="jobs"><span>02</span> Jobs</button><button data-view="files"><span>03</span> Files</button><button data-view="terminals"><span>04</span> Terminals</button><button data-view="access"><span>05</span> Access</button><button data-view="activity"><span>06</span> Activity</button></nav>
+        <nav aria-label="Console"><button data-view="overview" aria-current="page"><span>01</span> Overview</button><button data-view="jobs"><span>02</span> Jobs</button><button data-view="files"><span>03</span> Files</button><button data-view="terminals"><span>04</span> Terminals</button><button data-view="agents"><span>05</span> Agents</button><button data-view="bus"><span>06</span> Bus</button><button data-view="access"><span>07</span> Access</button><button data-view="activity"><span>08</span> Activity</button></nav>
         <div class="rail-note"><span class="rail-mark" aria-hidden="true">F / I</span><p>Local owner console.<br>Verified SSH transport.</p></div>
         <button id="sign-out" class="quiet" hidden>Sign out</button>
       </aside>

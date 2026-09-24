@@ -172,6 +172,11 @@ class Terminals:
 
     async def stop(self, terminal_id: str, actor: str) -> dict:
         self.service.live()
+        bound = self.get(terminal_id)
+        if bound.get("agent_id"):
+            self.check(actor, "terminals:stop", bound)
+            await self.service.agents.action(bound["agent_id"], actor, "stop")
+            return self.view(self.get(terminal_id))
         async with self.lock:
             value = self.get(terminal_id)
             self.check(actor, "terminals:stop", value)

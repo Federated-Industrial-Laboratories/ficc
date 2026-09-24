@@ -30,6 +30,18 @@ mode changes fail without using a pathname fallback.
 
 ## Browse and edit
 
+Each pane has an address bar, an Up button and a separate scrollable table.
+Select a column heading to sort the current page. Drag its divider to resize it;
+focused dividers also accept arrow keys, Home and End. Sorting retains selection
+by entry identity. The filter searches names on the current page, clears old
+selection and limits Select page to the visible entries. It does not search the
+whole directory or subsequent pages.
+
+Click a row to select it. Ctrl or Command toggles a row; Shift selects a range.
+Arrow keys move row focus, Space toggles selection and Enter opens a directory
+or previews a supported file. Changing the machine, location, directory or page
+clears selection and the page filter. The status bar shows the selection count.
+
 Entries show type, byte size, modification time, numeric owner/group and mode.
 Names with invalid UTF-8 or control bytes use escaped display text. Selection
 uses an opaque identity, so changing a displayed name cannot redirect an action.

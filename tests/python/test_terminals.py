@@ -247,7 +247,7 @@ def test_schema_two_preserves_existing_credential_grants(tmp_path):
         assert principal.root_ids is None
         with pytest.raises(Failure):
             principal.require("files:read", "node-0", "any-root")
-        assert store.db.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert store.db.execute("PRAGMA user_version").fetchone()[0] == 4
     finally:
         store.close()
 
