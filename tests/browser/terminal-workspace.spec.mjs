@@ -56,13 +56,13 @@ test('four panes keep independent byte targets and the fifth attachment is refus
   for (const record of records.slice(0, 4)) {
     await attach(page, state, record); await page.keyboard.type(`input-${record.id}-`);
   }
-  for (const [index, connection] of state.connections.entries()) expect(inputs(connection)).toBe(`input-${records[index].id}-`);
+  await expect.poll(() => state.connections.map(inputs)).toEqual(records.slice(0, 4).map(record => `input-${record.id}-`));
   await expect(page.getByRole('button', { name: 'Split right' })).toBeDisabled();
   await page.locator(`[data-focus="attach-${records[4].id}"]`).click();
   await expect(page.getByText('Workspace limit reached:', { exact: false })).toBeVisible();
   expect(state.tickets).toHaveLength(4); await expect(page.locator('.terminal-tile')).toHaveCount(4);
   await tile(page, records[0]).getByRole('button', { name: 'Focus terminal' }).click(); await page.keyboard.type('first-again');
-  expect(inputs(state.connections[0])).toBe(`input-${records[0].id}-first-again`);
+  await expect.poll(() => inputs(state.connections[0])).toBe(`input-${records[0].id}-first-again`);
   for (const [index, connection] of state.connections.slice(1).entries()) expect(inputs(connection)).toBe(`input-${records[index + 1].id}-`);
   await capture(page, 'terminal-four-panes');
 });
@@ -88,7 +88,7 @@ test('machine tabs preserve hidden output ACKs and prohibit hidden input and res
   await expect(first.locator('.xterm-rows')).toContainText('hidden π');
   await first.getByRole('button', { name: 'Focus terminal' }).click(); await page.keyboard.type('revealed');
   await expect.poll(() => controls(state.connections[0], 'resize').length).toBeGreaterThan(resizeCount);
-  expect(inputs(state.connections[0])).toBe('revealed'); expect(inputs(state.connections[1])).toBe('visible');
+  await expect.poll(() => state.connections.map(inputs)).toEqual(['revealed', 'visible']);
   expect(state.tickets).toHaveLength(2);
 });
 
@@ -159,7 +159,7 @@ test('page lifecycle detaches all panes and allows explicit attachment after ret
   await page.locator(`[data-focus="attach-${record.id}"]`).click();
   await expect.poll(() => state.tickets.length).toBe(2);
   await tile(page, record).getByRole('button', { name: 'Focus terminal' }).click(); await page.keyboard.type('returned');
-  expect(inputs(state.connections[1])).toBe('returned');
+  await expect.poll(() => inputs(state.connections[1])).toBe('returned');
 });
 
 test('read revocation clears every visible and hidden pane', async ({ page }) => {
@@ -204,7 +204,7 @@ test('open by exact record identity focuses an existing tile without duplicate t
   await expect(tile(page, records[1]).getByRole('button', { name: 'Focus terminal' })).toBeEnabled();
   await page.evaluate(id => window.dispatchEvent(new CustomEvent('ficc-open-terminal', { detail: { terminalId: id } })), records[0].id);
   await expect(tile(page, records[0])).toBeVisible(); await page.keyboard.type('exact-first');
-  expect(inputs(state.connections[0])).toBe('exact-first'); expect(inputs(state.connections[1])).toBe('');
+  await expect.poll(() => state.connections.map(inputs)).toEqual(['exact-first', '']);
   expect(state.tickets).toHaveLength(2);
 });
 
@@ -224,7 +224,7 @@ test('fullscreen entry, exit and denial keep tile identity and connections', asy
   await page.getByRole('button', { name: 'Enter fullscreen', exact: true }).click();
   await expect(page.getByText('Browser fullscreen is unavailable.', { exact: false })).toBeVisible();
   await tile(page, record).getByRole('button', { name: 'Focus terminal' }).click(); await page.keyboard.type('still-connected');
-  expect(inputs(state.connections[0])).toBe('still-connected'); expect(state.tickets).toHaveLength(1);
+  await expect.poll(() => inputs(state.connections[0])).toBe('still-connected'); expect(state.tickets).toHaveLength(1);
 });
 
 for (const width of [390, 768, 1280, 1920]) test(`split workspace stays usable at ${width}px and double zoom`, async ({ page }) => {

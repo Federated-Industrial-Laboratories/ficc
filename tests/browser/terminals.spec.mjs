@@ -178,8 +178,7 @@ test('switching machines preserves both connections and selects one keyboard tar
   await expect(page.locator('.terminal-identity:visible')).toContainText('Sample machine 2 / operator');
   await expect(page.locator('.xterm-helper-textarea')).toHaveCount(2);
   await page.keyboard.type('second');
-  expect(Buffer.concat(state.connections[0].frames.filter(Buffer.isBuffer)).toString()).toBe('first');
-  expect(Buffer.concat(state.connections[1].frames.filter(Buffer.isBuffer)).toString()).toBe('second');
+  await expect.poll(() => state.connections.map(connection => Buffer.concat(connection.frames.filter(Buffer.isBuffer)).toString())).toEqual(['first', 'second']);
   expect(state.connections.map(item => item.closed)).toEqual([false, false]);
 });
 
