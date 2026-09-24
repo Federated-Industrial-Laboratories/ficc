@@ -54,13 +54,26 @@ class Control:
             peer = writer.get_extra_info("socket").getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
             if struct.unpack("3i", peer)[1] != os.getuid() or len(self.clients) > 16:
                 return
-            async with asyncio.timeout(3):
+            async with asyncio.timeout(45):
                 data = await reader.readline()
                 if len(data) > 8192:
                     return
                 request = json.loads(data)
                 action = request.get("action")
                 auth = self.service.auth
+                if action in {"root-add", "root-list", "root-remove"}:
+                    self.service.live()
+                    if action == "root-add":
+                        response = await self.service.files.register(
+                            request["path"], request["label"], request.get("node_id"), request.get("read_only", False))
+                    elif action == "root-remove":
+                        self.service.files.unregister(request["root_id"])
+                        response = {"ok": True}
+                    else:
+                        response = {"roots": self.service.files.registered()}
+                    writer.write(json.dumps(response).encode() + b"\n")
+                    await writer.drain()
+                    return
                 if action == "bootstrap":
                     secret, principal = auth.issue("bootstrap", lifetime=60)
                 elif action == "job-credential":
@@ -71,7 +84,7 @@ class Control:
                 elif action == "token":
                     secret, principal = auth.issue(
                         "token", label=request["label"], scopes=request["scopes"],
-                        node_ids=request.get("node_ids"), lifetime=request.get("lifetime", 3600))
+                        node_ids=request.get("node_ids"), root_ids=request.get("root_ids"), lifetime=request.get("lifetime", 3600))
                     self.service.store.audit("credential.create", principal.id)
                 elif action == "revoke":
                     auth.revoke(request["id"])
@@ -84,7 +97,11 @@ class Control:
                             "origin": self.service.settings.origin, "expires_at": principal.expires_at}
                 writer.write(json.dumps(response).encode() + b"\n")
                 await writer.drain()
-        except (KeyError, ValueError, TypeError, TimeoutError, Failure):
+        except Failure as exc:
+            with suppress(ConnectionError):
+                writer.write(json.dumps({"error": exc.code, "message": exc.message}).encode() + b"\n")
+                await writer.drain()
+        except (KeyError, ValueError, TypeError, TimeoutError):
             with suppress(ConnectionError):
                 writer.write(b'{"error":"local_request_failed"}\n')
                 await writer.drain()

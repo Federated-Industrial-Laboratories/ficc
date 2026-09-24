@@ -11,8 +11,9 @@ scoped API tokens and audit history. It distinguishes old samples, unavailable
 metrics, authentication failures and changed host keys.
 
 Managed jobs add bounded CPU/RAM use, durable output and recovery after a local
-controller restart. GPU reservations are advisory. File management, interactive
-terminals and shared remote access remain outside this development version.
+controller restart. GPU reservations are advisory. Registered file roots support
+verified transfers and explicit file changes. Interactive SSH and tmux terminals
+provide one-node access. Shared remote access remains outside this version.
 Existing SSH tools continue to work.
 
 ## Requirements
@@ -123,7 +124,8 @@ Add `--node ID` to restrict it to specific machines. Revoke a token in Access
 or with `ficc token-revoke ID`. Keep the output file private and delete it when
 no longer needed. Never put token values in shell arguments or source files.
 
-See [managed jobs](docs/jobs.md), [API](docs/api.md), [operations](docs/operations.md),
+See [files](docs/files.md), [terminals](docs/terminals.md),
+[managed jobs](docs/jobs.md), [API](docs/api.md), [operations](docs/operations.md),
 [architecture](docs/architecture.md), [security](SECURITY.md),
 [testing](docs/testing.md) and [contribution procedure](CONTRIBUTING.md).
 

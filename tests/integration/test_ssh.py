@@ -44,6 +44,10 @@ def ssh_fixture(tmp_path):
         "PasswordAuthentication no", "KbdInteractiveAuthentication no", "UsePAM no",
         "StrictModes no", f"AllowUsers {user}", f"SetEnv HOME={home}", "LogLevel ERROR", "",
     ]))
+    extra_path = os.environ.get("FICC_TEST_EXTRA_PATH")
+    if extra_path:
+        server_config.write_text(server_config.read_text().replace(
+            f"SetEnv HOME={home}", f"SetEnv HOME={home} PATH={extra_path}:/usr/bin:/bin"))
     known = tmp_path / "known_hosts"
     known.write_text(f"[127.0.0.1]:{port} " + (tmp_path / "host.pub").read_text())
     client_config = tmp_path / "ssh_config"

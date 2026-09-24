@@ -13,7 +13,10 @@ The installed service provides observation, access management and durable jobs.
 Typed requests travel to the helper through SSH stdin. A fixed node runner reads
 saved arguments and starts programs under bounded systemd user services. SQLite
 intent and node receipts support reconciliation after a controller restart.
-File management and interactive terminals remain later development work.
+Registered roots and verified file transfers use descriptor-relative helper
+operations. Interactive terminals connect pinned OpenSSH through a supervised
+PTY and an authenticated, flow-controlled WebSocket. Local xterm.js assets
+render terminal bytes. Persistent sessions use a separate tmux namespace.
 
 ## Connections
 

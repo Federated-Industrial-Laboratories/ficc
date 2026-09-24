@@ -55,7 +55,7 @@ class Sample(Model):
     monotonic_seconds: Number
     capabilities: Annotated[dict[Text, bool | Text], Field(max_length=16)]
     resources: Resources
-    helper_version: Literal["1", "2"]
+    helper_version: Literal["1", "2", "3"]
     python_version: Text
 
 

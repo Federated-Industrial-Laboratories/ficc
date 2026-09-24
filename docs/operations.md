@@ -82,6 +82,9 @@ notes. Do not run two service processes against the same state directory.
 Use a new empty state directory if a development schema is incompatible.
 
 The managed-job version migrates controller state from schema 1 to schema 2.
+The files/terminals version migrates schema 1 or 2 to schema 3 and helper 3
+continues resource protocol 1 and job protocol 2. Previous versions refuse
+schema 3. Stop the service and keep a complete private pre-upgrade copy first.
 The older observation-only version refuses schema 2. A downgrade needs its
 pre-upgrade state copy; restoring that copy loses subsequent job records and
 must wait until those jobs are reconciled. Preserve the current state as well.

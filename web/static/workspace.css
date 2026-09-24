@@ -1,0 +1,39 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Keep file locations and one terminal keyboard target clear at every width. */
+.page-heading { flex-wrap: wrap; }
+.page-heading > div { min-width: 0; max-width: 100%; }
+.terminal-dialog { width: min(700px, calc(100vw - 32px)); }
+.terminal-session { margin-top: 24px; padding: 16px; border: 1px solid #8a929a; background: #f6f4ef; box-shadow: 0 3px #d0d4d7; }
+.terminal-identity { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 4px 0 16px; overflow-wrap: anywhere; }
+.terminal-identity strong { font-size: 20px; }
+.terminal-identity span { color: #685036; font-size: 14px; letter-spacing: .06em; }
+.terminal-actions { margin: 14px 0; }
+.terminal-well { height: 460px; padding: 10px; background: #242a31; border: 1px solid #10151b; min-width: 0; overflow: hidden; }
+.terminal-well .xterm { height: 100%; }
+.terminal-well .xterm:focus-within { outline: 2px solid #f3a94e; outline-offset: 3px; }
+.terminal-session > .muted { margin-bottom: 0; }
+.account-line { display: block; }
+.file-panes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.file-pane { min-width: 0; }
+.file-pane .panel-body { padding: 14px; }
+.file-location { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.file-location label { margin-top: 0; }
+.file-location select { max-width: 100%; }
+.file-breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0; min-width: 0; }
+.file-breadcrumbs button { padding: 7px; font-size: 14px; overflow-wrap: anywhere; }
+.file-actions { margin: 12px 0; gap: 8px; }
+.file-actions button { font-size: 14px; padding: 7px 10px; }
+.file-pane .table-scroll { max-height: 470px; }
+.file-pane table { min-width: 740px; }
+.file-name { white-space: pre-wrap; min-width: 160px; max-width: 300px; overflow-wrap: anywhere; }
+.file-copy-actions { justify-content: center; margin: 4px 0 24px; }
+.file-dialog { width: min(820px, calc(100vw - 32px)); }
+.file-preview-summary, .file-content { font: 13px/1.6 JetBrains, monospace; white-space: pre-wrap; overflow-wrap: anywhere; padding: 14px; background: #eef0f2; border: 1px solid #aab2b9; max-height: 360px; overflow: auto; }
+.file-content { background: #242a31; color: #f6f4ef; }
+.file-selected-names { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.transfer-hash { max-width: 300px; font-size: 13px; }
+.file-transfers { margin: 20px 0; }
+.button-link { display: inline-block; padding: 8px 12px; border: 1px solid #79848d; color: #202327; background: #f6f4ef; white-space: nowrap; text-decoration: none; }
+@media (max-width: 1180px) { .file-panes { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 800px) { .sidebar nav { flex-wrap: wrap; }.sidebar nav button { flex: 1 0 30%; } }
+@media (max-width: 600px) { .terminal-session { padding: 10px; }.terminal-well { height: 360px; padding: 5px; } }

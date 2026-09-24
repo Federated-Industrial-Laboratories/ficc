@@ -67,7 +67,10 @@ test('the local console uses local assets and a restrictive content policy', asy
   page.on('request', request => destinations.add(new URL(request.url()).origin));
   const response = await page.goto(origin);
   expect(response.headers()['content-security-policy']).toContain("script-src 'self'");
-  expect(response.headers()['content-security-policy']).not.toContain('unsafe-inline');
+  const policy = response.headers()['content-security-policy'];
+  expect(policy.match(/script-src[^;]*/)?.[0]).toBe("script-src 'self'");
+  expect(policy).toContain("style-src-elem 'self' 'unsafe-inline'");
+  expect(policy).toContain("style-src-attr 'unsafe-inline'");
   await login(page);
   await page.evaluate(() => document.fonts.ready);
   expect([...destinations]).toEqual([origin]);

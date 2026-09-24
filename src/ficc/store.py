@@ -32,7 +32,7 @@ class Store:
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA synchronous=FULL")
         version = self.db.execute("PRAGMA user_version").fetchone()[0]
-        if version not in (0, 1, 2):
+        if version not in (0, 1, 2, 3):
             self.db.close()
             raise ValueError("The state schema is not supported.")
         self.db.executescript("""
@@ -46,10 +46,12 @@ class Store:
                 action TEXT NOT NULL, target TEXT NOT NULL, outcome TEXT NOT NULL,
                 actor TEXT NOT NULL DEFAULT 'local-owner');
             CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-            PRAGMA user_version=2;
+            PRAGMA user_version=3;
         """)
         if "actor" not in {row[1] for row in self.db.execute("PRAGMA table_info(audit)")}:
             self.db.execute("ALTER TABLE audit ADD COLUMN actor TEXT NOT NULL DEFAULT 'local-owner'")
+        if "roots" not in {row[1] for row in self.db.execute("PRAGMA table_info(credentials)")}:
+            self.db.execute("ALTER TABLE credentials ADD COLUMN roots TEXT NOT NULL DEFAULT 'null'")
         self.db.commit()
 
     def close(self) -> None:

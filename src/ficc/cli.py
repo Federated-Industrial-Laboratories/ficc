@@ -26,7 +26,7 @@ def local_request(state_dir: Path, request: dict) -> dict:
     if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
         raise ValueError("The local service socket is not private.")
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as stream:
-        stream.settimeout(5)
+        stream.settimeout(60)
         stream.connect(str(path))
         stream.sendall(json.dumps(request).encode() + b"\n")
         response = bytearray()
@@ -35,11 +35,11 @@ def local_request(state_dir: Path, request: dict) -> dict:
             if not block:
                 raise ValueError("The local service closed the connection.")
             response.extend(block)
-            if len(response) > 8192:
+            if len(response) > 524288:
                 raise ValueError("The local response exceeds the limit.")
     value = json.loads(response)
     if "error" in value:
-        raise ValueError("The local service refused the request.")
+        raise ValueError(value.get("message", "The local service refused the request."))
     return value
 
 
@@ -60,6 +60,7 @@ def parser() -> argparse.ArgumentParser:
             item.add_argument("--label", required=True)
             item.add_argument("--scope", action="append", required=True)
             item.add_argument("--node", action="append")
+            item.add_argument("--root", action="append")
             item.add_argument("--lifetime", type=int, default=3600)
             item.add_argument("--output", type=Path, required=True)
         elif name == "token-revoke":
@@ -84,6 +85,8 @@ def parser() -> argparse.ArgumentParser:
             item.add_argument("--autostart", action="store_true")
     from .job_cli import add_commands
     add_commands(commands)
+    from .file_cli import add_commands as add_file_commands
+    add_file_commands(commands)
     return result
 
 
@@ -120,7 +123,8 @@ def main(argv: list[str] | None = None) -> int:
                                 ssh_config=args.ssh_config, demo=args.demo)
             uvicorn.run(create_app(settings), host="127.0.0.1", port=settings.port,
                         access_log=False, proxy_headers=False, server_header=False,
-                        limit_concurrency=64, timeout_keep_alive=5)
+                        limit_concurrency=64, timeout_keep_alive=5, ws="websockets",
+                        ws_max_size=16384, ws_max_queue=4, ws_per_message_deflate=False)
         elif args.command == "open":
             launcher.open_console(args.state_dir, args.print_url)
         elif args.command == "install-launcher":
@@ -135,11 +139,14 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command.startswith("job-") or args.command == "helper-upgrade":
             from .job_cli import execute
             execute(args)
+        elif args.command.startswith("root-"):
+            from .file_cli import execute as execute_files
+            execute_files(args)
         elif args.command == "token-create":
             fd = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
             try:
                 grant = local_request(args.state_dir, {"action": "token", "label": args.label,
-                                      "scopes": args.scope, "node_ids": args.node,
+                                      "scopes": args.scope, "node_ids": args.node, "root_ids": args.root,
                                       "lifetime": args.lifetime})
                 with os.fdopen(fd, "w") as stream:
                     fd = -1

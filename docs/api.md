@@ -12,7 +12,7 @@ that URL in a log or share it with another person.
 Browser mutations require the session's X-CSRF-Token value and allowed Origin.
 API clients use `Authorization: Bearer TOKEN`. Read tokens from protected files
 or stdin. Do not expose them in process arguments. Each request checks expiry,
-current grants and node scope.
+current grants and node/root scope.
 
 | Method and path | Result |
 | --- | --- |
@@ -41,7 +41,9 @@ current grants and node scope.
 | GET /api/v1/operations/{id}/logs/{node_id} | Bounded base64 stdout/stderr chunk and byte cursor |
 
 The available scopes are nodes:read, nodes:write, resources:read, tokens:manage
-and audit:read, plus jobs:read, jobs:execute, jobs:cancel and jobs:logs. Existing
+and audit:read, plus jobs:read, jobs:execute, jobs:cancel and jobs:logs.
+Files add files:read, files:write, files:mode and files:delete. Terminals add
+terminals:read, terminals:execute and terminals:stop. Existing
 credentials do not gain new scopes during an upgrade. Sign in again as owner
 or issue an appropriate new token. Node lists filter inaccessible machines. Enrollment, profile
 inspection, token administration and global audit access require unrestricted
@@ -76,3 +78,48 @@ current operation. Neither acceptance nor a transport error proves termination.
 The service provides a development contract under /api/v1. Clients
 should check the returned application version. Additive and breaking changes
 are documented before a stable API release.
+
+## File routes
+
+Root registration uses the private owner CLI only. GET /api/v1/file-roots returns
+permitted root IDs and their available actions. POST /api/v1/files/list accepts
+root_id, opaque entry_id, optional cursor and limit up to 200. POST
+/api/v1/files/preview accepts root_id, entry_id and limit up to 65536.
+
+POST /api/v1/file-operation-previews prepares mkdir, rename, mode or delete.
+POST /api/v1/file-operations accepts preview_id and confirm:true with an
+Idempotency-Key header. GET the collection or /{id} for per-entry outcomes.
+Previews expire after 120 seconds; accepted keys retain their original result.
+POST /{id}/reconcile checks durable receipts for an uncertain file operation.
+
+POST /api/v1/transfer-previews prepares copy, upload or download, with sources,
+optional destination and an explicit overwrite choice. POST /api/v1/transfers
+accepts preview_id and confirm:true with Idempotency-Key. GET the collection or
+/{id} for progress. POST /{id}/resume takes item_ids; POST /{id}/cancel also takes
+discard_partial. Existing source entries use root_id and opaque entry_id.
+Upload source metadata uses name, size and last_modified.
+
+PUT /api/v1/transfers/{id}/items/{item_id}/chunks?offset=N accepts at most
+262144 binary bytes as application/octet-stream and X-Chunk-SHA256. POST the
+item's /finish endpoint verifies and publishes it. GET the /content endpoint
+serves a successfully prepared download attachment. See [files](files.md) for
+recovery, resource limits and the trusted-account boundary.
+
+## Terminal routes
+
+GET /api/v1/terminals lists permitted records. POST creates an intent with
+node_id, mode (ephemeral or tmux), label, cols, rows, confirm_execution:true
+and idempotency_key (16-80 ASCII letters, digits, hyphens or underscores).
+A matching key returns the same record; changed content returns 409.
+GET /{id} reads a record; POST /{id}/stop requires confirm_stop:true.
+POST /{id}/reconcile queries an uncertain tmux session's exact saved identity.
+It requires terminals:execute and never creates or attaches a session.
+
+POST /api/v1/terminals/{id}/tickets returns ticket, expires_at and websocket_path.
+Connect to that path on the same origin and send {"type":"auth","ticket":"..."}
+as the first text frame. No ticket or credential belongs in the WebSocket URL.
+Binary frames carry raw input/output. Text controls are
+{"type":"resize","cols":80,"rows":24} and {"type":"ack","bytes":1024}.
+ACK counts newly processed output bytes, not characters or socket receipt.
+The server sends {"type":"status","state":"attached"} and explicit exit/error
+states. See [terminals](terminals.md) for bounds, reattachment and grant semantics.

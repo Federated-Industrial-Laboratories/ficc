@@ -12,7 +12,7 @@ async def test_packaged_job_capability_and_invalid_request(ssh_fixture):
     preview = await transport.preview("fixture-node", "Test machine")
     await transport.install(preview)
     sample = await transport.probe(preview)
-    assert sample["version"] == "1" and sample["helper_version"] == "2"
+    assert sample["version"] == "1" and sample["helper_version"] == "3"
     capability = await transport.job(preview, {"action": "job.capabilities"})
     assert type(capability["jobs"]) is bool
     assert type(capability["logout_persistent"]) is bool

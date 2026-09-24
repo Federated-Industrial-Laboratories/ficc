@@ -7,3 +7,7 @@ Michroma: web/static/fonts/michroma-OFL.txt
 Barlow Semi Condensed: web/static/fonts/barlowsemicondensed-OFL.txt
 JetBrains Mono: web/static/fonts/OFL.txt
 The software license does not grant rights to use organization trademarks.
+
+Bundled terminal assets retain their MIT licences:
+xterm.js 6.0.0: ficc/static/vendor/xterm/LICENSE in installed packages.
+xterm.js FitAddon 0.11.0: ficc/static/vendor/addon-fit/LICENSE in installed packages.
