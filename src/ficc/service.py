@@ -14,6 +14,7 @@ from .files import Files
 from .jobs import Jobs
 from .settings import MAX_NODES, Settings
 from .ssh import SSH
+from .state_lock import StateLock
 from .store import Store
 from .terminals import Terminals
 from .transfers import Transfers
@@ -25,10 +26,31 @@ PUBLIC_FIELDS = {"id", "name", "profile", "host", "account", "fingerprint", "sta
 class Service:
     def __init__(self, settings: Settings):
         self.settings = settings
+        self.state_lock = StateLock(settings.state_dir)
+        try:
+            pending = settings.state_dir / "archive.pending.json"
+            if pending.exists() or pending.is_symlink():
+                raise ValueError("History archival is incomplete. Resume archive-history with the same output directory before starting FICC.")
+            self.initialize(settings)
+        except BaseException:
+            if hasattr(self, "store"):
+                self.store.close()
+            self.state_lock.close()
+            raise
+
+    def close(self) -> None:
+        try:
+            self.ssh.reset()
+            self.store.close()
+        finally:
+            self.state_lock.close()
+
+    def initialize(self, settings: Settings) -> None:
         self.store = Store(settings.state_dir / "state.sqlite3")
         self.auth = Auth(self.store)
         self.jobs = Jobs(self)
         self.ssh = SSH(settings)
+        self.auth.on_revoke = lambda: self.ssh.reset()
         self.terminals = Terminals(self)
         self.files = Files(self)
         self.transfers = Transfers(self)
@@ -79,6 +101,18 @@ class Service:
         value.require(scope, node_id)
         if scope == "nodes:write" and value.node_ids is not None:
             raise Failure("denied", "An unrestricted credential is required.", 403)
+
+    def retained_history(self, node_id: str) -> bool:
+        if any(target["node_id"] == node_id for operation in self.jobs.store.all()
+               for target in operation["targets"]):
+            return True
+        if any(value["node_id"] == node_id for value in self.terminals.all()):
+            return True
+        if any(value["root"].get("node_id") == node_id for value in self.files.store.iterate()):
+            return True
+        return any(endpoint["root"].get("node_id") == node_id
+                   for operation in self.transfers.store.iterate() for item in operation["items"]
+                   for endpoint in (item["destination"], item.get("source")) if endpoint)
 
     def view(self, node: dict) -> dict:
         result = {key: node[key] for key in PUBLIC_FIELDS}
@@ -206,6 +240,7 @@ class Service:
                     or self.files.active(node_id=node_id) or self.transfers.active(node_id=node_id)):
                 raise Failure("node_busy", "Resolve active or unknown work before upgrading the helper.", 409)
             self.store.audit("helper.upgrade", node_id, "requested", actor)
+            self.ssh.reset(node_id)
             try:
                 async with self.connections:
                     await self.ssh.install(node, check=check)

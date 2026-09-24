@@ -58,6 +58,20 @@ helper and web assets are present without access to the source checkout.
 Record source revision, commands, case counts, skips and exit status for each
 qualification. Performance limits require separate measured evidence.
 
+Maintenance checks use distinct 1-record and 64-record histories. They cover
+exclusive state ownership, consistent credential-free backup, restore integrity,
+WAL recovery, interrupted archive publication and idempotent resume. Active or
+unknown work, unsafe paths and changed identities must prevent retirement.
+Archive integration also runs the owner CLI through an isolated SSH server and
+checks real systemd unit absence. Use separate synthetic state for these checks;
+do not retire an operator's history as a test fixture.
+
+Observation checks exercise owned connection reuse, renewal before expiry,
+changed SSH configuration, pinned identity and process cleanup. Count controller
+and child CPU together for performance measurements. A dedicated Linux cgroup's
+cumulative CPU counter includes terminated child processes; sampling only live
+processes can miss their cost. Measure browser memory separately.
+
 File checks cover root and entry identity, hostile names, permissions,
 previews, verified transfers, interruption, explicit cleanup and distinct
 1-entry/64-entry selections. Terminal checks use real PTYs and an isolated SSH

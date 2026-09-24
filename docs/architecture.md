@@ -25,10 +25,16 @@ address and known host key. Enrollment confirms that fingerprint and any require
 helper installation. Each enrolled machine keeps its own trusted key snapshot.
 Every connection checks it. Host-key changes require a deliberate trust update.
 
-Connections have deadlines and bounded output. The current version uses fresh
-SSH connections and does not reuse external control sockets. SSH agent and X11
-forwarding are disabled. Authentication can use the local SSH agent without
-forwarding it to a node.
+Connections have deadlines and bounded output. Resource observation uses private,
+FICC-owned SSH master connections for at most 300 seconds. A probe renews its
+connection when fewer than 11 seconds remain for its 10-second deadline. Every probe resolves
+its complete SSH configuration, checks its pinned key and checks current access.
+Configuration changes, revocation and node removal close affected connections.
+A finite supervisor ends each master even if the controller exits unexpectedly;
+the maximum remaining lifetime after a crash is 302 seconds, including kill grace.
+Jobs, files, helper installation and terminals use fresh SSH connections. FICC
+never adopts external control sockets. Agent, X11 and port forwarding are disabled.
+Authentication can use the local SSH agent without forwarding it to a node.
 
 ## State
 

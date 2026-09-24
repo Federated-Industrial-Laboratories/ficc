@@ -4,7 +4,7 @@
 import asyncio
 import secrets
 import sqlite3
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -38,38 +38,32 @@ def create_app(settings: Settings) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        if settings.control:
-            await control.start()
-        poller = asyncio.create_task(service.poll())
-        app.state.poller = poller
-        job_poller = asyncio.create_task(service.jobs.poll())
-        app.state.job_poller = job_poller
-        transfer_poller = asyncio.create_task(service.transfers.poll())
-        app.state.transfer_poller = transfer_poller
-        file_poller = asyncio.create_task(service.files.poll())
-        app.state.file_poller = file_poller
+        tasks: list[asyncio.Task] = []
         try:
+            if settings.control:
+                await control.start()
+            for name, run in (("poller", service.poll), ("job_poller", service.jobs.poll),
+                              ("transfer_poller", service.transfers.poll), ("file_poller", service.files.poll)):
+                task = asyncio.create_task(run())
+                tasks.append(task)
+                setattr(app.state, name, task)
             yield
         finally:
-            poller.cancel()
-            job_poller.cancel()
-            transfer_poller.cancel()
-            file_poller.cancel()
-            with suppress(asyncio.CancelledError):
-                await file_poller
-            with suppress(asyncio.CancelledError):
-                await transfer_poller
-            await service.transfers.close()
-            await service.files.close()
-            with suppress(asyncio.CancelledError):
-                await job_poller
-            await service.jobs.close()
-            await service.terminals.close()
-            with suppress(asyncio.CancelledError):
-                await poller
-            if settings.control:
-                await control.close()
-            service.store.close()
+            try:
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                await service.transfers.close()
+                await service.files.close()
+                await service.jobs.close()
+                await service.terminals.close()
+                if settings.control:
+                    await control.close()
+            finally:
+                try:
+                    await service.ssh.close()
+                finally:
+                    service.close()
 
     app = FastAPI(title="FICC", version=__version__, lifespan=lifespan,
                   docs_url=None, redoc_url=None, openapi_url=None)
@@ -253,7 +247,10 @@ def create_app(settings: Settings) -> FastAPI:
                     or any(root["node_id"] == node_id for root in service.files.registered())
                     or service.files.active(node_id=node_id) or service.transfers.active(node_id=node_id)):
                 raise Failure("node_busy", "Remove registered roots and resolve active work before forgetting this machine.", 409)
+            if service.retained_history(node_id):
+                raise Failure("history_retained", "Archive completed history before forgetting this machine.", 409)
             service.store.delete_node(node_id)
+            service.ssh.reset(node_id)
             service.store.audit("node.forget", node_id, actor=value.id)
         if node_id in service.locks and not service.locks[node_id].locked():
             service.locks.pop(node_id)

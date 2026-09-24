@@ -37,9 +37,12 @@ def main() -> int:
             except (OSError, ValueError):
                 files_available = False
             result["capabilities"].update(terminals=True, terminals_ephemeral=True, terminals_tmux=bool(shutil.which("tmux")),
-                                          files=files_available)
+                                          files=files_available, history_archive=True)
         elif isinstance(request, dict) and request.get("version") == "3":
-            if str(request.get("action", "")).startswith("terminal."):
+            if request.get("action") == "history.archive":
+                from .history import dispatch as history_dispatch
+                result = {"version": "3", "result": history_dispatch(request)}
+            elif str(request.get("action", "")).startswith("terminal."):
                 from .terminals import dispatch as terminal_dispatch
                 result = {"version": "3", "result": terminal_dispatch(request)}
             else:
@@ -67,7 +70,7 @@ def main() -> int:
         return 0
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as exc:
         if (isinstance(request, dict) and request.get("version") == "3"
-                and not str(request.get("action", "")).startswith("terminal.")):
+                and not str(request.get("action", "")).startswith(("terminal.", "history."))):
             print(json.dumps({"version": "3", "error": {"code": "file_unavailable",
                               "message": "The file action could not be completed."}, "data_length": 0}))
             return 65

@@ -118,18 +118,15 @@ def test_socket_recovery_and_single_service_lock(tmp_path):
 
     async def check():
         first_service = Service(Settings(state_dir=state))
-        second_service = Service(Settings(state_dir=state))
-        first, second = Control(first_service), Control(second_service)
+        first = Control(first_service)
         try:
             await first.start()
             with pytest.raises(ValueError, match="already"):
-                await second.start()
+                Service(Settings(state_dir=state))
             assert (state / "control.sock").is_socket()
         finally:
-            await second.close()
             await first.close()
-            first_service.store.close()
-            second_service.store.close()
+            first_service.close()
 
     asyncio.run(check())
     assert not (state / "control.sock").exists()

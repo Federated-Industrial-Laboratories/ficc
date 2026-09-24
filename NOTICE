@@ -3,11 +3,16 @@ Copyright Federated Industrial Laboratories
 
 The software uses the Apache License, Version 2.0.
 Bundled font files retain their original copyright and OFL notices.
-Michroma: web/static/fonts/michroma-OFL.txt
-Barlow Semi Condensed: web/static/fonts/barlowsemicondensed-OFL.txt
-JetBrains Mono: web/static/fonts/OFL.txt
+Source font notices are under web/static/fonts/:
+Michroma: michroma-OFL.txt
+Barlow Semi Condensed: barlowsemicondensed-OFL.txt
+JetBrains Mono: OFL.txt
+Installed packages retain these same files under ficc/static/fonts/.
 The software license does not grant rights to use organization trademarks.
 
 Bundled terminal assets retain their MIT licences:
 xterm.js 6.0.0: ficc/static/vendor/xterm/LICENSE in installed packages.
 xterm.js FitAddon 0.11.0: ficc/static/vendor/addon-fit/LICENSE in installed packages.
+
+Python dependencies retain their separate licences and installed notices.
+The project's Apache-2.0 licence does not replace dependency licences.

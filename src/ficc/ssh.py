@@ -20,6 +20,7 @@ from .job_response import validate as validate_job_response
 from .process import run
 from .schema import Sample
 from .settings import Settings, private_directory
+from .ssh_master import PROBE_TIMEOUT, Masters, StartupFailure, options
 
 PROBE = 'test -f "$HOME/.local/lib/ficc/node.pyz" || exit 42; exec python3 "$HOME/.local/lib/ficc/node.pyz"'
 INSTALL_SCRIPT = """import os,pathlib,sys,tempfile,zipfile,io
@@ -77,6 +78,13 @@ class SSH:
             self.prefix += ["-F", str(settings.ssh_config)]
         self.trust_dir = settings.state_dir / "trust"
         private_directory(self.trust_dir)
+        self.masters = Masters()
+
+    def reset(self, node_id: str | None = None) -> None:
+        self.masters.reset(node_id)
+
+    async def close(self) -> None:
+        await self.masters.close()
 
     async def config(self, profile: str) -> dict:
         code, output, _ = await run(self.prefix + ["-G", "--", profile])
@@ -92,6 +100,7 @@ class SSH:
         if any(c.isspace() for c in host) or host.startswith("-"):
             raise Failure("profile_failed", "The SSH destination is invalid.")
         config["port"] = int(config.get("port", "22"))
+        config["resolved_digest"] = hashlib.sha256(output).hexdigest()
         return config
 
     async def known_key(self, config: dict) -> tuple[str, str] | None:
@@ -154,6 +163,9 @@ class SSH:
 
     async def arguments(self, node: dict, terminal: bool = False) -> list[str]:
         config = await self.config(node["profile"])
+        return self.configured_arguments(node, config, terminal)
+
+    def configured_arguments(self, node: dict, config: dict, terminal: bool = False) -> list[str]:
         if (config["hostname"], config["user"], config["port"]) != (
             node["host"], node["account"], node["port"]
         ):
@@ -198,8 +210,31 @@ class SSH:
 
     async def probe(self, node: dict, allow_missing: bool = False,
                     check: Callable[[], None] | None = None) -> dict | None:
-        code, output, stderr = await self.command(
-            node, PROBE, b'{"version":"1","action":"resources"}\n', check=check)
+        payload = b'{"version":"1","action":"resources"}\n'
+        if "id" not in node:
+            code, output, stderr = await self.command(node, PROBE, payload, check=check)
+        else:
+            try:
+                config = await self.config(node["profile"])
+                args = self.configured_arguments(node, config)
+                identity = hashlib.sha256(json.dumps([node["id"], args, config["resolved_digest"]],
+                                                     sort_keys=True).encode()).hexdigest()
+                if check:
+                    check()
+                master = await self.masters.acquire(node["id"], identity, args, check)
+                if check:
+                    check()
+                code, output, stderr = await run(
+                    options(args, ControlPath=str(master.socket)) + [PROBE], payload, timeout=PROBE_TIMEOUT)
+            except StartupFailure as exc:
+                self.reset(node["id"])
+                raise transport_failure(exc.stderr) from exc
+            except TimeoutError as exc:
+                self.reset(node["id"])
+                raise Failure("unreachable", "The observation connection timed out.", 502) from exc
+            except Failure:
+                self.reset(node["id"])
+                raise
         if code == 42 and allow_missing:
             return None
         if code == 42:
