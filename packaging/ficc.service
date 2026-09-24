@@ -1,0 +1,15 @@
+[Unit]
+Description=Federated Industrial Cluster Commander
+After=network.target
+
+[Service]
+Type=exec
+ExecStart=%h/.local/share/ficc/venv/bin/ficc serve
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

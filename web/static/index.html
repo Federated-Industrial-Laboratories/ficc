@@ -1,0 +1,42 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Provide the local cluster console shell. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="no-referrer">
+  <title>FICC | Cluster console</title>
+  <link rel="icon" type="image/svg+xml" href="/static/mark.svg">
+  <link rel="stylesheet" href="/static/console.css">
+  <script type="module" src="/static/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to console</a>
+  <div class="shell">
+    <div class="shell-cap" aria-hidden="true"><span></span><i></i><i></i><i></i></div>
+    <header class="masthead">
+      <div class="brand"><img src="/static/mark.svg" alt="" width="48" height="48">
+        <div><span class="wordmark">FICC</span><p>Federated Industrial Cluster Commander</p></div>
+      </div>
+      <div class="owner"><span class="eyebrow">LOCAL CONTROL INTERFACE</span><strong id="account">Session required</strong></div>
+    </header>
+    <div class="status-strip"><span id="connection" role="status">Connecting to local service</span><span id="version">CLUSTER CONSOLE</span></div>
+    <div id="mode-banner" class="mode-banner" hidden></div>
+    <div class="console-layout">
+      <aside class="sidebar">
+        <p class="rail-title">CONTROL / 01</p>
+        <nav aria-label="Console"><button data-view="overview" aria-current="page"><span>01</span> Overview</button><button data-view="access"><span>02</span> Access</button><button data-view="activity"><span>03</span> Activity</button></nav>
+        <div class="rail-note"><span class="rail-mark" aria-hidden="true">F / I</span><p>Local owner console.<br>Verified SSH transport.</p></div>
+        <button id="sign-out" class="quiet" hidden>Sign out</button>
+      </aside>
+      <main id="main" tabindex="-1"><div class="state-panel" role="status"><span class="eyebrow">LOCAL SERVICE</span><h1>Opening console</h1><p>Checking the authenticated session.</p></div></main>
+    </div>
+    <footer><span>FICC <span aria-hidden="true">/</span> LOCAL CLUSTER CONTROL</span><span>Observation console</span></footer>
+    <div class="shell-bottom" aria-hidden="true"></div>
+  </div>
+  <div id="announcement" class="sr-only" role="status" aria-live="polite"></div>
+  <noscript><p class="state-panel">Enable JavaScript to use this local console.</p></noscript>
+</body>
+</html>

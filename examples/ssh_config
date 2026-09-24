@@ -1,0 +1,8 @@
+# Replace this synthetic destination with a verified local machine.
+# Verify its host key independently before adding it to known_hosts.
+Host lab-one
+    HostName node-one.example
+    User operator
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+    StrictHostKeyChecking yes
