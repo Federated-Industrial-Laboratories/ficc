@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Validate quiescent schema-three snapshots and remove credential storage."""
+"""Validate quiescent schema-four snapshots and remove credential storage."""
 
 import json
 import re
@@ -12,7 +12,7 @@ from ficc_node.job_spec import TERMINAL as JOB_TERMINAL
 
 from .backup_io import MAX_DATABASE
 
-SCHEMA = 3
+SCHEMA = 4
 TABLES = {
     "nodes": ("id value", 64),
     "credentials": ("id digest kind label scopes nodes expires csrf roots", 512),
@@ -24,6 +24,11 @@ TABLES = {
     "transfers": ("id actor key value", 2048),
     "terminals": ("id actor key digest value", 512),
     "sqlite_sequence": ("name seq", 1),
+    "agent_profiles": ("id actor key digest value", 128),
+    "agents": ("id actor key digest value", 512),
+    "bus_runs": ("id actor key digest value", 128),
+    "bus_messages": ("id actor key digest value", 16384),
+    "bus_deliveries": ("id actor key digest value", 32768),
 }
 
 
@@ -97,6 +102,12 @@ def quiescent(db):
                 or item.get("state") not in {"succeeded", "cancelled"} or item.get("cleanup_pending")
                 or (operation["kind"] == "download" and item["state"] == "succeeded") for item in items)):
             raise ValueError("Finish or discard transfers, prepared downloads, and retained partials before backup or restore.")
+    for agent in records(db, "agents"):
+        if agent.get("state") not in {"exited", "stopped"}:
+            raise ValueError("Stop or reconcile all coding agents before backup or restore.")
+    for delivery in records(db, "bus_deliveries"):
+        if delivery.get("state") not in {"session-included", "tool-read", "failed", "cancelled"}:
+            raise ValueError("Resolve all bus delivery outcomes before backup or restore.")
     settings = dict(db.execute("SELECT key,value FROM settings"))
     controller = json.loads(settings.get("controller_id", "null"))
     if not isinstance(controller, str) or not re.fullmatch(r"[a-f0-9]{32}", controller):

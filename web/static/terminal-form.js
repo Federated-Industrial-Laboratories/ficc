@@ -3,7 +3,7 @@
 import { request } from './api.js';
 import { button, el, errorPanel, notice, state } from './components.js';
 
-export function newTerminal(received) {
+export function newTerminal(received, nodeId = null) {
   const trigger = document.activeElement;
   let active = true, busy = false, frozen;
   const dialog = el('dialog', { class: 'terminal-dialog', 'aria-labelledby': 'terminal-title' });
@@ -17,13 +17,14 @@ export function newTerminal(received) {
     try {
       const { nodes } = await request('/nodes');
       if (!active) return;
-      const targets = nodes.filter(node => node.capabilities?.terminals_ephemeral);
+      const targets = nodes.filter(node => node.capabilities?.terminals_ephemeral && (!nodeId || node.id === nodeId));
       if (!targets.length) { content.replaceChildren(state('No terminal targets', 'No enrolled machine currently reports terminal support. Refresh Overview to inspect its capabilities.')); return; }
       compose(targets);
     } catch (error) { if (active) content.replaceChildren(errorPanel(error, load)); }
   }
   function compose(nodes) {
     const target = el('select', { id: 'terminal-target' }, nodes.map(node => el('option', { value: node.id }, `${node.name} / ${node.account}`)));
+    if (nodeId) { target.value = nodeId; target.disabled = true; }
     const mode = el('select', { id: 'terminal-mode' });
     function modes() {
       mode.replaceChildren(el('option', { value: 'ephemeral' }, 'Ephemeral shell'));
@@ -52,7 +53,7 @@ export function newTerminal(received) {
     } }, notice('A terminal provides full access to the remote SSH account. File-root restrictions do not restrict shell commands.', 'warning'),
     el('label', { for: target.id }, 'Terminal machine and account'), target,
     el('label', { for: mode.id }, 'Terminal lifetime'), mode,
-    notice('Ephemeral: leaving this view closes the shell connection. Tmux: leaving detaches; the remote session can continue until it exits or you explicitly stop it. Neither mode replays input.'),
+    notice('Machine tabs keep connections open. Closing a pane or leaving Terminals detaches it. Ephemeral shells close; tmux sessions can continue until stopped. Input is never replayed.'),
     el('label', { for: label.id }, 'Terminal label'), label,
     el('label', { for: consent.id, class: 'check-label' }, consent, 'Open a shell with full authority in the selected remote account.'),
     error, el('div', { class: 'actions' }, submit));

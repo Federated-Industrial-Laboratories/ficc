@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Controller backup and restore
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Agent bus](bus.md) | [Next: History archives](history.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 FICC exports a stopped, quiescent controller into a private directory bundle.
 The backup command holds the same exclusive state lock as service startup before
@@ -90,7 +96,7 @@ the restored console has been checked.
 
 ## Format and limits
 
-Bundle format 1 supports state schema 3 directly. Incompatible schemas are refused;
+Bundle format 1 supports state schema 4 directly. Incompatible schemas are refused;
 restore does not migrate an archive. For an older application, retain a complete
 stopped copy of its private state before using the supported application upgrade
 path. Then stop and export with the current schema. A portable export does not
@@ -111,3 +117,13 @@ as a backup. Once no maintenance process remains, the owner can remove it. Keep
 sufficient free disk for the bundle and SQLite compaction, which needs additional
 temporary space. Normal service startup acquires state ownership before schema
 creation or migration, so a second service cannot modify a live database.
+
+Agent and bus tables are included. Active or uncertain coding agents and unresolved
+bus deliveries prevent backup or restore. A restored closed agent record preserves
+its identity and never restarts the agent. Export and archive its closed run before
+retiring terminal history with `archive-history`.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Agent bus](bus.md) | [Next: History archives](history.md)

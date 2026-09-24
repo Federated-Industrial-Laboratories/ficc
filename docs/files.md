@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Files and verified transfers
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Managed jobs](jobs.md) | [Next: Terminals](terminals.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 Files shows two independent locations. Each location selects the controller or
 an enrolled machine, then a registered folder. The controller pane is server
@@ -29,6 +35,18 @@ Linux fchmodat2 with AT_EMPTY_PATH support (Linux 6.6 or later); unavailable
 mode changes fail without using a pathname fallback.
 
 ## Browse and edit
+
+Each pane has an address bar, an Up button and a separate scrollable table.
+Select a column heading to sort the current page. Drag its divider to resize it;
+focused dividers also accept arrow keys, Home and End. Sorting retains selection
+by entry identity. The filter searches names on the current page, clears old
+selection and limits Select page to the visible entries. It does not search the
+whole directory or subsequent pages.
+
+Click a row to select it. Ctrl or Command toggles a row; Shift selects a range.
+Arrow keys move row focus, Space toggles selection and Enter opens a directory
+or previews a supported file. Changing the machine, location, directory or page
+clears selection and the page filter. The status bar shows the selection count.
 
 Entries show type, byte size, modification time, numeric owner/group and mode.
 Names with invalid UTF-8 or control bytes use escaped display text. Selection
@@ -88,3 +106,8 @@ external rename, hard link or privileged mount operation can change its pathname
 or aliases. Detected changes are refused, but continuous pathname confinement
 against such writers is not promised. Keep registered namespaces operator-managed.
 Shell and managed-job execution have the full authority of the remote account.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Managed jobs](jobs.md) | [Next: Terminals](terminals.md)

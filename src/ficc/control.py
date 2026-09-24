@@ -52,6 +52,26 @@ class Control:
                 request = json.loads(data)
                 action = request.get("action")
                 auth = self.service.auth
+                if action == "bus-archive":
+                    if request.get("confirm") is not True:
+                        raise Failure("confirmation_required", "Confirm the selected closed run archive.")
+                    from .bus_archive import archive
+                    response = await archive(self.service, request["run"], request["output"])
+                    writer.write(json.dumps(response).encode() + b"\n")
+                    await writer.drain()
+                    return
+                if action in {"agent-profile-add", "agent-profile-list", "agent-profile-remove"}:
+                    self.service.live()
+                    from .agent_store import public
+                    if action == "agent-profile-add":
+                        response = await self.service.agents.register(request["profile"])
+                    elif action == "agent-profile-remove":
+                        response = self.service.agents.remove_profile(request["id"])
+                    else:
+                        response = {"profiles": [public(v) for v in self.service.agents.store.all("agent_profiles")]}
+                    writer.write(json.dumps(response).encode() + b"\n")
+                    await writer.drain()
+                    return
                 if action in {"root-add", "root-list", "root-remove"}:
                     self.service.live()
                     if action == "root-add":

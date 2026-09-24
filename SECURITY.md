@@ -60,3 +60,17 @@ RGB color and contrast rules. Scripts remain restricted to local assets.
 Application code constructs labels with text nodes and does not render remote
 HTML. Terminal color values are parsed by the pinned emulator; remote terminal
 data does not become arbitrary CSS or HTML.
+
+Coding-agent launch and bus send have separate node-scoped permissions. Selecting
+a runtime profile does not change provider login, model settings, sandbox settings
+or approval policy. Direct delivery can start work under the recipient agent's
+existing account. Bus messages are labelled participant testimony and carry no
+FICC approval authority. Revocation prevents later admission but cannot undo
+work that the runtime already accepted.
+
+Nodes expose only the fixed SSH helper exchange and private local spool tools.
+Controller credentials stay on the controller. An outbox cannot choose a different
+sender, run or grant. Runtime submissions with uncertain outcomes are not
+replayed automatically. Ordinary same-account processes remain inside the trusted
+account boundary. Spools reject links, unsafe ownership, unknown members and
+capacity overflow. The native TUI owns runtime approval decisions.

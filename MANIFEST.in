@@ -3,3 +3,5 @@ recursive-include src/ficc/static *
 recursive-include node/ficc_node *.py
 prune tests
 prune web/node_modules
+recursive-include docs *.md
+recursive-include .github/assets *.png *.svg

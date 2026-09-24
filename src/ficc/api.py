@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
 from . import __version__
+from .agent_routes import install as install_agent_routes
 from .auth import Principal
 from .control import Control
 from .errors import Failure
@@ -43,7 +44,8 @@ def create_app(settings: Settings) -> FastAPI:
             if settings.control:
                 await control.start()
             for name, run in (("poller", service.poll), ("job_poller", service.jobs.poll),
-                              ("transfer_poller", service.transfers.poll), ("file_poller", service.files.poll)):
+                              ("transfer_poller", service.transfers.poll), ("file_poller", service.files.poll),
+                              ("agent_poller", service.agents.poll)):
                 task = asyncio.create_task(run())
                 tasks.append(task)
                 setattr(app.state, name, task)
@@ -278,6 +280,7 @@ def create_app(settings: Settings) -> FastAPI:
         unrestricted(principal(request, "audit:read"))
         return {"events": service.store.events()}
 
+    install_agent_routes(app, service, principal)
     install_file_routes(app, service, principal)
     install_transfer_routes(app, service, principal)
     install_job_routes(app, service, principal)

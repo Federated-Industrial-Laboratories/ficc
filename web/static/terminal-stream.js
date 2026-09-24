@@ -7,11 +7,12 @@ import { button, el, notice } from './components.js';
 
 const INPUT_FRAME = 16384, INPUT_BUFFER = 65536, OUTPUT_BUFFER = 262144;
 
-export function terminalStream(record, changed) {
-  let active = true, attached = false, socket, pending = 0, resizeTimer, opened = false;
+export function terminalStream(record, changed, select = () => {}) {
+  let active = true, ended = false, attached = false, socket, pending = 0, resizeTimer, opened = false;
+  let visible = false, selected = false, focusRequested = false;
   const status = el('div', {}, notice('Connecting. Keyboard input is disabled.'));
   const host = el('div', { class: 'terminal-well', role: 'region', 'aria-label': `${record.node_name} terminal output` });
-  const focus = button('Focus terminal', () => term.focus(), { disabled: true });
+  const focus = button('Focus terminal', () => { select(true); focusInput(); }, { disabled: true });
   const detach = button('Detach', () => finish('detached', record.mode === 'tmux' ?
     'Detached. The remote tmux session can continue. Reattach explicitly to continue.' :
     'Detached. The ephemeral shell closes with its connection. Input was not replayed.'));
@@ -19,7 +20,7 @@ export function terminalStream(record, changed) {
     el('div', { class: 'terminal-identity' }, el('strong', {}, `${record.node_name} / ${record.account}`),
       el('span', {}, record.mode === 'tmux' ? 'TMUX SESSION' : 'EPHEMERAL SHELL')),
     status, el('div', { class: 'actions terminal-actions' }, focus, detach), host,
-    el('p', { class: 'muted' }, 'One keyboard target. Ctrl+Shift+Escape moves focus to the toolbar. Up to 2,000 scrollback lines; output and input are not recorded.'));
+    el('p', { class: 'terminal-help muted' }, 'Ctrl+Shift+Escape: toolbar. Output is not recorded.'));
   const term = new Terminal({ cols: 80, rows: 24, scrollback: 2000, fontSize: 14,
     fontFamily: 'JetBrains, monospace', minimumContrastRatio: 4.5, screenReaderMode: true,
     cursorBlink: false, smoothScrollDuration: 0, allowProposedApi: false,
@@ -27,6 +28,8 @@ export function terminalStream(record, changed) {
     linkHandler: { activate() {} }, theme: { background: '#242a31', foreground: '#f6f4ef', cursor: '#f3a94e' } });
   for (const code of [0, 1, 2, 8, 52]) term.parser.registerOscHandler(code, () => true);
   const fit = new FitAddon(); term.loadAddon(fit);
+  host.addEventListener('pointerdown', () => { if (visible) select(false); });
+  host.addEventListener('focusin', () => { if (visible) select(false); });
   term.attachCustomKeyEventHandler(event => {
     if (event.ctrlKey && event.shiftKey && event.key === 'Escape') {
       if (event.type === 'keydown') focus.focus();
@@ -37,7 +40,7 @@ export function terminalStream(record, changed) {
   term.onData(data => sendInput(new TextEncoder().encode(data)));
   term.onBinary(data => sendInput(Uint8Array.from(data, character => character.charCodeAt(0) & 255)));
   function sendInput(bytes) {
-    if (!active || !attached || socket?.readyState !== WebSocket.OPEN) return;
+    if (!active || ended || !attached || !visible || !selected || !host.contains(document.activeElement) || socket?.readyState !== WebSocket.OPEN) return;
     if (bytes.length > INPUT_FRAME || socket.bufferedAmount + bytes.length > INPUT_BUFFER) {
       status.replaceChildren(notice('Input was refused: a paste must fit within 16 KiB and the connection must have space. Input is never queued for retry.', 'warning'));
       return;
@@ -50,7 +53,7 @@ export function terminalStream(record, changed) {
   function resize() {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      if (!active || !opened || !host.isConnected) return;
+      if (!active || ended || !opened || !visible || !host.isConnected || host.clientWidth < 20 || host.clientHeight < 20) return;
       const size = fit.proposeDimensions();
       if (!size) return;
       const cols = Math.min(300, Math.max(2, size.cols)), rows = Math.min(120, Math.max(2, size.rows));
@@ -60,30 +63,41 @@ export function terminalStream(record, changed) {
     }, 100);
   }
   const observer = new ResizeObserver(resize);
+  function focusInput() {
+    if (active && !ended && attached && visible && selected) term.focus();
+  }
+  function presentation(nextVisible, nextSelected, requestFocus = false) {
+    visible = nextVisible; selected = nextSelected;
+    if (!visible || !selected) { focusRequested = false; term.blur(); }
+    else if (requestFocus) { focusRequested = true; focusInput(); }
+    term.options.disableStdin = !active || ended || !attached || !visible || !selected;
+    if (visible) resize();
+  }
   function finish(state, message) {
-    if (!active) return;
+    if (!active || ended) return;
+    ended = true; focusRequested = false;
     attached = false; term.options.disableStdin = true; focus.disabled = true; detach.disabled = true;
     status.replaceChildren(notice(message, ['error', 'denied', 'output_gap'].includes(state) ? 'error' : 'warning'));
     if (socket && socket.readyState < WebSocket.CLOSING) socket.close();
     changed(state);
   }
   async function open() {
-    if (!active || opened) return;
+    if (!active || ended || opened) return;
     opened = true; term.open(host); observer.observe(host);
     await document.fonts.ready;
-    if (!active) return;
+    if (!active || ended) return;
     resize();
     try {
       const value = await request(`/terminals/${encodeURIComponent(record.id)}/tickets`, { method: 'POST', body: {} });
-      if (!active) return;
+      if (!active || ended) return;
       const url = new URL(value.websocket_path, location.href);
       if (url.origin !== location.origin || url.search || url.hash ||
           url.pathname !== `/api/v1/terminals/${encodeURIComponent(record.id)}/stream`) throw new Error('The terminal connection address is invalid.');
       url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
       socket = new WebSocket(url); socket.binaryType = 'arraybuffer';
-      socket.addEventListener('open', () => { if (active) socket.send(JSON.stringify({ type: 'auth', ticket: value.ticket })); });
+      socket.addEventListener('open', () => { if (active && !ended) socket.send(JSON.stringify({ type: 'auth', ticket: value.ticket })); });
       socket.addEventListener('message', event => {
-        if (!active) return;
+        if (!active || ended) return;
         if (event.data instanceof ArrayBuffer) {
           const bytes = new Uint8Array(event.data);
           if (!attached || bytes.length > 32768 || pending + bytes.length > OUTPUT_BUFFER) {
@@ -101,9 +115,11 @@ export function terminalStream(record, changed) {
           const message = JSON.parse(event.data);
           if (message.type !== 'status' || !['attached', 'detached', 'exited', 'denied', 'output_gap', 'error'].includes(message.state)) throw new Error();
           if (message.state === 'attached') {
-            attached = true; term.options.disableStdin = false; focus.disabled = false;
+            attached = true; term.options.disableStdin = !visible || !selected; focus.disabled = false;
             status.replaceChildren(notice('Attached. Input goes only to the machine and account shown above.'));
-            sendControl({ type: 'resize', cols: term.cols, rows: term.rows }); term.focus(); changed('attached');
+            if (visible) sendControl({ type: 'resize', cols: term.cols, rows: term.rows });
+            if (focusRequested && (document.activeElement === document.body || element.contains(document.activeElement))) focusInput();
+            changed('attached');
           } else {
             if (message.state === 'denied') { term.reset(); host.replaceChildren(); }
             finish(message.state, typeof message.message === 'string' ? message.message : `Terminal ${message.state.replaceAll('_', ' ')}. Input is disabled.`);
@@ -114,10 +130,15 @@ export function terminalStream(record, changed) {
         if (active && !detach.disabled) finish('detached', 'Connection closed. The last input outcome may be unknown. Reattach explicitly; input is never replayed.');
       });
       socket.addEventListener('error', () => finish('error', 'Terminal connection failed. Check its recorded state before attaching again.'));
-    } catch (error) { if (active) finish('error', error.message); }
+    } catch (error) {
+      if (!active || ended) return;
+      if ([401, 403].includes(error.status)) { term.reset(); host.replaceChildren(); }
+      finish([401, 403].includes(error.status) ? 'denied' : 'error', error.message);
+    }
   }
-  return { element, open, dispose() {
-    active = false; attached = false; clearTimeout(resizeTimer); observer.disconnect();
+  return { element, open, presentation, focus: focusInput, refit: resize, get ended() { return ended; }, dispose() {
+    if (!active) return;
+    active = false; ended = true; attached = false; clearTimeout(resizeTimer); observer.disconnect();
     if (socket && socket.readyState < WebSocket.CLOSING) socket.close();
     term.dispose();
   } };

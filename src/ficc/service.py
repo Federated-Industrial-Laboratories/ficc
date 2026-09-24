@@ -8,7 +8,9 @@ import sqlite3
 import time
 from contextlib import asynccontextmanager
 
+from .agents import Agents
 from .auth import Auth
+from .bus import Bus
 from .errors import Failure
 from .files import Files
 from .jobs import Jobs
@@ -54,6 +56,8 @@ class Service:
         self.terminals = Terminals(self)
         self.files = Files(self)
         self.transfers = Transfers(self)
+        self.bus = Bus(self)
+        self.agents = Agents(self)
         self.previews: dict[str, dict] = {}
         self.workers = asyncio.Semaphore(16)
         self.connections = asyncio.Semaphore(4)
@@ -103,6 +107,9 @@ class Service:
             raise Failure("denied", "An unrestricted credential is required.", 403)
 
     def retained_history(self, node_id: str) -> bool:
+        if any(value["node_id"] == node_id for table in ("agents", "agent_profiles")
+               for value in self.agents.store.all(table)):
+            return True
         if any(target["node_id"] == node_id for operation in self.jobs.store.all()
                for target in operation["targets"]):
             return True
@@ -224,7 +231,7 @@ class Service:
     async def configuration(self, node_id: str):
         lock = self.locks.setdefault(node_id, asyncio.Lock())
         async with (self.enrollment, self.jobs.admission, self.files.admission,
-                    self.transfers.admission, self.terminals.lock, lock):
+                    self.transfers.admission, self.agents.lock, self.terminals.lock, lock):
             yield
 
     async def upgrade(self, node_id: str, expected: str, actor: str) -> dict:
@@ -236,7 +243,7 @@ class Service:
             node = self.store.node(node_id)
             if node["fingerprint"] != expected:
                 raise Failure("host_key_changed", "The expected fingerprint does not match the enrolled machine.", 409)
-            if (self.jobs.store.active(node_id) or self.terminals.busy(node_id)
+            if (self.agents.busy(node_id) or self.jobs.store.active(node_id) or self.terminals.busy(node_id)
                     or self.files.active(node_id=node_id) or self.transfers.active(node_id=node_id)):
                 raise Failure("node_busy", "Resolve active or unknown work before upgrading the helper.", 409)
             self.store.audit("helper.upgrade", node_id, "requested", actor)

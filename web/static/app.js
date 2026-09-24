@@ -7,16 +7,21 @@ import { terminals } from './terminals.js';
 import { files } from './files.js';
 import { overview } from './overview.js';
 import { access, activity } from './access.js';
+import { agents } from './agents.js';
+import { bus } from './bus.js';
 
 const main = document.querySelector('#main');
 const nav = [...document.querySelectorAll('[data-view]')];
 const signOut = document.querySelector('#sign-out');
-let current;
+let current, currentView;
 
 function navigate(view, focus = false) {
   if (!getSession()) return;
+  if (current && currentView === view) return;
+  for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
   current?.dispose();
-  current = ({ overview, jobs, files, terminals, access, activity })[view]();
+  current = ({ overview, jobs, files, terminals, agents, bus, access, activity })[view]();
+  currentView = view;
   main.replaceChildren(current.element);
   for (const item of nav) {
     if (item.dataset.view === view) item.setAttribute('aria-current', 'page');
@@ -25,9 +30,14 @@ function navigate(view, focus = false) {
   if (focus) main.focus();
 }
 for (const item of nav) item.addEventListener('click', () => navigate(item.dataset.view, true));
+window.addEventListener('ficc-open-terminal', event => {
+  if (!getSession() || typeof event.detail?.terminalId !== 'string') return;
+  navigate('terminals', true);
+  current.openTerminal(event.detail.terminalId);
+});
 
 function locked(message = 'Open this console with the FICC command line to start an authenticated session.') {
-  current?.dispose(); current = null;
+  current?.dispose(); current = null; currentView = null;
   for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
   setSession(null);
   document.querySelector('#account').textContent = 'Session required';

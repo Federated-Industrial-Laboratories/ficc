@@ -28,5 +28,5 @@ textarea { width: 100%; min-height: 70px; resize: vertical; font: 13px/1.6 JetBr
 .job-log-controls .check-label { margin: 0 0 10px; }
 .job-log-controls label { margin-top: 0; }
 .job-output { background: #242a31; color: #f6f4ef; border: 1px solid #10151b; box-shadow: inset 0 2px 4px #0005; font: 13px/1.7 JetBrains, monospace; padding: 18px; margin-bottom: 0; max-height: 420px; min-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-@media (max-width: 800px) { .sidebar { flex-wrap: wrap; }nav { min-width: 250px; } }
+@media (max-width: 800px) { .sidebar { flex-wrap: wrap; }.sidebar nav { min-width: 250px; } }
 @media (max-width: 520px) { .job-limit-grid { grid-template-columns: minmax(0, 1fr); }.job-fieldset { padding: 10px; }.gpu-options { margin-left: 0; }.job-log-section { padding: 12px; }.job-output { padding: 12px; } }

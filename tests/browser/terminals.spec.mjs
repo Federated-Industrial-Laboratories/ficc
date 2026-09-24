@@ -170,13 +170,16 @@ test('unknown ephemeral sessions have no saved-session creation shortcut', async
   await expect(page.getByRole('button', { name: 'Check recorded session', exact: true })).toHaveCount(0);
 });
 
-test('switching sessions closes the old keyboard target', async ({ page }) => {
+test('switching machines preserves both connections and selects one keyboard target', async ({ page }) => {
   const state = await setupTerminals(page, { terminals: [terminalRecord(1), terminalRecord(2)] });
   await attachTerminal(page, state); await page.keyboard.type('first');
   await page.getByRole('button', { name: 'Reattach', exact: true }).click();
   await expect.poll(() => state.sockets.length).toBe(2);
-  await expect(page.locator('.terminal-identity')).toContainText('Sample machine 2 / operator');
-  await expect(page.locator('.xterm-helper-textarea')).toHaveCount(1);
+  await expect(page.locator('.terminal-identity:visible')).toContainText('Sample machine 2 / operator');
+  await expect(page.locator('.xterm-helper-textarea')).toHaveCount(2);
+  await page.keyboard.type('second');
+  await expect.poll(() => state.connections.map(connection => Buffer.concat(connection.frames.filter(Buffer.isBuffer)).toString())).toEqual(['first', 'second']);
+  expect(state.connections.map(item => item.closed)).toEqual([false, false]);
 });
 
 test('pending output is bounded even when parser acknowledgements stall', async ({ page }) => {

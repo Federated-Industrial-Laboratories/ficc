@@ -56,7 +56,7 @@ export function badge(node) {
   const stale = isStale(node);
   const good = ['ready', 'connected', 'online'].includes(raw) && !stale;
   const kind = good ? 'good' : ['unreachable', 'error', 'auth_required', 'authentication_failed', 'host_key_changed'].includes(raw) ? 'bad' : 'warn';
-  return el('span', { class: `badge ${kind}` }, el('i', { 'aria-hidden': 'true' }),
+  return el('span', { class: `badge ${kind}` },
     raw.replaceAll('_', ' '), stale && raw !== 'stale' ? ' / stale' : '');
 }
 export function metric(label, value, ratio = null, note = '') {

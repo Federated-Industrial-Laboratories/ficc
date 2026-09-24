@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Operation and maintenance
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Installation](install.md) | [Next: Managed jobs](jobs.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 Run FICC as a normal local account. Its state defaults to
 `$XDG_STATE_HOME/ficc`, or `~/.local/state/ficc` when XDG_STATE_HOME is unset.
@@ -85,9 +91,10 @@ notes. Do not run two service processes against the same state directory.
 Use a new empty state directory if a development schema is incompatible.
 
 The managed-job version migrates controller state from schema 1 to schema 2.
-The files/terminals version migrates schema 1 or 2 to schema 3 and helper 3
-continues resource protocol 1 and job protocol 2. Previous versions refuse
-schema 3. Stop the service and keep a complete private pre-upgrade copy first.
+The coding-agent version migrates schemas 1, 2 and 3 to schema 4. Helper protocol 3
+adds an explicit agents capability. The controller preserves prior credentials
+without new scopes; sign in again or deliberately issue a new scoped credential.
+Stop the service and keep a complete private pre-upgrade copy first.
 The older observation-only version refuses schema 2. A downgrade needs its
 pre-upgrade state copy; restoring that copy loses subsequent job records and
 must wait until those jobs are reconciled. Preserve the current state as well.
@@ -108,3 +115,16 @@ Keep the state directory unless its deletion is explicitly intended. The helper
 remains at `~/.local/lib/ficc/node.pyz` on each enrolled node. Remove that exact
 file through an ordinary authenticated SSH session if it is no longer required.
 Do not delete unrelated files in the parent directory.
+
+
+Coding-agent profiles name installed executables and working directories; they
+never install agent software or transfer provider credentials. Use the Agents
+preview before launch and the Bus receipt view to distinguish storage from runtime
+inclusion. A generic inbox works without a native adapter. See [agents](agents.md)
+and [bus](bus.md) for direct delivery, scoped replies and explicit closed-run
+archival. Agent spools remain on their node until that explicit archive operation.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Installation](install.md) | [Next: Managed jobs](jobs.md)

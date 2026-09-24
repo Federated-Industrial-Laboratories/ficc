@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Dependency notices
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Testing](testing.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 FICC uses Apache-2.0. Dependencies retain their own licences and notices.
 The runtime lock records exact Python package versions and artifact hashes.
@@ -43,3 +49,8 @@ SHA-256 checksums with the distribution artifacts. Package-level inventories do
 not describe every native implementation detail inside dependency extensions.
 Generate these records from the final built package; a source version alone
 does not prove the installed artifact contents.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Testing](testing.md)

@@ -71,6 +71,8 @@ def enrolled_history(db, nodes):
 def inspect(state):
     with files.directory(state) as folder, closing(database.connect(state / "state.sqlite3", readonly=True)) as db:
         controller = database.quiescent(db)
+        if db.execute("SELECT count(*) FROM agents").fetchone()[0]:
+            raise ValueError("Export and archive retained coding-agent runs before retiring terminal history.")
         backup_cli.reconciled(folder, db, backup.decode)
         names = files.inventory(folder, maintenance=True)
         for name in names:

@@ -10,7 +10,7 @@ export function terminalRecord(index = 1, extra = {}) {
     created_at: Date.now() / 1000, updated_at: Date.now() / 1000, error: null, ...extra };
 }
 export async function setupTerminals(page, options = {}) {
-  const state = { terminals: options.terminals ?? [terminalRecord()], creations: [], tickets: [], stops: [], reconciliations: [], sockets: [], frames: [], denied: false };
+  const state = { terminals: options.terminals ?? [terminalRecord()], creations: [], tickets: [], stops: [], reconciliations: [], sockets: [], connections: [], frames: [], ticketRequests: [], denied: false };
   await page.route('**/api/v1/session', route => route.fulfill({ json: { csrf: 'test-csrf', mode: options.mode ?? 'live', version: 'fixture',
     principal: { id: 'test', label: 'Test operator', scopes: options.scopes ?? terminalScopes, node_ids: null, root_ids: null } } }));
   await page.route('**/api/v1/nodes', route => route.fulfill({ json: { nodes: options.nodes ?? [node(1, { capabilities: { terminals_ephemeral: true, terminals_tmux: true } })] } }));
@@ -18,7 +18,8 @@ export async function setupTerminals(page, options = {}) {
     if (route.request().method() === 'POST') {
       const body = route.request().postDataJSON(); state.creations.push(body);
       if (options.dropFirstCreate && state.creations.length === 1) return route.abort('connectionfailed');
-      const record = terminalRecord(2, { ...body, state: 'new' }); state.terminals.push(record);
+      const target = (options.nodes ?? [node(1)]).find(item => item.id === body.node_id);
+      const record = terminalRecord(1000 + state.creations.length, { ...body, node_name: target?.name ?? body.node_id, account: target?.account ?? 'operator', state: 'new' }); state.terminals.push(record);
       return route.fulfill({ status: 201, json: record });
     }
     return state.denied ? route.fulfill({ status: 403, json: { error: { code: 'denied', message: 'Terminal permission revoked.' } } }) : route.fulfill({ json: { terminals: state.terminals } });
@@ -26,20 +27,26 @@ export async function setupTerminals(page, options = {}) {
   await page.route('**/api/v1/terminals/*/tickets', route => {
     state.tickets.push(route.request().headers());
     const id = new URL(route.request().url()).pathname.split('/').at(-2);
+    state.ticketRequests.push({ id, route });
+    if (options.deferTicket) return;
     return route.fulfill({ json: { ticket: 'one-use-fixture-ticket', expires_at: Date.now() / 1000 + 15, websocket_path: `/api/v1/terminals/${id}/stream` } });
   });
   await page.route('**/api/v1/terminals/*/stop', route => {
-    state.stops.push(route.request().postDataJSON()); state.terminals[0].state = 'stopped';
-    return route.fulfill({ json: state.terminals[0] });
+    const record = state.terminals.find(item => route.request().url().includes(item.id));
+    state.stops.push(route.request().postDataJSON()); record.state = 'stopped';
+    return route.fulfill({ json: record });
   });
   await page.route('**/api/v1/terminals/*/reconcile', route => {
     state.reconciliations.push({ url: route.request().url(), body: route.request().postDataJSON(), headers: route.request().headers() });
-    state.terminals[0].state = 'detached'; return route.fulfill({ json: state.terminals[0] });
+    const record = state.terminals.find(item => route.request().url().includes(item.id));
+    record.state = 'detached'; return route.fulfill({ json: record });
   });
   await page.routeWebSocket('**/api/v1/terminals/*/stream', socket => {
     state.sockets.push(socket);
+    const connection = { id: new URL(socket.url()).pathname.split('/').at(-2), socket, frames: [], closed: false };
+    state.connections.push(connection); socket.onClose(() => { connection.closed = true; });
     socket.onMessage(message => {
-      state.frames.push(message);
+      state.frames.push(message); connection.frames.push(message);
       if (typeof message === 'string' && JSON.parse(message).type === 'auth' && !options.deferAttach) socket.send(JSON.stringify({ type: 'status', state: 'attached' }));
       if (Buffer.isBuffer(message) && options.echo !== false) socket.send(message);
     });
