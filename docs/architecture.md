@@ -9,9 +9,11 @@ The browser uses local HTML, CSS and JavaScript. It does not execute code sent
 by a managed machine. The wheel includes all web assets and font licences.
 Node.js is required to build and test these assets, not to serve the application.
 
-The installed service is limited to machine observation and access management.
-Task execution, file management and interactive terminals are not included in
-this development version. Unsupported functions are not presented as controls.
+The installed service provides observation, access management and durable jobs.
+Typed requests travel to the helper through SSH stdin. A fixed node runner reads
+saved arguments and starts programs under bounded systemd user services. SQLite
+intent and node receipts support reconciliation after a controller restart.
+File management and interactive terminals remain later development work.
 
 ## Connections
 
@@ -48,5 +50,5 @@ is separate from a token's restricted view of the inventory.
 ## Demonstration mode
 
 Demonstration mode uses synthetic records and displays a simulation label.
-It disables remote enrollment and SSH collection. Demonstration results do not
+It disables remote enrollment, managed-job mutation and SSH collection. Demonstration results do not
 describe real machine health or resource capacity.

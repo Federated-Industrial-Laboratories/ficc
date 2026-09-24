@@ -2,6 +2,7 @@
 // Manage the local browser session and console navigation.
 import { connect, getSession, request, setSession } from './api.js';
 import { button, el, errorPanel, state } from './components.js';
+import { jobs } from './jobs.js';
 import { overview } from './overview.js';
 import { access, activity } from './access.js';
 
@@ -13,7 +14,7 @@ let current;
 function navigate(view, focus = false) {
   if (!getSession()) return;
   current?.dispose();
-  current = ({ overview, access, activity })[view]();
+  current = ({ overview, jobs, access, activity })[view]();
   main.replaceChildren(current.element);
   for (const item of nav) {
     if (item.dataset.view === view) item.setAttribute('aria-current', 'page');

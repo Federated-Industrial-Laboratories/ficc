@@ -32,9 +32,18 @@ current grants and node scope.
 | GET /api/v1/tokens | Token metadata; never secret values |
 | DELETE /api/v1/tokens/{id} | Revoke a token |
 | GET /api/v1/audit | Bounded recent audit events |
+| POST /api/v1/nodes/{id}/helper-upgrade | Explicitly update the enrolled node helper |
+| POST /api/v1/operation-previews | Validate and freeze a managed-job request |
+| POST /api/v1/operations | Persist a previewed job batch; requires Idempotency-Key |
+| GET /api/v1/operations | Up to 200 visible operations, newest first |
+| GET /api/v1/operations/{id} | Per-machine states, limits and authoritative results |
+| POST /api/v1/operations/{id}/cancel | Record cancellation for selected node_ids and optional force |
+| GET /api/v1/operations/{id}/logs/{node_id} | Bounded base64 stdout/stderr chunk and byte cursor |
 
 The available scopes are nodes:read, nodes:write, resources:read, tokens:manage
-and audit:read. Node lists filter inaccessible machines. Enrollment, profile
+and audit:read, plus jobs:read, jobs:execute, jobs:cancel and jobs:logs. Existing
+credentials do not gain new scopes during an upgrade. Sign in again as owner
+or issue an appropriate new token. Node lists filter inaccessible machines. Enrollment, profile
 inspection, token administration and global audit access require unrestricted
 node access as well as their operation scope.
 
@@ -52,6 +61,17 @@ The helper response contract is [node-v1.json](../schemas/node-v1.json).
 Generate it with `python tools/export_schema.py schemas/node-v1.json`.
 The current collector reports the root filesystem and cumulative network counters.
 GPU measurements use a bounded structured nvidia-smi query when supported.
+
+See [managed jobs](jobs.md) for the typed request and lifetime rules. A job preview
+expires after 120 seconds and belongs to its credential. Submit `{"preview_id":"ID"}`
+with an Idempotency-Key of 16 to128 printable ASCII characters. Deduplication is
+credential-bound. A matching previously accepted request returns its original
+operation even after preview expiry. A conflicting request returns 409.
+
+Log queries accept stream=stdout or stderr, nonnegative offset and limit 1..65536.
+They return data_base64, next_offset, total_bytes, dropped_bytes and complete.
+Cancellation accepts `{"node_ids":["ID"],"force":false}` and returns 202 with the
+current operation. Neither acceptance nor a transport error proves termination.
 
 The service provides a development contract under /api/v1. Clients
 should check the returned application version. Additive and breaking changes

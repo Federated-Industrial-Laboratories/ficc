@@ -24,6 +24,17 @@ Browser sessions use short-lived login credentials and HttpOnly cookies.
 Origin, Host and CSRF checks apply to browser requests. API tokens have explicit
 scope, node access and expiry. Revoke unused credentials in Access or the CLI.
 
+Managed execution has the full authority of the remote SSH account. Limits and
+GPU visibility are resource controls, not a sandbox for hostile programs. Grant
+jobs:execute only to callers permitted to use that account. Log output can carry
+secrets and needs the separate jobs:logs scope. Command arguments and explicit
+environment values are stored in durable job requests; avoid embedding secrets.
+
+The CLI stores private submission credentials only in bounded recovery receipts
+under the state directory. They expire after one hour and remain revocable.
+Copy those receipts only with the same care as API credentials. Do not expose
+one-use browser bootstrap URLs through desktop configuration or service logs.
+
 The service stores inventory and audit data in its private state directory.
 Do not put that directory in a repository or a shared filesystem. A private Git
 repository is not a suitable secret store. Local audit data is not tamper-proof

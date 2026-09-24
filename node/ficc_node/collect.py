@@ -95,7 +95,7 @@ def collect() -> dict:
     disk = os.statvfs("/")
     gpus, gpu_status = gpu_metrics()
     return {
-        "version": VERSION,
+        "version": "1",
         "boot_id": read_text("/proc/sys/kernel/random/boot_id", 128).strip(),
         "observed_at": time.time(), "monotonic_seconds": time.monotonic(),
         "capabilities": {"resources": True, "gpu_metrics": gpu_status == "available",

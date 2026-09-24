@@ -17,6 +17,7 @@ from . import __version__
 from .auth import Principal
 from .control import Control
 from .errors import Failure
+from .job_routes import install as install_job_routes
 from .schema import Bootstrap, EnrolRequest, PreviewRequest, RefreshRequest
 from .service import Service
 from .settings import MAX_MESSAGE, Settings
@@ -38,10 +39,16 @@ def create_app(settings: Settings) -> FastAPI:
             await control.start()
         poller = asyncio.create_task(service.poll())
         app.state.poller = poller
+        job_poller = asyncio.create_task(service.jobs.poll())
+        app.state.job_poller = job_poller
         try:
             yield
         finally:
             poller.cancel()
+            job_poller.cancel()
+            with suppress(asyncio.CancelledError):
+                await job_poller
+            await service.jobs.close()
             with suppress(asyncio.CancelledError):
                 await poller
             if settings.control:
@@ -141,7 +148,9 @@ def create_app(settings: Settings) -> FastAPI:
     @app.get("/api/v1/health")
     async def health():
         poller = getattr(app.state, "poller", None)
-        failed = service.poll_error or (not settings.demo and poller is not None and poller.done())
+        job_poller = getattr(app.state, "job_poller", None)
+        failed = service.poll_error or service.jobs.failed or (not settings.demo and (
+            (poller is not None and poller.done()) or (job_poller is not None and job_poller.done())))
         return {"status": "degraded" if failed else "ok", "version": __version__}
 
     @app.post("/api/v1/session")
@@ -217,6 +226,9 @@ def create_app(settings: Settings) -> FastAPI:
         value = principal(request, "nodes:write", node_id)
         service.live()
         service.store.node(node_id)
+        unrestricted(value)
+        if service.jobs.store.active(node_id):
+            raise Failure("node_busy", "Resolve active or unknown jobs before forgetting this machine.", 409)
         service.store.delete_node(node_id)
         service.store.audit("node.forget", node_id, actor=value.id)
         if node_id in service.locks and not service.locks[node_id].locked():
@@ -244,6 +256,8 @@ def create_app(settings: Settings) -> FastAPI:
     async def audit(request: Request):
         unrestricted(principal(request, "audit:read"))
         return {"events": service.store.events()}
+
+    install_job_routes(app, service, principal)
 
     static = Path(__file__).parent / "static"
     if static.is_dir():

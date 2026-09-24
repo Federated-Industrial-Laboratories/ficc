@@ -8,7 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 PROFILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\Z")
-SCOPES = {"nodes:read", "nodes:write", "resources:read", "tokens:manage", "audit:read"}
+SCOPES = {"nodes:read", "nodes:write", "resources:read", "tokens:manage", "audit:read",
+          "jobs:read", "jobs:execute", "jobs:cancel", "jobs:logs"}
 MAX_NODES = 64
 MAX_MESSAGE = 1024 * 1024
 
