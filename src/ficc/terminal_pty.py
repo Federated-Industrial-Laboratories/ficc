@@ -10,7 +10,6 @@ import struct
 import subprocess
 import sys
 import termios
-import tty
 from contextlib import suppress
 
 from .process import ready
@@ -22,7 +21,7 @@ class TerminalPTY:
         self.process = None
         self.pidfd = None
         try:
-            tty.setraw(slave)
+            # SSH sends the initial terminal modes to the peer, then makes its local transport raw.
             self.resize(cols, rows)
             env = {**os.environ, "TERM": "xterm-256color"}
             self.process = subprocess.Popen([sys.executable, "-m", "ficc.terminal_child", *args],

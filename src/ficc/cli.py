@@ -87,6 +87,10 @@ def parser() -> argparse.ArgumentParser:
     add_commands(commands)
     from .file_cli import add_commands as add_file_commands
     add_file_commands(commands)
+    from .backup import add_commands as add_backup_commands
+    add_backup_commands(commands)
+    from .history import add_commands as add_history_commands
+    add_history_commands(commands)
     return result
 
 
@@ -125,6 +129,12 @@ def main(argv: list[str] | None = None) -> int:
                         access_log=False, proxy_headers=False, server_header=False,
                         limit_concurrency=64, timeout_keep_alive=5, ws="websockets",
                         ws_max_size=16384, ws_max_queue=4, ws_per_message_deflate=False)
+        elif args.command == "archive-history":
+            from .history import execute as execute_history
+            execute_history(args)
+        elif args.command in {"backup", "restore"}:
+            from .backup import execute as execute_backup
+            execute_backup(args)
         elif args.command == "open":
             launcher.open_console(args.state_dir, args.print_url)
         elif args.command == "install-launcher":

@@ -66,15 +66,18 @@ an authentication error; do not store a private key passphrase in service settin
 
 A changed key blocks observation. Independently verify a replacement key and
 the machine identity first. Forget the old local enrollment, update the trusted
-local SSH configuration, and preview a new enrollment. Forgetting a machine does
-not remove its helper or affect other SSH clients.
+local SSH configuration, and preview a new enrollment. Complete the explicit
+[history archive](history.md) before forgetting a machine with retained work.
+If its old identity is unavailable, preserve that state and reconcile it before
+archival; a replacement key does not prove that the old work is finished.
+Forgetting a machine does not remove its helper or affect other SSH clients.
 
 ## State copy and upgrades
 
-This development version has no online backup command. Stop the service before
-copying its complete state directory. Preserve file ownership and permissions.
-Treat the copy as confidential because it includes credential digests and audit
-history. Keep it outside the source directory.
+Use the stopped-service [backup and restore commands](backup.md) for a verified
+state bundle that removes credentials. Finish or reconcile remote work, stop
+terminal sessions, and finish or discard transfers before backup. Registered
+file trees and remote job output need separate backups.
 
 Before an upgrade, retain the old wheel, dependency lock and stopped state copy.
 Install the new wheel into a separate environment and read its compatibility
@@ -89,9 +92,12 @@ The older observation-only version refuses schema 2. A downgrade needs its
 pre-upgrade state copy; restoring that copy loses subsequent job records and
 must wait until those jobs are reconciled. Preserve the current state as well.
 
-Restore only with the service stopped and a compatible application version.
-After restore, revoke stale credentials and verify enrolled identities. Old
-resource samples do not prove that a machine is currently reachable.
+Restore only with the original service stopped and a compatible application
+version. The restore command creates a new directory, removes credentials and
+clears cached observations. Check remote work since the backup before confirming
+restore. Never run both controller copies. A raw pre-upgrade directory copy still
+contains credential material; keep it private and revoke old credentials after
+using that separate downgrade procedure.
 
 ## Removal
 

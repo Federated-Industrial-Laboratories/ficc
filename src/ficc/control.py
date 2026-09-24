@@ -2,7 +2,6 @@
 """Issue local credentials through a private socket with peer identity checks."""
 
 import asyncio
-import fcntl
 import json
 import os
 import socket
@@ -17,18 +16,12 @@ class Control:
     def __init__(self, service: Service):
         self.service = service
         self.server: asyncio.AbstractServer | None = None
-        self.lock_fd: int | None = None
         self.clients: set[asyncio.Task] = set()
 
     async def start(self) -> None:
         path = self.service.settings.socket_path
-        self.lock_fd = os.open(path.parent / "service.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
-        try:
-            fcntl.flock(self.lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            os.close(self.lock_fd)
-            self.lock_fd = None
-            raise ValueError("A service already uses this state directory.") from None
+        if self.service.state_lock.fd is None:
+            raise ValueError("State ownership is required before starting the local socket.")
         if path.exists() or path.is_symlink():
             path.unlink()
         self.server = await asyncio.start_unix_server(self.handle, path=str(path), limit=8193)
@@ -43,8 +36,6 @@ class Control:
         for task in self.clients:
             task.cancel()
         await asyncio.gather(*self.clients, return_exceptions=True)
-        if self.lock_fd is not None:
-            os.close(self.lock_fd)
 
     async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         task = asyncio.current_task()

@@ -140,6 +140,9 @@ def submit(body):
         raise ValueError("Retained job output capacity is full.")
     if busy:
         raise ValueError("Another job is active or has an unknown outcome.")
+    available = os.statvfs(state.root())
+    if available.f_bavail * available.f_frsize < LOG_CAP + 256 * 1024**2:
+        raise ValueError("The node lacks free storage for bounded job output and state.")
     reservations = job["gpu_reservations"].get(body["node_id"], [])
     if reservations:
         gpus, _ = gpu_metrics()

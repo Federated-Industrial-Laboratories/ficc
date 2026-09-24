@@ -32,6 +32,11 @@ Remote data cannot automatically change the page title, follow links or write
 the clipboard. Normal deliberate selection and copy remain available.
 Raw keystrokes and terminal output are not written to FICC audit logs.
 
+SSH starts with normal terminal line discipline: Enter completes line input,
+newlines return to column one, and Ctrl+C interrupts the foreground program.
+Interactive applications can select their own raw mode for binary input.
+FICC transports terminal bytes without adding newline conversions.
+
 The service pauses output reads after 256 KiB is awaiting browser processing.
 The browser acknowledges bytes after xterm finishes processing them. An
 unresponsive reader closes after 30 seconds with an output-gap notice. Input

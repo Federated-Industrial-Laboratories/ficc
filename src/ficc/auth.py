@@ -5,6 +5,7 @@ import hashlib
 import json
 import secrets
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from .errors import Failure
@@ -45,6 +46,7 @@ class Principal:
 class Auth:
     def __init__(self, store: Store):
         self.store = store
+        self.on_revoke: Callable[[], None] | None = None
 
     def issue(self, kind: str, label: str = "Local owner", scopes: list[str] | None = None,
               node_ids: list[str] | None = None, lifetime: int = 3600,
@@ -97,6 +99,8 @@ class Auth:
     def revoke(self, credential_id: str, actor: str = "local-owner") -> None:
         with self.store.lock, self.store.db:
             self.store.db.execute("DELETE FROM credentials WHERE id=?", (credential_id,))
+        if self.on_revoke:
+            self.on_revoke()
         self.store.audit("credential.revoke", credential_id, actor=actor)
 
     def current(self, credential_id: str) -> Principal:

@@ -1,7 +1,7 @@
 name: Checks
 on:
   push:
-    branches: [master, overview, jobs, workspace]
+    branches: [master, overview, jobs, workspace, qualification]
   pull_request:
     branches: [master, overview]
 permissions:

@@ -92,7 +92,7 @@ def test_expired_and_wrong_target_tickets(console):
 
 
 async def test_real_pty_resize_bytes_and_cleanup():
-    code = "import os,termios,fcntl;os.write(1,b'READY');v=os.read(0,4);os.write(1,v+str(os.get_terminal_size()).encode())"
+    code = "import os,tty;tty.setraw(0);os.write(1,b'READY');v=os.read(0,4);os.write(1,v+str(os.get_terminal_size()).encode())"
     pty = TerminalPTY([sys.executable, "-c", code], 93, 31)
     pid = pty.process.pid
     try:
@@ -173,7 +173,7 @@ def test_authenticated_socket_bytes_revocation_and_no_replay(console, monkeypatc
     client, service = console
     service.store.save_node(node())
     async def arguments(value, actor):
-        return [sys.executable, "-c", "import os;os.write(1,b'READY');os.write(1,os.read(0,100));os.read(0,1)"]
+        return [sys.executable, "-c", "import os,tty;tty.setraw(0);os.write(1,b'READY');os.write(1,os.read(0,100));os.read(0,1)"]
     monkeypatch.setattr(service.terminals, "arguments", arguments)
     terminal = client.post("/api/v1/terminals", json=request()).json()
     ticket = client.post(f"/api/v1/terminals/{terminal['id']}/tickets").json()

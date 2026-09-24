@@ -65,8 +65,12 @@ bytes reported. Each node reserves output space against a 2 GiB retained limit
 and retains at most 256 job receipts. The controller retains at most 2048
 operations and lists the newest 200. New work is refused when retained capacity
 is full. Active or uncertain receipts are never evicted to make room. Automated
-retention, backup and archival tools remain later development work. Preserve
-receipts while reconciling a job or an uncertain submission.
+expiry is disabled. Use the explicit [history archive command](history.md) to
+retain completed history and recover admission capacity. Preserve receipts while
+reconciling a job or an uncertain submission. Archived logs still consume disk
+space. New jobs require at least their 64 MiB output allowance plus 256 MiB of
+free storage for state and other bounded work. This preflight check cannot reserve
+space against unrelated programs that write to the same filesystem.
 
 ## CLI
 
@@ -138,6 +142,8 @@ state; it is not a guarantee of exactly-once external program effects.
 
 On controller restart, FICC queries retained node receipts and unit identity.
 Keep an unknown job's reservations until the outcome can be established. Do not
-forget a node with active or unknown work. Only one controller may own a node's
+forget a node with active or unknown work. Archive completed history before
+forgetting its machine, so the archive can verify the saved node identity.
+Only one controller may own a node's
 FICC job namespace. Restoring or migrating controller state requires preserving
 its identity and job records; a new empty controller cannot claim that namespace.

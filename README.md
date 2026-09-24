@@ -16,16 +16,23 @@ verified transfers and explicit file changes. Interactive SSH and tmux terminals
 provide one-node access. Shared remote access remains outside this version.
 Existing SSH tools continue to work.
 
+Stopped-controller backups preserve state and remove credentials. An explicit
+history archive retains completed records and node output so new work can be
+recorded. No history expires automatically.
+
 ## Requirements
 
-Use Linux, Python 3.12 or later and OpenSSH on the controller. Nodes require
+Use Linux, Python 3.12 or later, OpenSSH and GNU coreutils `timeout` on the
+controller. Nodes require
 OpenSSH server and Python 3.12 or later. NVIDIA reporting uses a bounded,
 structured nvidia-smi query when available. Missing GPU support does
 not prevent CPU and memory observation.
 
 Node.js 20 or later is a build and browser-test dependency. It is not needed
-to run an installed wheel. The initial qualification targets Ubuntu 24.04 and
-26.04. Other systems require separate checks.
+to run an installed wheel. Package installation is checked on an Ubuntu 24.04
+controller with Python 3.12. Actual node checks use Ubuntu 26.04 and Python 3.14.
+These are separate platform roles; other controller/node combinations require
+their own checks. See [testing](docs/testing.md) for qualification boundaries.
 
 ## Build and install
 
@@ -126,8 +133,10 @@ no longer needed. Never put token values in shell arguments or source files.
 
 See [files](docs/files.md), [terminals](docs/terminals.md),
 [managed jobs](docs/jobs.md), [API](docs/api.md), [operations](docs/operations.md),
+[backup and restore](docs/backup.md), [history archives](docs/history.md),
 [architecture](docs/architecture.md), [security](SECURITY.md),
 [testing](docs/testing.md) and [contribution procedure](CONTRIBUTING.md).
 
 The software uses the Apache License, Version 2.0. See [LICENSE](LICENSE) and
-[NOTICE](NOTICE). Font files retain their included OFL licences.
+[NOTICE](NOTICE). [Dependencies](docs/dependencies.md) retain their separate
+licences and included notice files.
