@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Interactive terminals
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Files](files.md) | [Next: Coding agents](agents.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 Terminals groups independent SSH connections into machine tabs. Each machine
 can display four terminal panes, with sixteen panes across the workspace.
@@ -95,3 +101,8 @@ At most 16 sessions can be active, with four per node and 512 retained records.
 The controller keeps durable creation identities and refuses conflicting request
 keys. On restart, ephemeral records become interrupted; tmux sessions can be
 explicitly attached again if the remote session still exists.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Files](files.md) | [Next: Coding agents](agents.md)

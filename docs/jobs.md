@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Managed jobs
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Operation](operations.md) | [Next: Files](files.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 A managed job runs an explicit program under an enrolled remote account.
 The node keeps its request, output and result independently of the controller.
@@ -147,3 +153,8 @@ forgetting its machine, so the archive can verify the saved node identity.
 Only one controller may own a node's
 FICC job namespace. Restoring or migrating controller state requires preserving
 its identity and job records; a new empty controller cannot claim that namespace.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Operation](operations.md) | [Next: Files](files.md)

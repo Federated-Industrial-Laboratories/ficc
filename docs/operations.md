@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Operation and maintenance
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Installation](install.md) | [Next: Managed jobs](jobs.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 Run FICC as a normal local account. Its state defaults to
 `$XDG_STATE_HOME/ficc`, or `~/.local/state/ficc` when XDG_STATE_HOME is unset.
@@ -117,3 +123,8 @@ preview before launch and the Bus receipt view to distinguish storage from runti
 inclusion. A generic inbox works without a native adapter. See [agents](agents.md)
 and [bus](bus.md) for direct delivery, scoped replies and explicit closed-run
 archival. Agent spools remain on their node until that explicit archive operation.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Installation](install.md) | [Next: Managed jobs](jobs.md)

@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Testing
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Local API](api.md) | [Next: Dependencies](dependencies.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 Run checks from the project root with the development environment active.
 
@@ -96,3 +102,8 @@ message rendering and receipt stages. Browser fixtures do not establish native
 agent protocol behavior. Test the installed adapter version separately, with
 its actual extension or Unix endpoint, and exercise an isolated node workflow.
 An accepted message is not evidence of completed agent work.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Local API](api.md) | [Next: Dependencies](dependencies.md)

@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Controller backup and restore
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Agent bus](bus.md) | [Next: History archives](history.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 FICC exports a stopped, quiescent controller into a private directory bundle.
 The backup command holds the same exclusive state lock as service startup before
@@ -116,3 +122,8 @@ Agent and bus tables are included. Active or uncertain coding agents and unresol
 bus deliveries prevent backup or restore. A restored closed agent record preserves
 its identity and never restarts the agent. Export and archive its closed run before
 retiring terminal history with `archive-history`.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Agent bus](bus.md) | [Next: History archives](history.md)

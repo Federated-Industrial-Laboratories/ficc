@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Architecture
+
+[Contents](README.md) | [Project README](../README.md) | [Next: Installation](install.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 The browser and CLI use one local HTTP API. A Python service owns inventory,
 authentication, audit data and resource snapshots in SQLite. OpenSSH connects
@@ -78,3 +84,8 @@ retained until matching session evidence exists. Closed-run archival publishes
 controller evidence before moving exact quiescent node spools and releasing host
 capacity. Backup and history maintenance include the combined schema and refuse
 unresolved agent work. See [agents](agents.md) and [bus](bus.md).
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Next: Installation](install.md)

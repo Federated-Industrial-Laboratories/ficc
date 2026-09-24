@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Files and verified transfers
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Managed jobs](jobs.md) | [Next: Terminals](terminals.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 Files shows two independent locations. Each location selects the controller or
 an enrolled machine, then a registered folder. The controller pane is server
@@ -100,3 +106,8 @@ external rename, hard link or privileged mount operation can change its pathname
 or aliases. Detected changes are refused, but continuous pathname confinement
 against such writers is not promised. Keep registered namespaces operator-managed.
 Shell and managed-job execution have the full authority of the remote account.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Managed jobs](jobs.md) | [Next: Terminals](terminals.md)

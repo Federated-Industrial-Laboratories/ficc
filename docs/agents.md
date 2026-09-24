@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Coding agents
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Terminals](terminals.md) | [Next: Agent bus](bus.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 FICC launches an explicitly registered command on an enrolled Linux node. The
 native agent interface appears in a managed tmux terminal in the Terminals page.
@@ -16,7 +22,12 @@ ficc agent-profile-list
 ```
 
 Use `--adapter codex` for Codex or `--adapter generic` for another command. An
-explicit interpreter is supported, for example `["/usr/bin/node","/home/operator/.local/bin/codex"]`.
+explicit interpreter is also supported:
+
+```json
+["/usr/bin/node", "/home/operator/.local/bin/codex"]
+```
+
 The JSON array is passed as command arguments; message text never becomes shell
 syntax. Keep adapter arguments compatible with the agent's native subcommands.
 The profile preview shows the exact executable, arguments, account, workspace,
@@ -116,3 +127,8 @@ an explicit retained node archive, freeing current spool capacity. The node keep
 up to 8,192 archived agent namespaces. Nothing expires or disappears automatically.
 Agents on the same Unix account share that account's authority; private files
 protect against other accounts, not a hostile process running as the owner.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Terminals](terminals.md) | [Next: Agent bus](bus.md)

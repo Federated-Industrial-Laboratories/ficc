@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Archive completed history
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Backup and restore](backup.md) | [Next: Local API](api.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 FICC keeps completed operation receipts to make retries safe. The controller and
 node histories have finite limits. Use an explicit archive to start a new
@@ -96,3 +102,8 @@ archives, and reconcile the original enrollment from a retained backup together
 with the remote history before retrying. There is no automatic identity recovery
 or deletion bypass. New node deletion requests require that node's retained
 execution history to be archived first.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Backup and restore](backup.md) | [Next: Local API](api.md)

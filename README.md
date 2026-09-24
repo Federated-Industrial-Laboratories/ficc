@@ -1,41 +1,76 @@
-# Federated Industrial Cluster Commander
+<p align="center">
+  <img src=".github/assets/mark.png" width="720" alt="FICC, Federated Industrial Cluster Commander. Orange-haired systems operator beside a silver wordmark.">
+</p>
 
-FICC is a local console for Linux clusters. It connects through OpenSSH and
-provides a web interface and a local API for machine status and resource use.
-The interface uses white and silver panels with orange controls. All assets
-are local, including fonts.
+<p align="center">A local console for Linux clusters, connected through OpenSSH.</p>
 
-This development version provides authenticated access, explicit machine
-enrollment, CPU/RAM/storage/network observations, optional NVIDIA reporting,
-scoped API tokens and audit history. It distinguishes old samples, unavailable
-metrics, authentication failures and changed host keys.
+<p align="center">
+  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.1.0.dev5 | Python 3.12 or later | OpenSSH">
+</p>
 
-Managed jobs add bounded CPU/RAM use, durable output and recovery after a local
-controller restart. GPU reservations are advisory. Registered file roots support
-verified transfers and explicit file changes. Interactive SSH and tmux terminals
-use a tiled workspace with machine tabs and fullscreen controls. Registered
-coding agents retain their native terminal interface. A host-owned message bus
-provides explicit recipients, direct adapters and a generic tool-readable inbox.
-Shared remote access remains outside this version.
-Existing SSH tools continue to work.
+<p align="center">
+  <a href="docs/install.md">Install</a> |
+  <a href="docs/operations.md">Operate</a> |
+  <a href="docs/agents.md">Coding agents</a> |
+  <a href="docs/README.md">Documentation</a>
+</p>
 
-Stopped-controller backups preserve state and remove credentials. An explicit
-history archive retains completed records and node output so new work can be
-recorded. No history expires automatically.
+<p align="center"><img src=".github/assets/divider.svg" width="720" alt=""></p>
+
+FICC brings machine status, managed jobs, files, terminals and coding agents into
+one local web interface. A Python service owns the local API and recorded state.
+Approved SSH connections reach small helpers on enrolled machines. Existing SSH
+tools continue to work.
+
+The interface uses white and silver panels, orange controls and compact tables.
+All application assets are local, including fonts. The controller listens on
+loopback; shared remote access remains outside this development version.
+
+## Overview
+
+| Surface | Function |
+| --- | --- |
+| Overview | CPU, memory, storage and network samples; optional NVIDIA reporting; explicit stale and unavailable states. |
+| Jobs | Preview commands, set CPU/RAM limits, follow durable output and reconcile interrupted work. |
+| Files | Registered roots, two-pane tables, explicit file changes and verified transfers. |
+| Terminals | Interactive SSH and tmux sessions with machine tabs, adjustable splits, tile zoom and fullscreen. |
+| Agents | Registered OMP, Codex and generic commands with their own managed terminal sessions. |
+| Bus | Host-owned runs, explicit recipients, direct adapters and a tool-readable inbox. |
+| Access and Activity | Expiring scoped credentials, node/root restrictions and recorded actions. |
+
+> [!NOTE]
+> GPU reservations are advisory. A delivery receipt records transport or runtime
+> admission; it does not mean that an agent completed the requested work.
+
+Stopped-controller backups remove credentials. Explicit archives retain completed
+history and node output. No history expires automatically.
+
+<p align="center"><img src=".github/assets/divider.svg" width="720" alt=""></p>
 
 ## Requirements
 
-Use Linux, Python 3.12 or later, OpenSSH and GNU coreutils `timeout` on the
-controller. Nodes require
-OpenSSH server and Python 3.12 or later. NVIDIA reporting uses a bounded,
-structured nvidia-smi query when available. Missing GPU support does
-not prevent CPU and memory observation.
+<details>
+<summary>Controller, node and development requirements</summary>
 
-Node.js 20 or later is a build and browser-test dependency. It is not needed
-to run an installed wheel. Package installation is checked on an Ubuntu 24.04
-controller with Python 3.12. Actual node checks use Ubuntu 26.04 and Python 3.14.
-These are separate platform roles; other controller/node combinations require
-their own checks. See [testing](docs/testing.md) for qualification boundaries.
+| Role | Requirements |
+| --- | --- |
+| Controller | Linux, Python 3.12 or later, OpenSSH and GNU coreutils `timeout`. |
+| Nodes | OpenSSH server and Python 3.12 or later. |
+| Managed jobs | A usable systemd user manager and the controls shown in the job preview. |
+| Persistent terminals | tmux on the selected node. |
+| Coding agents | An installed runtime and its provider sign-in on the selected node. |
+| Build and browser checks | Node.js 20 or later and the locked development dependencies. |
+
+An installed wheel needs no Node.js. Package checks use an Ubuntu 24.04 controller
+with Python 3.12; actual node checks use Ubuntu 26.04 with Python 3.14.
+Other combinations need their own qualification. Missing NVIDIA support does not
+prevent CPU and memory observation.
+
+See [installation](docs/install.md) and [testing](docs/testing.md).
+
+</details>
+
+<p align="center"><img src=".github/assets/divider.svg" width="720" alt=""></p>
 
 ## Build and install
 
@@ -50,9 +85,9 @@ npm run build --prefix web
 python -m pip install --no-deps --no-build-isolation -e .
 ```
 
-For a distributable package, run `python -m build --no-isolation` after building
-the web assets. Install the wheel with requirements.lock in a clean environment.
-Keep state, credentials and captures outside the source directory.
+Run `python -m build --no-isolation` to produce a distributable package after the
+web build. Keep state, credentials and captures outside the source directory.
+[Installation](docs/install.md) covers clean environments and machine enrollment.
 
 ## Try the interface
 
@@ -66,81 +101,80 @@ In another terminal with the environment active:
 ficc open --state-dir /tmp/ficc-demo
 ```
 
-The browser signs in with a short-lived, one-use credential. Demonstration mode
-shows synthetic machines and disables live SSH collection and enrollment.
-Use a different state directory for live operation.
+The browser receives a short-lived, one-use sign-in. Demo mode uses synthetic
+machines and disables live collection and changes. Use separate state for live work.
 
-## Connect a machine
+<p align="center"><img src=".github/assets/divider.svg" width="720" alt=""></p>
 
-First establish working key authentication and verify the machine's SSH host
-fingerprint independently. Save that trusted key in the local known-hosts file.
-Prepare an SSH alias such as `rack-01`. Review any executable SSH configuration
-before approving it for use.
+## Run the cluster console
+
+First establish key authentication and independently verify the SSH host key.
+Approve a trusted SSH alias, then start the local console:
 
 ```sh
 ficc serve --profile rack-01
 ```
 
-The default address is `http://127.0.0.1:8170`. In another terminal:
+In another terminal, run `ficc open`. Select **Enroll node**, inspect the account
+and fingerprint, and confirm helper installation when required. Repeat
+`--profile` to approve more aliases. The helper runs through SSH and opens no
+node listener. [Installation](docs/install.md#connect-a-machine) documents the
+complete enrollment procedure.
 
-```sh
-ficc open
-ficc nodes
-```
-
-Select Enroll node in the browser. Review the resolved account, host and
-fingerprint. Confirm installation if the node helper is absent. The helper is
-installed under the remote account at `~/.local/lib/ficc/node.pyz`. It runs only
-when requested over SSH and opens no network listener.
-
-Use repeated `--profile` options to approve more aliases. `--ssh-config PATH`
-selects a separate trusted local SSH configuration. Untrusted or changed host
-keys are refused. Do not turn off host verification to resolve that refusal.
-
-The CLI can show the same enrollment preview:
-
-```sh
-ficc enroll --profile rack-01 --name 'Rack 01'
-```
-
-After reviewing the preview, repeat with `--fingerprint SHA256:...` and, when
-required, `--install-helper`. Use the actual independently verified fingerprint.
-
-## Start from the desktop
-
-After installation, stop the foreground service and retain its state directory.
-Install a launcher with the same approved profiles and settings:
+After the first setup, stop the foreground service and install the desktop
+launcher with the same profiles and state settings:
 
 ```sh
 ficc install-launcher --profile rack-01
 ficc launch
 ```
 
-Select **FICC Cluster Commander** in the application menu to start the service
-and open the console. It starts on demand by default. Use `ficc status` to check
-it and `ficc stop` to stop the local service. See [operations](docs/operations.md)
-for existing state, alternate configurations and optional sign-in startup.
+Open **FICC Cluster Commander** from the application menu thereafter. Startup is
+on demand by default. Use `ficc status` and `ficc stop` to inspect or stop it.
+See [operation](docs/operations.md) before changing existing launcher settings.
 
-## Access and operation
+## Coding agents and messages
 
-The local owner can create an expiring token in a protected file:
+Install and sign in to the chosen coding agent on its node. Register its exact
+executable and workspace with `ficc agent-profile-add`. In **Bus**, create a run;
+in **Agents**, select that run and profile, review the preview, then launch.
+**Open terminal** selects that agent's native terminal in the tiled workspace.
 
-```sh
-ficc token-create --label monitor --scope nodes:read --scope resources:read \
-  --lifetime 3600 --output /tmp/ficc-monitor-token
+OMP 18.1.12 and Codex 0.156.1 have native direct adapters. Other commands can use
+the generic inbox tool. Direct delivery can start model work and always needs
+explicit recipients. FICC does not install runtimes, copy provider credentials,
+select a model or automatically reply. See [coding agents](docs/agents.md) and
+[the bus](docs/bus.md) for registration, grants, receipts and retained history.
+
+<p align="center"><img src=".github/assets/divider.svg" width="720" alt=""></p>
+
+## Layout
+
+<details>
+<summary>The source directories</summary>
+
+```text
+src/ficc/       local service, API, CLI and durable state
+node/ficc_node/ node helper, job runners, terminal and agent adapters
+web/            HTML, CSS, JavaScript and locked build dependencies
+tests/          Python, SSH, browser and source checks
+docs/           operator guides and reference; start at docs/README.md
+tools/          source and development checks
 ```
 
-Add `--node ID` to restrict it to specific machines. Revoke a token in Access
-or with `ficc token-revoke ID`. Keep the output file private and delete it when
-no longer needed. Never put token values in shell arguments or source files.
+</details>
 
-See [files](docs/files.md), [terminals](docs/terminals.md),
-[coding agents](docs/agents.md), [agent bus](docs/bus.md),
-[managed jobs](docs/jobs.md), [API](docs/api.md), [operations](docs/operations.md),
-[backup and restore](docs/backup.md), [history archives](docs/history.md),
-[architecture](docs/architecture.md), [security](SECURITY.md),
-[testing](docs/testing.md) and [contribution procedure](CONTRIBUTING.md).
+## Documentation
 
-The software uses the Apache License, Version 2.0. See [LICENSE](LICENSE) and
-[NOTICE](NOTICE). [Dependencies](docs/dependencies.md) retain their separate
-licences and included notice files.
+The [documentation index](docs/README.md) provides a reading order, shared terms
+and a guide to each manual. Start with [architecture](docs/architecture.md),
+[installation](docs/install.md) and [operation](docs/operations.md).
+
+Read [security](SECURITY.md) before issuing credentials or opening a terminal.
+[Testing](docs/testing.md) states qualification boundaries;
+[contributing](CONTRIBUTING.md) describes the branch, check and pull-request policy.
+[Dependencies](docs/dependencies.md) retain their separate licences and notices.
+
+<p align="center"><img src=".github/assets/divider.svg" width="720" alt=""></p>
+
+<p align="center">Apache License, Version 2.0. See <a href="LICENSE">LICENSE</a> and <a href="NOTICE">NOTICE</a>.</p>

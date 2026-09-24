@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Local API
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: History archives](history.md) | [Next: Testing](testing.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 The service listens on 127.0.0.1. It does not trust proxy headers or allow CORS.
 Use the exact configured host and port. Remote proxy deployment is unsupported.
@@ -164,3 +170,8 @@ refusals. Each summary contains `id`, `code`, `detail` (at most 240 characters),
 and `rejected_at` (Unix seconds). These are separate from bus delivery receipts
 and do not claim host storage. Exact rejected content remains in the node spool
 and is available through the registered local `rejects` and `rejected` tools.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: History archives](history.md) | [Next: Testing](testing.md)

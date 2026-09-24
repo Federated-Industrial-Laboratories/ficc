@@ -1,4 +1,10 @@
+<p align="center"><a href="../README.md"><img src="../.github/assets/icon.svg" width="44" alt="FICC"></a></p>
+
 # Cluster message bus
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Coding agents](agents.md) | [Next: Backup and restore](backup.md)
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 The controller database is the canonical bus. Nodes hold private inboxes, outboxes
 and transport receipts. Only the controller initiates pinned SSH exchanges. Nodes
@@ -96,3 +102,8 @@ State backup and restore include all agent and bus tables, preserve identities
 and erase controller credentials. They refuse active or uncertain agents and
 unresolved delivery outcomes. Archive closed agent runs before `archive-history`
 retires terminal namespaces, so no retained agent record loses its terminal link.
+
+
+<p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
+
+[Contents](README.md) | [Project README](../README.md) | [Previous: Coding agents](agents.md) | [Next: Backup and restore](backup.md)
