@@ -65,6 +65,8 @@ test('a late directory reply cannot replace the selected location', async ({ pag
   let release;
   const waiting = new Promise(resolve => { release = resolve; });
   await setupFiles(page);
+  await expect(names(page)).toHaveText(['sample-1.txt']);
+  await expect(pane(page).getByRole('button', { name: 'Refresh', exact: true })).toBeEnabled();
   await page.route('**/api/v1/files/list', async route => {
     const body = route.request().postDataJSON();
     if (body.root_id === 'root-local') await waiting;
