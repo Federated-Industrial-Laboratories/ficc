@@ -81,6 +81,7 @@ test('a late directory reply cannot replace the selected location', async ({ pag
 
 test('directory navigation and Up use returned opaque ancestors', async ({ page }) => {
   const state = await setupFiles(page, { entries: [fileEntry(1, { name: 'folder', kind: 'directory' })] });
+  await expect(pane(page).getByRole('button', { name: 'folder', exact: true })).toBeEnabled();
   await page.route('**/api/v1/files/list', route => {
     const body = route.request().postDataJSON(); state.lists.push(body);
     return route.fulfill({ json: { root_id: body.root_id, entry_id: body.entry_id, entries: [], next_cursor: null,
