@@ -81,7 +81,7 @@ def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, 
     remote = [{'name': n, 'state': 'uploaded', **v} for n, v in assets.items()]
     if failure == 'uploaded-digest':
         remote[-1]['digest'] = 'sha256:' + 'f' * 64
-    release = {'draft': True, 'target_commitish': 'a' * 40, 'assets': remote, 'html_url': 'https://example.com/release'}
+    release = {'id': 42, 'tag_name': 'v1.0.0', 'draft': True, 'target_commitish': 'a' * 40, 'assets': remote, 'html_url': 'https://example.com/release'}
     calls = []
 
     def fake_gh(*args, **kwargs):
@@ -93,6 +93,9 @@ def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, 
         if '/commits/' in endpoint:
             changed = (failure == 'wrong-master' and endpoint.endswith('/master')) or failure == 'wrong-tag'
             return {'sha': ('b' if changed else 'a') * 40}
+        if endpoint == 'repos/example/ficc/releases':
+            return [[release]]
+        assert endpoint == 'repos/example/ficc/releases/42'
         return release
 
     def fake_run(command, **kwargs):
@@ -116,3 +119,59 @@ def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, 
         with pytest.raises(ValueError):
             module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True)
         assert not calls and release['draft']
+
+
+@pytest.mark.parametrize('resume', [False, True])
+def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monkeypatch, resume):
+    import subprocess
+
+    import publish_release as module
+
+    local_release(tmp_path)
+    _, expected = validate(tmp_path)
+    assets = [{'name': n, 'state': 'uploaded', **v} for n, v in list(expected.items())[:3]] if resume else []
+    release = {'id': 42, 'tag_name': 'v1.0.0', 'draft': True, 'target_commitish': 'a' * 40,
+               'assets': assets, 'html_url': 'https://example.com/release'}
+    created, mutations = resume, []
+
+    def fake_run(command, **kwargs):
+        nonlocal created
+        if command[:2] == ['gh', 'api']:
+            endpoint = command[2]
+            if '/releases/tags/' in endpoint or ('/git/ref/tags/' in endpoint and release['draft']):
+                return subprocess.CompletedProcess(command, 1, '', 'gh: Not Found (HTTP 404)')
+            if endpoint == 'repos/example/ficc':
+                value = {'default_branch': 'master'}
+            elif '/commits/' in endpoint:
+                value = {'sha': 'a' * 40}
+            elif '/git/ref/tags/' in endpoint:
+                value = {'ref': 'refs/tags/v1.0.0'}
+            elif endpoint == 'repos/example/ficc/releases':
+                assert command[3:] == ['--paginate', '--slurp']
+                value = [[], [release]] if created else [[]]
+            else:
+                assert endpoint == 'repos/example/ficc/releases/42' and created
+                value = release
+            return subprocess.CompletedProcess(command, 0, json.dumps(value), '')
+        assert command[:2] == ['gh', 'release']
+        action = command[2]
+        mutations.append(action)
+        if action == 'create':
+            assert not created and '--draft' in command
+            created = True
+        elif action == 'upload':
+            name = Path(command[4]).name
+            assert created and release['draft'] and name not in {a['name'] for a in assets}
+            assets.append({'name': name, 'state': 'uploaded', **expected[name]})
+        else:
+            assert action == 'edit' and '--draft=false' in command
+            module.verify_assets(assets, expected, complete=True)
+            release['draft'] = False
+        return subprocess.CompletedProcess(command, 0, '', '')
+
+    monkeypatch.setattr(module.subprocess, 'run', fake_run)
+    assert module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True) == release['html_url']
+    assert mutations.count('create') == (0 if resume else 1)
+    assert mutations.count('upload') == (9 if resume else 12)
+    assert mutations[-1] == 'edit' and mutations.count('edit') == 1
+    assert not release['draft']

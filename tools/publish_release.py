@@ -55,6 +55,14 @@ def verify_assets(remote: list, expected: dict, *, complete: bool) -> None:
             raise ValueError('GitHub asset differs from the verified local file: ' + item['name'])
 
 
+def find_release(endpoint: str, tag: str):
+    pages = gh('api', endpoint + '/releases', '--paginate', '--slurp')
+    matches = [release for page in pages for release in page if release['tag_name'] == tag]
+    if len(matches) > 1:
+        raise ValueError('Multiple releases use this version; resolve the drafts before retrying')
+    return matches[0] if matches else None
+
+
 def publish(output: Path, repo: str, notes: Path, publish_now: bool) -> str:
     build, assets = validate(output)
     version, commit = build['version'], build['source']['commit']
@@ -66,20 +74,24 @@ def publish(output: Path, repo: str, notes: Path, publish_now: bool) -> str:
     existing_tag = gh('api', endpoint + '/git/ref/tags/' + tag, missing_ok=True)
     if existing_tag and gh('api', endpoint + '/commits/' + tag)['sha'] != commit:
         raise ValueError('Existing version tag points to another source commit')
-    release = gh('api', endpoint + '/releases/tags/' + tag, missing_ok=True)
+    release = find_release(endpoint, tag)
     if release and not release['draft']:
         raise ValueError('Published releases are immutable; use a new version')
     if not release:
         subprocess.run(['gh', 'release', 'create', tag, '--repo', repo, '--draft', '--target', commit,
                         '--title', 'FICC ' + version, '--notes-file', str(notes)], check=True)
-        release = gh('api', endpoint + '/releases/tags/' + tag)
+        release = find_release(endpoint, tag)
+        if release is None:
+            raise ValueError('Created draft is not visible; check repository release permissions')
+    release_endpoint = endpoint + '/releases/' + str(release['id'])
+    release = gh('api', release_endpoint)
     if release['target_commitish'] != commit:
         raise ValueError('Draft release source differs from the build commit')
     verify_assets(release['assets'], assets, complete=False)
     present = {item['name'] for item in release['assets']}
     for name in assets.keys() - present:
         subprocess.run(['gh', 'release', 'upload', tag, str(output / name), '--repo', repo], check=True)
-    release = gh('api', endpoint + '/releases/tags/' + tag)
+    release = gh('api', release_endpoint)
     verify_assets(release['assets'], assets, complete=True)
     if publish_now:
         # Recheck the source after uploads; a draft stays private if master moved.
@@ -91,7 +103,7 @@ def publish(output: Path, repo: str, notes: Path, publish_now: bool) -> str:
         subprocess.run(['gh', 'release', 'edit', tag, '--repo', repo, '--draft=false',
                         '--prerelease=' + str('rc' in version).lower(),
                         '--latest=' + str('rc' not in version).lower(), '--notes-file', str(notes)], check=True)
-        release = gh('api', endpoint + '/releases/tags/' + tag)
+        release = gh('api', release_endpoint)
         verify_assets(release['assets'], assets, complete=True)
         if release['draft'] or gh('api', endpoint + '/commits/' + tag)['sha'] != commit:
             raise ValueError('Published release source verification failed')
