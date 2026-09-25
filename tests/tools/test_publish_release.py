@@ -147,12 +147,13 @@ def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monk
             elif '/git/ref/tags/' in endpoint:
                 value = {'ref': 'refs/tags/v1.0.0'}
             elif endpoint == 'repos/example/ficc/releases':
-                assert command[3:] == ['--paginate', '--slurp']
+                assert command[3:] == ['--paginate']
                 value = [[], [release]] if created else [[]]
             else:
                 assert endpoint == 'repos/example/ficc/releases/42' and created
                 value = release
-            return subprocess.CompletedProcess(command, 0, json.dumps(value), '')
+            body = '\n'.join(json.dumps(page, indent=2) for page in value) if '--paginate' in command else json.dumps(value)
+            return subprocess.CompletedProcess(command, 0, body, '')
         assert command[:2] == ['gh', 'release']
         action = command[2]
         mutations.append(action)

@@ -19,6 +19,13 @@ def gh(*arguments: str, missing_ok: bool = False):
         if missing_ok and 'HTTP 404' in result.stderr:
             return None
         raise ValueError('GitHub request failed: ' + result.stderr.strip())
+    if '--paginate' in arguments:
+        decoder, pages, remaining = json.JSONDecoder(), [], result.stdout.strip()
+        while remaining:
+            page, end = decoder.raw_decode(remaining)
+            pages.append(page)
+            remaining = remaining[end:].lstrip()
+        return pages
     return json.loads(result.stdout) if result.stdout.strip() else None
 
 
@@ -56,7 +63,7 @@ def verify_assets(remote: list, expected: dict, *, complete: bool) -> None:
 
 
 def find_release(endpoint: str, tag: str):
-    pages = gh('api', endpoint + '/releases', '--paginate', '--slurp')
+    pages = gh('api', endpoint + '/releases', '--paginate')
     matches = [release for page in pages for release in page if release['tag_name'] == tag]
     if len(matches) > 1:
         raise ValueError('Multiple releases use this version; resolve the drafts before retrying')
