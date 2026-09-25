@@ -1,0 +1,12 @@
+# Refuse a native package transaction while the installed runtime is active.
+[Trigger]
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = ficc-bin
+
+[Action]
+Description = Check that the FICC runtime is stopped
+When = PreTransaction
+Exec = /opt/ficc/package-guard.sh
+AbortOnFail

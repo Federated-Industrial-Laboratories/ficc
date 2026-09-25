@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "architecture": "x86_64",
+  "python": "3.12.14",
+  "glibc_minimum": "2.28",
+  "inputs": [
+    {
+      "id": "python",
+      "name": "cpython-3.12.14+20260924-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260924/cpython-3.12.14%2B20260924-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "sha256": "269b2c99e4db15b242bf01832f4fea1e8f1a664f273cff519393f296e9820b41",
+      "size": 34270188,
+      "release": "20260924"
+    },
+    {
+      "id": "appimagetool",
+      "name": "appimagetool-x86_64.AppImage",
+      "url": "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage",
+      "sha256": "a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0",
+      "size": 15092216,
+      "release": "continuous",
+      "revision": "8c8c91f762b412a19f4e8d2c4b35afb98f2d7c81"
+    },
+    {
+      "id": "runtime",
+      "name": "runtime-x86_64",
+      "url": "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64",
+      "sha256": "1cc49bcf1e2ccd593c379adb17c9f85a36d619088296504de95b1d06215aebbf",
+      "size": 944632,
+      "release": "continuous",
+      "revision": "75849dce7cc37e4319b633df1f116ca895c71a12",
+      "digest_md5_offset": 932096
+    },
+    {
+      "id": "python-metadata",
+      "name": "cpython-3.12.14+20260924-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260924/cpython-3.12.14%2B20260924-x86_64-unknown-linux-gnu-pgo%2Blto-full.tar.zst",
+      "sha256": "c88ec70ba0973eb61fcdd595c0dfd8c21e6f46151a4d2b1f9ad18c5058e490d9",
+      "size": 98298831,
+      "release": "20260924"
+    },
+    {
+      "id": "runtime-source",
+      "name": "type2-runtime-75849dce7cc37e4319b633df1f116ca895c71a12.tar.gz",
+      "url": "https://github.com/AppImage/type2-runtime/archive/75849dce7cc37e4319b633df1f116ca895c71a12.tar.gz",
+      "size": 31068,
+      "sha256": "b7af4960da4b90364e935a3281d04fad6560da4813c012414fa2f738291ad443",
+      "release": "75849dce7cc37e4319b633df1f116ca895c71a12"
+    },
+    {
+      "id": "fuse-source",
+      "name": "fuse-3.15.0.tar.xz",
+      "url": "https://github.com/libfuse/libfuse/releases/download/fuse-3.15.0/fuse-3.15.0.tar.xz",
+      "size": 4589124,
+      "sha256": "70589cfd5e1cff7ccd6ac91c86c01be340b227285c5e200baa284e401eea2ca0",
+      "release": "3.15.0"
+    },
+    {
+      "id": "squashfuse-source",
+      "name": "squashfuse-0.5.2.tar.gz",
+      "url": "https://github.com/vasi/squashfuse/archive/0.5.2.tar.gz",
+      "size": 75404,
+      "sha256": "db0238c5981dabbd80ee09ae15387f390091668ca060a7bc38047912491443d3",
+      "release": "0.5.2"
+    },
+    {
+      "id": "python-build-source",
+      "name": "python-build-standalone-20260924.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/archive/refs/tags/20260924.tar.gz",
+      "size": 469431,
+      "sha256": "e733aa870d2f4dfe6a7ed5af0fdb10d8ec410d1999231cb7a5b1e35411eabf63",
+      "release": "20260924"
+    },
+    {
+      "id": "python-source",
+      "name": "cpython-3.12.14.tar.gz",
+      "url": "https://github.com/python/cpython/archive/refs/tags/v3.12.14.tar.gz",
+      "size": 27777501,
+      "sha256": "5b8f5847fc28eea401f7415dc367b8365485ee97f068cd1a0cee124a096bb171",
+      "release": "3.12.14"
+    },
+    {
+      "id": "bdb-source",
+      "name": "db-6.0.19.tar.gz",
+      "url": "https://ftp.osuosl.org/pub/blfs/conglomeration/db/db-6.0.19.tar.gz",
+      "size": 36541923,
+      "sha256": "2917c28f60903908c2ca4587ded1363b812c4e830a5326aaa77c9879d13ae18e",
+      "release": "6.0.19"
+    },
+    {
+      "id": "musl-license",
+      "name": "LICENSE.musl",
+      "url": "https://git.musl-libc.org/cgit/musl/plain/COPYRIGHT?h=v1.2.5",
+      "size": 6204,
+      "sha256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af",
+      "release": "1.2.5"
+    },
+    {
+      "id": "zstd-license",
+      "name": "LICENSE.zstd",
+      "url": "https://raw.githubusercontent.com/facebook/zstd/v1.5.6/LICENSE",
+      "size": 1549,
+      "sha256": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8",
+      "release": "1.5.6"
+    },
+    {
+      "id": "zlib-license",
+      "name": "LICENSE.zlib",
+      "url": "https://raw.githubusercontent.com/madler/zlib/v1.3.1/LICENSE",
+      "size": 1002,
+      "sha256": "845efc77857d485d91fb3e0b884aaa929368c717ae8186b66fe1ed2495753243",
+      "release": "1.3.1"
+    },
+    {
+      "id": "mimalloc-license",
+      "name": "LICENSE.mimalloc",
+      "url": "https://raw.githubusercontent.com/microsoft/mimalloc/v2.1.7/LICENSE",
+      "size": 1096,
+      "sha256": "19c99805e7a44a34b297a75d1edea9985e300066dfc024d5c99d4236d4573b5d",
+      "release": "2.1.7"
+    },
+    {
+      "id": "zlib-ng-license",
+      "name": "LICENSE.zlib-ng.txt",
+      "url": "https://raw.githubusercontent.com/zlib-ng/zlib-ng/2.2.4/LICENSE.md",
+      "size": 867,
+      "sha256": "6c9f0d975b41afaa34d22f55bb8986ce69e5cb7ad327cb2b28820cd425edf5ee",
+      "release": "2.2.4"
+    }
+  ]
+}

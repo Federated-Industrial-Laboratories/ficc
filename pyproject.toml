@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ficc"
-version = "0.1.0.dev5"
+version = "0.1.0rc1"
 description = "Local Linux cluster console with OpenSSH connections."
 readme = "README.md"
 requires-python = ">=3.12"

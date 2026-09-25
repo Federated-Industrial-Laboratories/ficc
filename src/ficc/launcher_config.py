@@ -151,7 +151,7 @@ def unit_text(config: LaunchConfig, path: Path) -> str:
 
 def desktop_text(config: LaunchConfig, path: Path) -> str:
     command = [config.executable, "launch", "--launcher-config", str(path)]
-    icon = clean_text(str(Path(__file__).parent / "static/mark.svg")).replace("\\", "\\\\")
+    icon = clean_text(str(path.with_suffix(".svg"))).replace("\\", "\\\\")
     return (MARKER + "# Configuration: " + clean_text(str(path)) + "\n"
             "[Desktop Entry]\nType=Application\nName=FICC Cluster Commander\n"
             "Comment=Start the local cluster service and open its console\n"

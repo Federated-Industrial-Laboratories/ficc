@@ -1,0 +1,4 @@
+# Install dependencies only inside the native package qualification container.
+ARG BASE
+FROM ${BASE}
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-client coreutils systemd xdg-utils libnotify-bin ca-certificates && rm -rf /var/lib/apt/lists/* && useradd -m -U package-user

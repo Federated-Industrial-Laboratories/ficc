@@ -26,6 +26,7 @@ first, then installation and operation before connecting a live machine.
 | 11 | [Local API](api.md) | Authentication, scopes, endpoints and request contracts. |
 | 12 | [Testing](testing.md) | Source, Python, SSH, browser and installed-system checks. |
 | 13 | [Dependencies](dependencies.md) | Locked components, bundled assets and their licences. |
+| 14 | [Linux packages](releases.md) | Binary formats, verification, first startup, upgrade and removal. |
 
 ## Shared terms
 
@@ -45,6 +46,7 @@ first, then installation and operation before connecting a live machine.
 
 | Task | Start here |
 | --- | --- |
+| Install a binary package | [Linux packages](releases.md) |
 | Try FICC without touching nodes | [Demo mode](install.md#try-the-interface) |
 | Start from the application menu | [User service](operations.md#user-service) |
 | Open several terminals | [Terminal workspace](terminals.md) |

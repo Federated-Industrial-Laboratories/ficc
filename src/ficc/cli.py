@@ -13,7 +13,7 @@ from pathlib import Path
 import httpx
 import uvicorn
 
-from . import launcher
+from . import __version__, launcher
 from .api import create_app
 from .launcher_config import config_path
 from .settings import Settings, default_state_dir, private_directory
@@ -45,6 +45,7 @@ def local_request(state_dir: Path, request: dict) -> dict:
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(prog="ficc", description="Local cluster management console.")
+    result.add_argument("--version", action="version", version="FICC " + __version__)
     commands = result.add_subparsers(dest="command", required=True)
     for name in ("serve", "open", "nodes", "token-create", "token-revoke", "enroll", "refresh"):
         item = commands.add_parser(name)
@@ -72,17 +73,21 @@ def parser() -> argparse.ArgumentParser:
             item.add_argument("--install-helper", action="store_true")
         elif name == "refresh":
             item.add_argument("node_ids", nargs="+")
-    for name in ("install-launcher", "start", "status", "stop", "launch"):
+    for name in ("install-launcher", "start", "status", "stop", "launch", "desktop"):
         item = commands.add_parser(name)
         item.add_argument("--launcher-config", type=Path, default=config_path())
-        if name == "install-launcher":
-            item.add_argument("--state-dir", type=Path, default=default_state_dir())
-            item.add_argument("--port", type=int, default=8170)
-            item.add_argument("--profile", action="append", default=[])
-            item.add_argument("--ssh-config", type=Path)
-            item.add_argument("--demo", action="store_true")
-            item.add_argument("--name", default="ficc")
-            item.add_argument("--autostart", action="store_true")
+        if name in {"install-launcher", "desktop"}:
+            def initial(value):
+                return argparse.SUPPRESS if name == "desktop" else value
+
+            item.add_argument("--state-dir", type=Path, default=initial(default_state_dir()))
+            item.add_argument("--port", type=int, default=initial(8170))
+            item.add_argument("--profile", action="append", default=initial([]))
+            item.add_argument("--ssh-config", type=Path, default=initial(None))
+            item.add_argument("--demo", action="store_true", default=initial(False))
+            item.add_argument("--name", default=initial("ficc"))
+            if name == "install-launcher":
+                item.add_argument("--autostart", action="store_true")
     from .job_cli import add_commands
     add_commands(commands)
     from .file_cli import add_commands as add_file_commands
@@ -148,6 +153,10 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(getattr(launcher, args.command)(args.launcher_config), indent=2))
         elif args.command == "launch":
             launcher.launch(args.launcher_config)
+        elif args.command == "desktop":
+            options = {key: value for key, value in vars(args).items()
+                       if key not in {"command", "launcher_config"}}
+            launcher.desktop(args.launcher_config, options)
         elif args.command.startswith("job-") or args.command == "helper-upgrade":
             from .job_cli import execute
             execute(args)
@@ -182,12 +191,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
-        if args.command == "launch":
+        if args.command in {"launch", "desktop"}:
             launcher.notify_failure(str(exc))
         return 1
     except (OSError, httpx.HTTPError):
         print("The request failed. Check service access, permissions, and connection settings.", file=sys.stderr)
-        if args.command == "launch":
+        if args.command in {"launch", "desktop"}:
             launcher.notify_failure("FICC could not start. Run ficc status in a terminal for details.")
         return 1
 

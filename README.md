@@ -5,7 +5,7 @@
 <p align="center">A local console for Linux clusters, connected through OpenSSH.</p>
 
 <p align="center">
-  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.1.0.dev5 | Python 3.12 or later | OpenSSH">
+  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.1.0rc1 | Python 3.12 or later | OpenSSH">
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@ tools continue to work.
 
 The interface uses white and silver panels, orange controls and compact tables.
 All application assets are local, including fonts. The controller listens on
-loopback; shared remote access remains outside this development version.
+loopback; shared remote access remains outside this release candidate.
 
 ## Overview
 
@@ -61,9 +61,9 @@ history and node output. No history expires automatically.
 | Coding agents | An installed runtime and its provider sign-in on the selected node. |
 | Build and browser checks | Node.js 20 or later and the locked development dependencies. |
 
-An installed wheel needs no Node.js. Package checks use an Ubuntu 24.04 controller
-with Python 3.12; actual node checks use Ubuntu 26.04 with Python 3.14.
-Other combinations need their own qualification. Missing NVIDIA support does not
+Binary packages bundle Python and need no Node.js. See the
+[Linux packages](docs/releases.md) for AppImage, Debian, Arch and portable formats.
+Controller and node qualification are separate; nodes still need Python and SSH. Missing NVIDIA support does not
 prevent CPU and memory observation.
 
 See [installation](docs/install.md) and [testing](docs/testing.md).
@@ -72,7 +72,14 @@ See [installation](docs/install.md) and [testing](docs/testing.md).
 
 <p align="center"><img src=".github/assets/divider.svg" width="720" alt=""></p>
 
-## Build and install
+## Install
+
+Choose an AppImage, Debian, Arch Linux or portable package from the release
+artifacts, then follow [Linux packages](docs/releases.md). Native packages add
+**FICC Cluster Commander** to the application menu. First use starts the private
+user service on demand. The initial release candidate targets x86_64.
+
+### Build from source
 
 From the source directory:
 
