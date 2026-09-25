@@ -1,0 +1,83 @@
+name: Linux packages
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'packaging/**'
+      - 'tools/*release*'
+      - 'tools/release_lib/**'
+      - 'tools/qualify*'
+      - 'src/ficc/launcher*'
+      - '.github/workflows/packages.yml'
+permissions:
+  contents: read
+jobs:
+  linux-x86_64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.23.3'
+      - run: python -m pip install --require-hashes -r requirements-dev.lock
+      - run: sudo apt-get update && sudo apt-get install -y zstd squashfs-tools
+      - name: Assemble pinned formats
+        run: |
+          python tools/release.py --cache "$RUNNER_TEMP/inputs" \
+            --work "$RUNNER_TEMP/build" --output "$RUNNER_TEMP/release"
+      - name: Build the Arch package
+        run: |
+          docker build -t ficc-arch -f packaging/Containerfile.arch packaging
+          docker run --rm --network=none \
+            --env SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)" \
+            -v "$RUNNER_TEMP/release:/release" ficc-arch bash -ec '
+              mkdir /build
+              cp -a /release/arch /build/arch
+              chown -R builder:builder /build
+              cd /build/arch
+              runuser -u builder --preserve-environment -- makepkg --nodeps --noconfirm
+              cp *.pkg.tar.zst /release/
+            '
+          python tools/finalize_release.py --output "$RUNNER_TEMP/release" \
+            --arch-package "$RUNNER_TEMP/release/ficc-bin-0.1.0rc1-1-x86_64.pkg.tar.zst"
+      - name: Check Arch lifecycle
+        run: |
+          docker run --rm --network=none -e FICC_DISPOSABLE_CONTAINER=1 \
+            -v "$PWD/tools:/checks:ro" -v "$RUNNER_TEMP/release:/release:ro" \
+            ficc-arch sh /checks/qualify_native.sh arch \
+            /release/ficc-bin-0.1.0rc1-1-x86_64.pkg.tar.zst
+      - name: Check Debian and Ubuntu lifecycle
+        run: |
+          for base in \
+            docker.io/library/debian@sha256:49ba348354a28e39c70beffd6cf43bdb8d55d81ce4b746b0428717d054b8bbc4 \
+            docker.io/library/ubuntu@sha256:786a8b558f7be160c6c8c4a54f9a57274f3b4fb1491cf65146521ae77ff1dc54; do
+            docker build --build-arg BASE="$base" -t ficc-debian -f packaging/Containerfile.debian packaging
+            docker run --rm --network=none -e FICC_DISPOSABLE_CONTAINER=1 \
+              -v "$PWD/tools:/checks:ro" -v "$RUNNER_TEMP/release:/release:ro" \
+              ficc-debian sh /checks/qualify_native.sh deb /release/ficc_0.1.0~rc1_amd64.deb
+          done
+      - name: Check portable and extracted AppImage
+        run: |
+          python tools/qualify_package.py \
+            --command "$RUNNER_TEMP/build/ficc-0.1.0rc1-linux-x86_64/ficc" \
+            --payload "$RUNNER_TEMP/build/ficc-0.1.0rc1-linux-x86_64"
+          mkdir "$RUNNER_TEMP/extracted"
+          (cd "$RUNNER_TEMP/extracted" && "$RUNNER_TEMP/release/FICC-0.1.0rc1-x86_64.AppImage" --appimage-extract > /dev/null)
+          python tools/qualify_package.py \
+            --command "$RUNNER_TEMP/extracted/squashfs-root/AppRun" \
+            --payload "$RUNNER_TEMP/extracted/squashfs-root/usr/lib/ficc"
+      - name: Verify checksums
+        run: cd "$RUNNER_TEMP/release" && sha256sum --check SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ficc-linux-x86_64
+          path: ${{ runner.temp }}/release/*.*
+          if-no-files-found: error
+          retention-days: 7

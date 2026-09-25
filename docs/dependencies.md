@@ -43,7 +43,13 @@ OpenSSH, GNU coreutils, systemd, tmux and optional NVIDIA tools are external
 system dependencies. They are not bundled in the FICC wheel. Build and test
 dependencies are pinned separately in requirements-dev.lock and web/package-lock.json.
 
-A release inventory should identify the exact wheel, its runtime dependency
+Binary formats also include CPython 3.12.14 from the pinned standalone build.
+Their licenses/python directory retains native dependency notices and build
+metadata. AppImage adds its separate runtime and licenses/appimage notices.
+The release includes corresponding source archives and THIRD-PARTY.md.
+See [Linux packages](releases.md) for the distribution contents.
+
+A release inventory identifies the exact wheel, its runtime dependency
 artifacts and all bundled browser/font components. Include a CycloneDX SBOM and
 SHA-256 checksums with the distribution artifacts. Package-level inventories do
 not describe every native implementation detail inside dependency extensions.

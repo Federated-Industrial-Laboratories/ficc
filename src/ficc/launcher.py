@@ -5,7 +5,6 @@ import fcntl
 import os
 import shutil
 import subprocess
-import sys
 import time
 from contextlib import contextmanager, suppress
 from pathlib import Path
@@ -23,6 +22,7 @@ from .launcher_config import (
     unit_text,
     write_file,
 )
+from .launcher_runtime import executable
 from .settings import private_directory
 
 
@@ -68,24 +68,24 @@ def verify_unit(config: LaunchConfig, path: Path) -> None:
         raise ValueError("Service overrides are present. Remove the overrides or use a different launcher name.")
 
 
-def install(args) -> dict:
+def install(args, *, only_if_missing: bool = False) -> dict:
     path = args.launcher_config.absolute()
     if not NAME.fullmatch(args.name):
         raise ValueError("The launcher name must be ficc or ficc- followed by letters, digits or hyphens.")
-    executable = Path(sys.executable).absolute().parent / "ficc"
-    if not executable.is_file() or not os.access(executable, os.X_OK):
-        raise ValueError("Install FICC in a virtual environment before installing its launcher.")
+    command = executable()
     config_root = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
     data_root = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local/share")))
     unit = config_root / "systemd/user" / (args.name + ".service")
     desktop = data_root / "applications" / (args.name + ".desktop")
-    config = LaunchConfig(str(executable), str(args.state_dir.absolute()), str(unit.absolute()),
+    config = LaunchConfig(str(command), str(args.state_dir.absolute()), str(unit.absolute()),
                           str(desktop.absolute()), args.port, tuple(args.profile),
                           str(args.ssh_config.absolute()) if args.ssh_config else None, args.demo)
     private_directory(Path(config.state_dir))
     with startup_lock(path):
         if path.exists() or path.is_symlink():
             old = load(path)
+            if only_if_missing:
+                return {"configuration": str(path), "existing": True}
             if old.unit_path != config.unit_path or old.desktop_path != config.desktop_path:
                 raise ValueError("Use a separate configuration file for a different launcher name.")
         for target in (unit, desktop):
@@ -96,6 +96,7 @@ def install(args) -> dict:
         if unit.exists() and systemctl("is-active", config.unit, check=False).returncode == 0:
             raise ValueError("Stop the service before changing its launcher settings.")
         write_file(unit, unit_text(config, path))
+        write_file(path.with_suffix(".svg"), (Path(__file__).parent / "static/mark.svg").read_text())
         write_file(desktop, desktop_text(config, path), 0o644)
         save(path, config)
         systemctl("daemon-reload")
@@ -191,6 +192,33 @@ def open_console(state_dir: Path, print_url: bool = False) -> None:
 def launch(path: Path) -> None:
     config = start(path)
     open_console(Path(config.state_dir))
+
+
+def desktop(path: Path, options: dict | None = None) -> None:
+    from .cli import parser
+
+    if os.getuid() == 0:
+        raise ValueError("Open FICC from the desktop account, without sudo.")
+    if not path.exists() and not path.is_symlink():
+        args = parser().parse_args(["install-launcher", "--launcher-config", str(path)])
+        for key, value in (options or {}).items():
+            setattr(args, key, value)
+        install(args, only_if_missing=True)
+    if options:
+        config = load(path.absolute())
+        actual: object
+        for key, value in options.items():
+            if key == "name":
+                actual = Path(config.unit_path).stem
+            elif key == "profile":
+                actual, value = config.profiles, tuple(value)
+            else:
+                actual = getattr(config, key)
+                if isinstance(value, Path):
+                    value = str(value.absolute())
+            if value != actual:
+                raise ValueError("These settings differ from the saved launcher. Use install-launcher after stopping FICC.")
+    launch(path)
 
 
 def notify_failure(message: str) -> None:

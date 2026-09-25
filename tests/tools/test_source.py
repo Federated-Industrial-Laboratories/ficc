@@ -16,8 +16,12 @@ spec.loader.exec_module(checker)
 @pytest.mark.parametrize("payload", [
     "ghp_" + "a" * 36,
     "-----BEGIN " + "OPENSSH PRIVATE KEY-----",
-    "/home/" + "federated-industrial" + "/private",
+    "/home/" + "local-owner" + "/private",
     "192." + "168.1.2",
+    "10." + "4.8.2",
+    "172." + "16.5.4",
+    "172." + "31.255.8",
+    "/home/" + "operator-private/project",
 ])
 def test_detects_restricted_content(tmp_path, payload):
     (tmp_path / "README.md").write_text(payload)
@@ -30,8 +34,9 @@ def test_empty_tree_is_not_a_pass(tmp_path):
     assert checker.inspect(tmp_path)[1]
 
 
-def test_generic_documentation_passes(tmp_path):
-    (tmp_path / "README.md").write_text("Connect to rack-01 at 192.0.2.10.\n")
+@pytest.mark.parametrize("example", ["rack-01 at 192.0.2.10", "127.0.0.1:8170", "/home/operator/project"])
+def test_generic_documentation_passes(tmp_path, example):
+    (tmp_path / "README.md").write_text("Example: " + example + "\n")
     assert checker.inspect(tmp_path) == (1, [])
 
 

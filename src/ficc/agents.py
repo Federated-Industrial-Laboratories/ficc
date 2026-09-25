@@ -4,6 +4,7 @@
 import asyncio
 import json
 import secrets
+import sqlite3
 import time
 
 from .agent_schema import Profile
@@ -22,6 +23,7 @@ class Agents:
         self.relay_slots = asyncio.Semaphore(2)
         self.previews = {}
         self.cursors = {}
+        self.poll_error = False
         self.controller = service.store.get_setting("agent_controller", None)
         if self.controller is None:
             self.controller = secrets.token_hex(16)
@@ -236,8 +238,16 @@ class Agents:
                     value["error"] = {"code": "agent_offline", "message": "The agent exchange could not be confirmed."}
                     self.store.save("agents", value)
         while True:
-            unresolved = {d["agent_id"] for d in self.service.bus.deliveries() if d["state"] not in SETTLED}
-            selected = [value["id"] for value in self.all()
-                        if value["state"] not in CLOSED or value.get("outbox_acks") or value["id"] in unresolved]
-            await asyncio.gather(*(one(identity) for identity in selected))
+            try:
+                unresolved = {d["agent_id"] for d in self.service.bus.deliveries() if d["state"] not in SETTLED}
+                selected = [value["id"] for value in self.all()
+                            if value["state"] not in CLOSED or value.get("outbox_acks") or value["id"] in unresolved]
+                results = await asyncio.gather(*(one(identity) for identity in selected), return_exceptions=True)
+                # Drain the whole batch before retrying a storage failure.
+                for result in results:
+                    if isinstance(result, BaseException) and not isinstance(result, sqlite3.Error):
+                        raise result
+                self.poll_error = any(isinstance(result, sqlite3.Error) for result in results)
+            except sqlite3.Error:
+                self.poll_error = True
             await asyncio.sleep(2)

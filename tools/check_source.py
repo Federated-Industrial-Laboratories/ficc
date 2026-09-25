@@ -18,8 +18,8 @@ SECRET_PATTERNS = (
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
 )
 PRIVATE_PATTERNS = (
-    re.compile(r"/home/" + "federated-industrial"),
-    re.compile(r"\b192\.168\.\d{1,3}\.\d{1,3}\b"),
+    re.compile(r"/home/(?!(?:operator|user|example)(?![A-Za-z0-9_.-]))[A-Za-z0-9_.-]+"),
+    re.compile(r"(?<![\w.])(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})(?![\w.])"),
     re.compile(r"knowledge/" + r"(?:records|bus)/"),
 )
 

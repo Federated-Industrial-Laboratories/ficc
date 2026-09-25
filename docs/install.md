@@ -6,20 +6,20 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-Build the application, try a separate demo, then enroll trusted machines.
+Install a [Linux package](releases.md), try a separate demo, then enroll trusted machines.
 Keep live state and credentials outside the source checkout.
 
 ## Requirements
 
-Use Linux, Python 3.12 or later, OpenSSH and GNU coreutils `timeout` on the
-controller. Nodes require
+Binary packages include Python. Source and wheel installations need Linux,
+Python 3.12 or later, OpenSSH and GNU coreutils `timeout`. Nodes require
 OpenSSH server and Python 3.12 or later. NVIDIA reporting uses a bounded,
 structured nvidia-smi query when available. Missing GPU support does
 not prevent CPU and memory observation.
 
 Node.js 20 or later is a build and browser-test dependency. It is not needed
-to run an installed wheel. Package installation is checked on an Ubuntu 24.04
-controller with Python 3.12. Actual node checks use Ubuntu 26.04 and Python 3.14.
+to run an installed wheel. The [package guide](releases.md) lists native controller formats.
+Actual node checks use Ubuntu 26.04 and Python 3.14.
 These are separate platform roles; other controller/node combinations require
 their own checks. See [testing](testing.md) for qualification boundaries.
 

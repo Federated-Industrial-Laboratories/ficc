@@ -1,6 +1,13 @@
 # Changes
 
-## Unreleased
+## 0.1.0rc1
+
+- Add Linux x86_64 AppImage, Debian, Arch and portable release formats.
+- Bundle a pinned Python runtime, notices, source archives, inventory and checksums.
+- Add first-use desktop startup and active-runtime package replacement guards.
+- Add a tiled terminal workspace, native coding-agent adapters and a host-owned bus.
+- Add registered file roots, verified transfers, backups and explicit history archives.
+- Add white, silver and orange controls, compact tables and linked operator guides.
 
 - Add durable managed jobs, bounded output, cancellation and recovery.
 - Add required CPU/RAM/task/runtime limits and advisory GPU reservations.

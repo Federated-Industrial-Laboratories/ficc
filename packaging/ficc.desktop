@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=FICC Cluster Commander
+Comment=Start the local cluster service and open its console
+Exec=ficc desktop
+Icon=ficc
+Terminal=false
+Categories=System;Monitor;
+StartupNotify=false

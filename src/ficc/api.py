@@ -164,8 +164,8 @@ def create_app(settings: Settings) -> FastAPI:
         poller = getattr(app.state, "poller", None)
         job_poller = getattr(app.state, "job_poller", None)
         pollers = (poller, job_poller, getattr(app.state, "file_poller", None),
-                   getattr(app.state, "transfer_poller", None))
-        failed = service.poll_error or service.jobs.failed or (not settings.demo and any(
+                   getattr(app.state, "transfer_poller", None), getattr(app.state, "agent_poller", None))
+        failed = service.poll_error or service.jobs.failed or service.agents.poll_error or (not settings.demo and any(
             task is not None and task.done() for task in pollers))
         return {"status": "degraded" if failed else "ok", "version": __version__}
 

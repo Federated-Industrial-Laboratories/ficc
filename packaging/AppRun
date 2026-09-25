@@ -1,0 +1,13 @@
+#!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# Start the payload and retain the AppImage runtime for the command lifetime.
+set -eu
+case "${APPDIR:-}" in
+    */appimage_extracted_*)
+        echo 'FICC needs a persistent runtime directory. Use --appimage-extract, then run squashfs-root/AppRun.' >&2
+        exit 2
+        ;;
+esac
+app_dir=$(dirname -- "$(readlink -f -- "$0")")
+if [ "$#" -eq 0 ]; then set -- desktop; fi
+exec "$app_dir/usr/lib/ficc/ficc" "$@"

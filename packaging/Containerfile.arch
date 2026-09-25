@@ -1,0 +1,4 @@
+# Build Arch packages and run native lifecycle checks in a disposable container.
+FROM docker.io/library/archlinux@sha256:ff410a88e200b133e577f5730b7bfa324e26a333075ee056bf45e911c6ac5671
+RUN pacman -Syu --noconfirm --needed base-devel openssh xdg-utils systemd libnotify && useradd -m -u 1000 builder
+ENV PACKAGER="Federated Industrial Laboratories <contact@federatedindustrial.com>"
