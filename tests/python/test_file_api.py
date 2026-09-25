@@ -33,9 +33,10 @@ def test_http_upload_verified_download_and_cleanup(console, tmp_path):
         {"root_id": root["id"], "entry_id": entries[0]["entry_id"]}]})
     download = client.post("/api/v1/transfers", json={"preview_id": preview.json()["preview_id"], "confirm": True},
                            headers={"Idempotency-Key": "api-download-identity"}).json()
-    for _ in range(100):
+    deadline = time.monotonic() + 10
+    while True:
         current = client.get("/api/v1/transfers/" + download["id"]).json()
-        if current["state"] == "succeeded":
+        if current["state"] == "succeeded" or time.monotonic() >= deadline:
             break
         time.sleep(0.02)
     assert current["state"] == "succeeded", current

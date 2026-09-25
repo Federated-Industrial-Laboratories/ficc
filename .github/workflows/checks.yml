@@ -1,7 +1,7 @@
 name: Checks
 on:
   push:
-    branches: [master, overview, jobs, workspace, qualification, console, packages]
+    branches: [master, overview, jobs, workspace, qualification, console, packages, installation]
   pull_request:
     branches: [master, overview]
 permissions:
@@ -25,6 +25,12 @@ jobs:
       - run: FICC_REQUIRE_SSH=1 python -m pytest tests/integration
       - run: python -m pip_audit -r requirements.lock --disable-pip --no-deps
       - run: python -m build --no-isolation
+      - name: Install a fresh source checkout
+        run: |
+          env HOME="$RUNNER_TEMP/ficc-home" XDG_DATA_HOME="$RUNNER_TEMP/ficc-home/.local/share" \
+            XDG_CONFIG_HOME="$RUNNER_TEMP/ficc-home/.config" XDG_CACHE_HOME="$RUNNER_TEMP/ficc-home/.cache" \
+            ./install.sh --no-desktop
+          "$RUNNER_TEMP/ficc-home/.local/bin/ficc" --version
       - name: Browser checks
         env:
           FICC_STATE_DIR: /tmp/ficc-ci-state

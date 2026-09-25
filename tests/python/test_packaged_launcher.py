@@ -114,7 +114,7 @@ def test_desktop_icon_survives_an_appimage_unmount(tmp_path):
 def test_version_does_not_start_the_service(capsys):
     with pytest.raises(SystemExit) as result:
         parser().parse_args(["--version"])
-    assert result.value.code == 0 and "FICC 0.1.0rc1" in capsys.readouterr().out
+    assert result.value.code == 0 and "FICC 0.1.0" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("changed", [False, True])

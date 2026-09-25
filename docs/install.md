@@ -11,8 +11,10 @@ Keep live state and credentials outside the source checkout.
 
 ## Requirements
 
-Binary packages include Python. Source and wheel installations need Linux,
-Python 3.12 or later, OpenSSH and GNU coreutils `timeout`. Nodes require
+Binary packages include Python. The source installer downloads a private Python
+and requires an updated system Python 3.10 or later to bootstrap it. Manually
+managed source and wheel installations need Python 3.12 or later. All controllers
+need Linux, OpenSSH and GNU coreutils `timeout`. Nodes require
 OpenSSH server and Python 3.12 or later. NVIDIA reporting uses a bounded,
 structured nvidia-smi query when available. Missing GPU support does
 not prevent CPU and memory observation.
@@ -23,9 +25,70 @@ Actual node checks use Ubuntu 26.04 and Python 3.14.
 These are separate platform roles; other controller/node combinations require
 their own checks. See [testing](testing.md) for qualification boundaries.
 
-## Build and install
+## Install a cloned repository
 
-From the source directory:
+Run as your normal desktop account on Linux x86_64. On Ubuntu, install the
+system prerequisites if they are absent:
+
+```sh
+sudo apt update
+sudo apt install python3 openssh-client coreutils systemd xdg-utils ca-certificates
+```
+
+From the clone, run:
+
+```sh
+./install.sh
+~/.local/bin/ficc
+```
+
+The installer verifies pinned Python and Node downloads, installs hash-locked
+Python dependencies, builds the frontend with the npm lockfile and installs a
+wheel. No system Python packages are changed. Internet access is required for
+downloads. Python and Node need not be installed at the application's required
+versions beforehand. Bootstrap Python must include maintained tar extraction
+filters; apply distribution security updates if this check fails.
+
+The runtime lives under `~/.local/share/ficc/source-installs/` and the command is
+`~/.local/bin/ficc`. XDG_DATA_HOME and XDG_CACHE_HOME are respected. The checkout
+can be moved or removed after installation. A desktop entry and on-demand user
+service are installed; nothing starts automatically at sign-in. Opening `ficc`
+starts the service and signs the browser in. A graphical session with a working
+systemd user manager is required for desktop startup.
+
+If `ficc` is not on PATH yet, run the line printed by the installer:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+ficc
+```
+
+The default is live mode with no approved aliases. For first installation with a
+trusted SSH alias, use `./install.sh --profile rack-01`; repeat `--profile` for
+more aliases. Existing launcher profiles, state, mode and port are preserved.
+Stop an existing service before rerunning the installer. Changed profiles must
+be set explicitly with `ficc install-launcher` after stopping it.
+
+For a terminal-only setup, use `./install.sh --no-desktop`, then `ficc serve`
+and `ficc open --print-url` in separate terminals. This installs the command
+without changing any existing launcher; it does not require a user service manager.
+
+## Update or remove a source installation
+
+Back up the stopped controller, close other FICC commands, update the checkout,
+and rerun `./install.sh`. An existing unrelated `~/.local/bin/ficc` is never
+replaced. Old private runtime directories remain available for recovery. Remove
+an old runtime only after checking that no launcher or process uses it.
+
+To remove the installation, stop FICC, disable its user service, remove its
+generated service and desktop files and run `systemctl --user daemon-reload`.
+Then remove the generated `~/.local/bin/ficc` command and unused directories
+under `source-installs`. Keep your state directory and backups unless you intend
+to delete recorded data. See [package removal](releases.md#upgrade-and-remove).
+
+## Development environment
+
+For editable development with Python 3.12 or later and Node.js 20 or later:
 
 ```sh
 python3 -m venv .venv

@@ -5,6 +5,10 @@ on:
     branches: [master]
     paths:
       - 'packaging/**'
+      - 'pyproject.toml'
+      - 'install.sh'
+      - 'tools/*source*'
+      - 'requirements-build.lock'
       - 'tools/*release*'
       - 'tools/release_lib/**'
       - 'tools/qualify*'
@@ -28,6 +32,9 @@ jobs:
           node-version: '22.23.3'
       - run: python -m pip install --require-hashes -r requirements-dev.lock
       - run: sudo apt-get update && sudo apt-get install -y zstd squashfs-tools
+      - name: Read package version
+        run: |
+          python -c 'import tomllib; v=tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]; print("FICC_VERSION="+v); print("FICC_DEB_VERSION="+v.replace("rc", "~rc"))' >> "$GITHUB_ENV"
       - name: Assemble pinned formats
         run: |
           python tools/release.py --cache "$RUNNER_TEMP/inputs" \
@@ -46,13 +53,13 @@ jobs:
               cp *.pkg.tar.zst /release/
             '
           python tools/finalize_release.py --output "$RUNNER_TEMP/release" \
-            --arch-package "$RUNNER_TEMP/release/ficc-bin-0.1.0rc1-1-x86_64.pkg.tar.zst"
+            --arch-package "$RUNNER_TEMP/release/ficc-bin-${FICC_VERSION}-1-x86_64.pkg.tar.zst"
       - name: Check Arch lifecycle
         run: |
           docker run --rm --network=none -e FICC_DISPOSABLE_CONTAINER=1 \
             -v "$PWD/tools:/checks:ro" -v "$RUNNER_TEMP/release:/release:ro" \
             ficc-arch sh /checks/qualify_native.sh arch \
-            /release/ficc-bin-0.1.0rc1-1-x86_64.pkg.tar.zst
+            /release/ficc-bin-${FICC_VERSION}-1-x86_64.pkg.tar.zst
       - name: Check Debian and Ubuntu lifecycle
         run: |
           for base in \
@@ -61,15 +68,15 @@ jobs:
             docker build --build-arg BASE="$base" -t ficc-debian -f packaging/Containerfile.debian packaging
             docker run --rm --network=none -e FICC_DISPOSABLE_CONTAINER=1 \
               -v "$PWD/tools:/checks:ro" -v "$RUNNER_TEMP/release:/release:ro" \
-              ficc-debian sh /checks/qualify_native.sh deb /release/ficc_0.1.0~rc1_amd64.deb
+              ficc-debian sh /checks/qualify_native.sh deb /release/ficc_${FICC_DEB_VERSION}_amd64.deb
           done
       - name: Check portable and extracted AppImage
         run: |
           python tools/qualify_package.py \
-            --command "$RUNNER_TEMP/build/ficc-0.1.0rc1-linux-x86_64/ficc" \
-            --payload "$RUNNER_TEMP/build/ficc-0.1.0rc1-linux-x86_64"
+            --command "$RUNNER_TEMP/build/ficc-${FICC_VERSION}-linux-x86_64/ficc" \
+            --payload "$RUNNER_TEMP/build/ficc-${FICC_VERSION}-linux-x86_64"
           mkdir "$RUNNER_TEMP/extracted"
-          (cd "$RUNNER_TEMP/extracted" && "$RUNNER_TEMP/release/FICC-0.1.0rc1-x86_64.AppImage" --appimage-extract > /dev/null)
+          (cd "$RUNNER_TEMP/extracted" && "$RUNNER_TEMP/release/FICC-${FICC_VERSION}-x86_64.AppImage" --appimage-extract > /dev/null)
           python tools/qualify_package.py \
             --command "$RUNNER_TEMP/extracted/squashfs-root/AppRun" \
             --payload "$RUNNER_TEMP/extracted/squashfs-root/usr/lib/ficc"
