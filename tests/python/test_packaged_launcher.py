@@ -127,7 +127,6 @@ def test_desktop_explicit_settings_preserve_saved_configuration(tmp_path, monkey
                           str(tmp_path / "ficc.desktop"), 8185, ("rack-01",), demo=True)
     save(path, config)
     original = path.read_bytes()
-    monkeypatch.setattr(os, "getuid", lambda: 1000)
     launched = []
     monkeypatch.setattr(launcher, "launch", launched.append)
     options = {"state_dir": state, "port": 8186 if changed else 8185, "profile": ["rack-01"],
