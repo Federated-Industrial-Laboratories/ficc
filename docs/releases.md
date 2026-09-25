@@ -6,7 +6,8 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-FICC 0.1.0rc1 is a release candidate for Linux x86_64. Packages include Python
+Download [FICC 0.1.0 from GitHub Releases](https://github.com/Federated-Industrial-Laboratories/ficc/releases/tag/v0.1.0).
+This release supports Linux x86_64. Packages include Python
 and application dependencies. Nodes still need their own Python and SSH setup.
 The controller needs OpenSSH, GNU coreutils, xdg-utils and a systemd user manager
 for desktop startup. Package installation does not start a service as root.
@@ -26,14 +27,14 @@ obtain the files and checksum list from the trusted project release page.
 ## Debian and Ubuntu
 
 ```sh
-sudo apt install ./ficc_0.1.0~rc1_amd64.deb
+sudo apt install ./ficc_0.1.0_amd64.deb
 ficc desktop
 ```
 
 ## Arch Linux
 
 ```sh
-sudo pacman -U ./ficc-bin-0.1.0rc1-1-x86_64.pkg.tar.zst
+sudo pacman -U ./ficc-bin-0.1.0-1-x86_64.pkg.tar.zst
 ficc desktop
 ```
 
@@ -45,8 +46,8 @@ Extract it and run `makepkg` as a regular user to build the package locally.
 Run the executable from a directory owned by the desktop account.
 
 ```sh
-chmod +x FICC-0.1.0rc1-x86_64.AppImage
-./FICC-0.1.0rc1-x86_64.AppImage
+chmod +x FICC-0.1.0-x86_64.AppImage
+./FICC-0.1.0-x86_64.AppImage
 ```
 
 On first desktop use, FICC verifies and copies the bundled runtime into
@@ -59,7 +60,7 @@ Opening the AppImage requires a working FUSE installation. Without FUSE, extract
 into the directory where FICC will remain:
 
 ```sh
-./FICC-0.1.0rc1-x86_64.AppImage --appimage-extract
+./FICC-0.1.0-x86_64.AppImage --appimage-extract
 ./squashfs-root/AppRun desktop
 ```
 
@@ -71,8 +72,8 @@ extraction directory must remain available while its launcher is installed.
 ## Portable archive
 
 ```sh
-tar -xzf ficc-0.1.0rc1-linux-x86_64.tar.gz
-./ficc-0.1.0rc1-linux-x86_64/ficc desktop
+tar -xzf ficc-0.1.0-linux-x86_64.tar.gz
+./ficc-0.1.0-linux-x86_64/ficc desktop
 ```
 
 The first desktop start creates a private on-demand user service and opens the

@@ -5,7 +5,7 @@
 <p align="center">A local console for Linux clusters, connected through OpenSSH.</p>
 
 <p align="center">
-  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.1.0rc1 | Python 3.12 or later | OpenSSH">
+  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.1.0 | Python 3.12 or later | OpenSSH">
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@ tools continue to work.
 
 The interface uses white and silver panels, orange controls and compact tables.
 All application assets are local, including fonts. The controller listens on
-loopback; shared remote access remains outside this release candidate.
+loopback; shared remote access remains outside this release.
 
 ## Overview
 
@@ -74,27 +74,30 @@ See [installation](docs/install.md) and [testing](docs/testing.md).
 
 ## Install
 
-Choose an AppImage, Debian, Arch Linux or portable package from the release
-artifacts, then follow [Linux packages](docs/releases.md). Native packages add
-**FICC Cluster Commander** to the application menu. First use starts the private
-user service on demand. The initial release candidate targets x86_64.
+Download AppImage, Debian, Arch Linux or portable packages from
+[GitHub Releases](https://github.com/Federated-Industrial-Laboratories/ficc/releases/latest),
+then follow [Linux packages](docs/releases.md). Native packages add
+**FICC Cluster Commander** to the application menu. This release targets x86_64.
 
-### Build from source
+### Install a source checkout
 
-From the source directory:
+On a Linux desktop, from the cloned repository:
 
 ```sh
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install --require-hashes -r requirements-dev.lock
-npm ci --prefix web
-npm run build --prefix web
-python -m pip install --no-deps --no-build-isolation -e .
+./install.sh
+~/.local/bin/ficc
 ```
 
-Run `python -m build --no-isolation` to produce a distributable package after the
-web build. Keep state, credentials and captures outside the source directory.
-[Installation](docs/install.md) covers clean environments and machine enrollment.
+The installer downloads verified Python and Node build tools, builds this source,
+and installs a private runtime outside the checkout. It creates an on-demand
+service and application-menu entry without sudo. It approves no SSH aliases.
+Use `./install.sh --profile rack-01` to approve an existing trusted alias.
+
+When `~/.local/bin` is on PATH, use `ficc` to open the console, `ficc status`
+to check it and `ficc stop` to stop it. The installer prints a PATH command when
+needed. An updated system Python 3.10 or later, OpenSSH, coreutils, systemd and
+xdg-utils are required. [Installation](docs/install.md) covers prerequisites,
+command-only setups, updates and development environments.
 
 ## Try the interface
 

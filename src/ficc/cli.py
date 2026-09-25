@@ -126,7 +126,7 @@ def api_command(args) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = parser().parse_args(argv)
+    args = parser().parse_args((sys.argv[1:] if argv is None else argv) or ["desktop"])
     try:
         if args.command == "serve":
             os.umask(0o077)

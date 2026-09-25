@@ -1,7 +1,7 @@
 # Linux release assembly
 
 Build x86_64 AppImage, Debian amd64, Arch Linux and portable archives from one
-isolated CPython payload. No command in this procedure publishes a release.
+isolated CPython payload. Assembly and publication are separate commands.
 
 Use Linux x86_64, Python 3.12 or later, Node.js 20 or later, npm, dpkg-deb, zstd,
 SquashFS tools and Docker or Podman. Install requirements-dev.lock in a build
@@ -43,7 +43,7 @@ docker run --rm --network=none \
     cp *.pkg.tar.zst /release/
   '
 python tools/finalize_release.py --output /tmp/ficc-release \
-  --arch-package /tmp/ficc-release/ficc-bin-0.1.0rc1-1-x86_64.pkg.tar.zst
+  --arch-package /tmp/ficc-release/ficc-bin-0.1.0-1-x86_64.pkg.tar.zst
 ```
 
 ## Qualification
@@ -69,3 +69,24 @@ and metadata for secrets and local machine identifiers. Keep deny lists and
 qualification logs outside the repository and release directory. Check the final
 SHA256SUMS, SBOM, source correspondence and notices. Ship both source archives
 alongside the binary formats. Release checks must pass before publication.
+
+## Publish a version
+
+Merge the reviewed source, check out that exact default-branch commit, and build
+and qualify all formats above. Change the project version for each new release;
+never replace published assets. GitHub CLI must be signed in with repository
+release access. Keep review evidence and private configuration out of the output.
+
+```sh
+python tools/publish_release.py --output /tmp/ficc-release \
+  --notes /tmp/ficc-release-notes.md
+```
+
+This creates or resumes a versioned draft in GitHub Releases, uploads all twelve
+assets and verifies their sizes and SHA-256 digests against GitHub's API. It
+requires a complete, clean build of the current default branch. Existing tags
+must resolve to the same commit. Unexpected or changed assets are refused.
+
+After review, repeat with `--publish` to publish the verified draft. Repository
+visibility is unchanged. Published versions cannot be replaced by this command.
+CI artifacts are temporary qualification output; they are not release downloads.

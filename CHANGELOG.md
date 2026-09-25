@@ -1,6 +1,10 @@
 # Changes
 
-## 0.1.0rc1
+## 0.1.0
+
+- Install source checkouts with one command and preserve saved launcher settings.
+- Start the desktop console with `ficc` without arguments.
+- Publish complete, verified package sets to versioned GitHub Releases.
 
 - Add Linux x86_64 AppImage, Debian, Arch and portable release formats.
 - Bundle a pinned Python runtime, notices, source archives, inventory and checksums.
