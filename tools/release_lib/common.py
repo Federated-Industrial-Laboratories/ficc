@@ -101,8 +101,10 @@ def archive_tree(source: Path, output: Path, epoch: int) -> None:
 
 
 def normalize_tree(root: Path, epoch: int) -> None:
-    """Remove local creation times from every file, link and directory."""
+    """Set public package modes and source times without following links."""
     for path in [*root.rglob("*"), root]:
+        if not path.is_symlink():
+            path.chmod(0o755 if path.is_dir() or path.stat().st_mode & 0o111 else 0o644)
         os.utime(path, (epoch, epoch), follow_symlinks=False)
 
 

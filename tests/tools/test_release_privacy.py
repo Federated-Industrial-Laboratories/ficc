@@ -123,6 +123,15 @@ def test_tree_times_include_links_without_touching_external_target(tmp_path):
     os.utime(outside, (456, 456))
     (root / "link").symlink_to(outside)
     (root / "file").write_text("data")
+    (root / "file").chmod(0o600)
+    (root / "command").write_text("executable")
+    (root / "command").chmod(0o700)
+    root.chmod(0o700)
+    outside.chmod(0o600)
     normalize_tree(root, 123)
     assert all(p.lstat().st_mtime == 123 for p in [root, *root.iterdir()])
+    assert (root / "file").stat().st_mode & 0o777 == 0o644
+    assert (root / "command").stat().st_mode & 0o777 == 0o755
+    assert root.stat().st_mode & 0o777 == 0o755
+    assert outside.stat().st_mode & 0o777 == 0o600
     assert outside.stat().st_mtime == 456
