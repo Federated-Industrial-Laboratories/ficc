@@ -1,9 +1,8 @@
 # Contributing
 
 Use a working branch for each coherent change. Submit a pull request to master.
-Do not update master directly after the initial repository setup. Repository
-visibility is private. Branch policy is maintained manually on the current
-hosting plan; GitHub does not enforce protection for this private repository.
+Do not update master directly after the initial repository setup. Keep each pull
+request focused on a complete change and include its validation evidence.
 
 Stage files explicitly. Use a short imperative commit subject that states the
 change. Pull requests describe the resulting behavior and relevant validation.

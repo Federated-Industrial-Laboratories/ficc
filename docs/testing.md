@@ -6,7 +6,23 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-Run checks from the project root with the development environment active.
+<details>
+<summary>On this page</summary>
+
+- [Source and unit checks](#source-and-unit-checks)
+- [SSH integration](#ssh-integration)
+- [Browser checks](#browser-checks)
+- [Installed packages](#installed-packages)
+- [Maintenance and operation checks](#maintenance-and-operation-checks)
+
+</details>
+
+Run the checks below from the project root with the development environment
+active. Use isolated state, accounts and SSH services for tests. Each check
+qualifies its own boundary; a browser fixture does not establish that a remote
+operation works on an installed machine.
+
+## Source and unit checks
 
 ```sh
 bash tools/check.sh
@@ -25,6 +41,8 @@ SSH trust and resource schema. Managed-job checks cover distinct 1-node and
 resource controls, cancellation, output bounds and CLI recovery. Launcher checks
 cover path quoting, service identity and readiness.
 
+## SSH integration
+
 Run actual SSH integration with a distribution
 OpenSSH server binary and tmux. The test server listens on a temporary loopback port and
 uses generated keys, a temporary home and a private configuration.
@@ -36,6 +54,8 @@ FICC_TEST_SSHD=/usr/sbin/sshd python -m pytest tests/integration
 If the server binary is unavailable, the integration test reports a skip.
 Set FICC_REQUIRE_SSH=1 to make a missing prerequisite fail instead. A skipped
 SSH check is not evidence of a successful SSH connection.
+
+## Browser checks
 
 Run browser checks against an isolated service. The test obtains its login
 credential through the local CLI and does not retain it in the report.
@@ -59,10 +79,14 @@ cancellation. These fixtures do not qualify a remote systemd implementation.
 Exercise installed helpers on supported machines with bounded CPU jobs before
 claiming job execution, effective limits or desktop startup support.
 
+## Installed packages
+
 Package checks install the wheel in a fresh environment. Verify that the node
 helper and web assets are present without access to the source checkout.
 Record source revision, commands, case counts, skips and exit status for each
 qualification. Performance limits require separate measured evidence.
+
+## Maintenance and operation checks
 
 Maintenance checks use distinct 1-record and 64-record histories. They cover
 exclusive state ownership, consistent credential-free backup, restore integrity,

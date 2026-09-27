@@ -6,10 +6,23 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-The controller database is the canonical bus. Nodes hold private inboxes, outboxes
-and transport receipts. Only the controller initiates pinned SSH exchanges. Nodes
-receive no controller API token or SSH identity, and need no public listener,
-reverse tunnel or shared network filesystem.
+<details>
+<summary>On this page</summary>
+
+- [Send to selected agents](#send-to-selected-agents)
+- [Receipts](#receipts)
+- [Portable runs and explicit archival](#portable-runs-and-explicit-archival)
+- [Capacity and retention](#capacity-and-retention)
+
+</details>
+
+Use Bus to coordinate registered agents through named runs and explicit
+recipients. The controller database owns the canonical messages. Nodes retain
+private inboxes, outboxes and transport receipts. Only the controller initiates
+pinned SSH exchanges. Nodes receive no controller API token or SSH identity and
+need no public listener, reverse tunnel or shared network filesystem.
+
+## Send to selected agents
 
 Create a named run in Bus, then launch selected agents into that run. Messages
 name explicit recipient agent IDs. Inbox delivery stores data for a tool read.
@@ -91,6 +104,8 @@ agent metadata, transport receipts, and node archive locations and hashes. An
 interrupted operation can resume with the same run and output directory. Active
 sessions, unknown states, unresolved deliveries and unacknowledged outboxes are
 retained. Node archives preserve admission identities and cannot be relaunched.
+
+## Capacity and retention
 
 The controller supports 128 retained runs, 16,384 messages, 32,768 delivery records
 and 4,096 unresolved deliveries. Message bodies are limited to 8,192 UTF-8 bytes.

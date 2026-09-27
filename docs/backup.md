@@ -6,10 +6,22 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-FICC exports a stopped, quiescent controller into a private directory bundle.
-The backup command holds the same exclusive state lock as service startup before
-opening the database. A running controller or another maintenance command causes
-an explicit refusal. This is an offline maintenance operation.
+<details>
+<summary>On this page</summary>
+
+- [Prepare and export](#prepare-and-export)
+- [What the backup contains](#what-the-backup-contains)
+- [Restore into a new state directory](#restore-into-a-new-state-directory)
+- [Format and limits](#format-and-limits)
+
+</details>
+
+Use a portable backup to preserve a stopped controller before moving or
+restoring its state. Export requires all work to be quiescent. The command takes
+the same exclusive state lock as service startup before opening the database.
+It refuses a running controller or another maintenance command.
+
+## Prepare and export
 
 1. Finish or cancel managed jobs. Reconcile every unknown outcome.
 2. Stop persistent terminals and close other terminal sessions.
@@ -27,6 +39,8 @@ The output parent must already exist. Use the state path configured for the
 launcher if it differs from this example. Do not restart the controller until
 the command completes. Any recorded active or unknown work, prepared download,
 retained partial, or unresolved local receipt prevents export.
+
+## What the backup contains
 
 The bundle contains `manifest.json`, `state.sqlite3`, pinned SSH public host-key
 files under `trust/`, and local file-operation receipts under `files/`. The

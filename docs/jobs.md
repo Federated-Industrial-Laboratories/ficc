@@ -6,10 +6,22 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-A managed job runs an explicit program under an enrolled remote account.
-The node keeps its request, output and result independently of the controller.
-Closing the browser or stopping FICC does not cancel it. A node reboot does not
-restart the program. An uncertain remote outcome remains visible as unknown.
+<details>
+<summary>On this page</summary>
+
+- [Prepare a node](#prepare-a-node)
+- [Submit and inspect](#submit-and-inspect)
+- [Limits and reservations](#limits-and-reservations)
+- [CLI](#cli)
+- [Recovery](#recovery)
+
+</details>
+
+Use managed jobs to run explicit programs on enrolled Linux machines. Each node
+retains the request, output and result independently of the controller. Closing
+the browser or stopping FICC leaves the job running within its configured
+limits. A reboot does not restart the program. If FICC cannot establish the
+remote outcome, the job remains visibly unknown.
 
 Execution has the full authority of the SSH account. CPU/RAM limits and GPU
 visibility do not make an untrusted program safe. Use separate remote accounts

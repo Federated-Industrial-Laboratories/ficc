@@ -176,6 +176,9 @@ tools/          source and development checks
 
 ## Documentation
 
+Read the [website](https://ficc.federatedindustrial.com/) and
+[searchable manuals](https://ficc.federatedindustrial.com/docs/).
+
 The [documentation index](docs/README.md) provides a reading order, shared terms
 and a guide to each manual. Start with [architecture](docs/architecture.md),
 [installation](docs/install.md) and [operation](docs/operations.md).

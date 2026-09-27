@@ -2,14 +2,26 @@
 
 # Documentation
 
-A guide to installing, operating and maintaining FICC. Read the architecture
-first, then installation and operation before connecting a live machine.
+Install and operate a local console for Linux clusters. FICC connects to approved
+SSH profiles and keeps inventory, operation history and message records on the
+controller. Start with the guides below, then use the task manuals as needed.
+
+The [online documentation](https://ficc.federatedindustrial.com/docs/) provides
+page contents, command copying and a search index that runs in your browser.
 
 [Project README](../README.md) | [Security](../SECURITY.md) | [Contributing](../CONTRIBUTING.md)
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-## Reading order
+## Start here
+
+1. Read the [architecture](architecture.md) and [security model](../SECURITY.md).
+2. Choose a [Linux package](releases.md) or [source installation](install.md).
+3. Try the [demonstration console](install.md#try-the-interface) with separate state.
+4. [Connect a machine](install.md#connect-a-machine) and inspect its pinned identity.
+5. Set up [normal startup and maintenance](operations.md).
+
+## Manual library
 
 | Order | Manual | Subject |
 | --- | --- | --- |
@@ -28,7 +40,7 @@ first, then installation and operation before connecting a live machine.
 | 13 | [Dependencies](dependencies.md) | Locked components, bundled assets and their licences. |
 | 14 | [Linux packages](releases.md) | Binary formats, verification, first startup, upgrade and removal. |
 
-## Shared terms
+## Terms used in the manuals
 
 | Term | Meaning |
 | --- | --- |
@@ -42,7 +54,7 @@ first, then installation and operation before connecting a live machine.
 | Reconcile | Inspect a saved operation identity after its outcome became uncertain. |
 | Archive | Explicitly preserve completed history before reclaiming active capacity. |
 
-## Choose a procedure
+## Find a task
 
 | Task | Start here |
 | --- | --- |

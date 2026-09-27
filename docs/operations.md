@@ -6,10 +6,23 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-Run FICC as a normal local account. Its state defaults to
-`$XDG_STATE_HOME/ficc`, or `~/.local/state/ficc` when XDG_STATE_HOME is unset.
-The directory must be owned by that account with mode 0700. The control socket,
-database and pinned host keys stay private. Do not reuse demo state for live work.
+<details>
+<summary>On this page</summary>
+
+- [User service](#user-service)
+- [Trust changes](#trust-changes)
+- [State copy and upgrades](#state-copy-and-upgrades)
+- [Removal](#removal)
+- [Agent operation](#agent-operation)
+
+</details>
+
+Use this guide to start the controller, change its service settings and maintain
+enrolled machines. Run FICC under a normal local account. The private state
+directory defaults to `$XDG_STATE_HOME/ficc`, or `~/.local/state/ficc` when
+XDG_STATE_HOME is unset. That account must own the directory with mode 0700.
+Keep the control socket, database and pinned host keys private. Use separate
+state for demonstration and live work.
 
 The foreground `ficc serve` process stops with Ctrl+C. Stopping the controller
 does not cancel managed remote jobs. Their lifetime still depends on the node's
@@ -116,6 +129,8 @@ remains at `~/.local/lib/ficc/node.pyz` on each enrolled node. Remove that exact
 file through an ordinary authenticated SSH session if it is no longer required.
 Do not delete unrelated files in the parent directory.
 
+
+## Agent operation
 
 Coding-agent profiles name installed executables and working directories; they
 never install agent software or transfer provider credentials. Use the Agents

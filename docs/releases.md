@@ -6,11 +6,23 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-Download [FICC 0.1.0 from GitHub Releases](https://github.com/Federated-Industrial-Laboratories/ficc/releases/tag/v0.1.0).
-This release supports Linux x86_64. Packages include Python
-and application dependencies. Nodes still need their own Python and SSH setup.
-The controller needs OpenSSH, GNU coreutils, xdg-utils and a systemd user manager
-for desktop startup. Package installation does not start a service as root.
+<details>
+<summary>On this page</summary>
+
+- [Debian and Ubuntu](#debian-and-ubuntu)
+- [Arch Linux](#arch-linux)
+- [AppImage](#appimage)
+- [Portable archive](#portable-archive)
+- [Upgrade and remove](#upgrade-and-remove)
+- [Release contents](#release-contents)
+
+</details>
+
+Install [FICC 0.1.0](https://github.com/Federated-Industrial-Laboratories/ficc/releases/tag/v0.1.0)
+on Linux x86_64 with one of the packages below. Each package includes Python and
+application dependencies. Nodes need their own Python and SSH setup. The
+controller needs OpenSSH, GNU coreutils and xdg-utils; desktop startup also
+requires a systemd user manager. Installation does not start a root service.
 
 | Format | Use |
 | --- | --- |
