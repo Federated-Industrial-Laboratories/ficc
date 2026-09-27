@@ -6,14 +6,26 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-FICC launches an explicitly registered command on an enrolled Linux node. The
-native agent interface appears in a managed tmux terminal in the Terminals page.
-The controller owns the agent identity, run enrollment and bus delivery records.
-An existing shell is never repurposed by typing launch commands into it.
+<details>
+<summary>On this page</summary>
+
+- [Register and launch an agent](#register-and-launch-an-agent)
+- [Runtime adapters](#runtime-adapters)
+- [Authority and limits](#authority-and-limits)
+
+</details>
+
+Use Agents to launch a registered command in its own managed tmux terminal on
+an enrolled Linux machine. Its native interface appears in Terminals. The
+controller records the agent identity, run membership and message deliveries.
+Launch creates a dedicated session; FICC never types the launch command into
+an existing shell.
 
 Install and sign in to the selected agent on the node before registration. FICC
 does not install coding agents, copy provider credentials or select a model.
 Register an existing absolute executable and workspace from the local owner CLI:
+
+## Register and launch an agent
 
 ```sh
 ficc agent-profile-add --node NODE_ID --name 'Project agent' --adapter omp \

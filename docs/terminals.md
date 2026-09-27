@@ -6,12 +6,21 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-Terminals groups independent SSH connections into machine tabs. Each machine
-can display four terminal panes, with sixteen panes across the workspace.
-The node, remote account and session state stay visible outside terminal output.
-Opening a shell requires explicit
-execution confirmation and the terminals:execute grant for that node. This is
-full remote-account access, including paths outside registered file roots.
+<details>
+<summary>On this page</summary>
+
+- [Keyboard and output](#keyboard-and-output)
+- [Tiled workspace](#tiled-workspace)
+- [Credentials and limits](#credentials-and-limits)
+
+</details>
+
+Use Terminals for interactive SSH sessions grouped by machine. Each machine
+can show four panes, with sixteen across the workspace. The machine identity,
+remote account and session state remain visible outside terminal output.
+Opening a shell requires explicit execution confirmation and the node-scoped
+`terminals:execute` grant. A shell has full remote-account access, including
+paths outside registered file roots.
 
 Ephemeral shell starts an OpenSSH session with a PTY. Closing its attachment
 closes SSH; it cannot be reattached. Programs that deliberately detach may

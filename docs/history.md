@@ -6,10 +6,22 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-FICC keeps completed operation receipts to make retries safe. The controller and
-node histories have finite limits. Use an explicit archive to start a new
-execution epoch after all work has stopped. FICC does not expire or delete
-history automatically.
+<details>
+<summary>On this page</summary>
+
+- [Prepare and preview](#prepare-and-preview)
+- [Confirm the archive](#confirm-the-archive)
+- [Archive contents](#archive-contents)
+- [Resume after an interruption](#resume-after-an-interruption)
+
+</details>
+
+Use a history archive to preserve completed operation receipts and reclaim
+active capacity. Controller and node histories have finite limits. Archival
+starts a new execution epoch only after all work has stopped. FICC never
+expires or deletes this history automatically.
+
+## Prepare and preview
 
 Before maintenance, upgrade and refresh every enrolled node helper. Complete or
 cancel jobs and transfers, finish pending file cleanup, close terminals, and
@@ -25,6 +37,8 @@ SSH profile, account, host and pinned fingerprint. The output must be a new
 private directory outside controller state. It is not created by the preview.
 Use the same command with `--confirm` to archive. If you use a separate SSH
 configuration, pass its path with `--ssh-config` in both commands.
+
+## Confirm the archive
 
 The confirmed command holds the controller's exclusive lock. It refuses active,
 unknown or unreconciled work, prepared downloads, pending cleanup, unsafe files,

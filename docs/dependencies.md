@@ -6,9 +6,21 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-FICC uses Apache-2.0. Dependencies retain their own licences and notices.
-The runtime lock records exact Python package versions and artifact hashes.
-Licence identifiers below come from the pinned distribution metadata and files.
+<details>
+<summary>On this page</summary>
+
+- [Python runtime](#python-runtime)
+- [Browser assets](#browser-assets)
+- [System and build dependencies](#system-and-build-dependencies)
+- [Package notices](#package-notices)
+
+</details>
+
+FICC is licensed under Apache-2.0. Its dependencies retain their own licenses
+and notices. The runtime lock pins exact Python package versions and artifact
+hashes. The tables below use license identifiers from those pinned distributions.
+
+## Python runtime
 
 | Python runtime distribution | Version | Licence |
 | --- | --- | --- |
@@ -34,14 +46,20 @@ Installed Python distributions retain their licence files under their
 `.dist-info/` directories. Preserve those files when distributing an offline
 environment. In particular, certifi retains its MPL-2.0 certificate-source notice.
 
+## Browser assets
+
 The browser bundles xterm.js 6.0.0 and FitAddon 0.11.0 under MIT. Their licence
 files are included under `ficc/static/vendor/` in the wheel. Fonts retain OFL-1.1:
 Michroma 1.100, Barlow Semi Condensed 1.408, and JetBrains Mono 2.304. Their
 original notices are under `ficc/static/fonts/`; see [NOTICE](../NOTICE).
 
+## System and build dependencies
+
 OpenSSH, GNU coreutils, systemd, tmux and optional NVIDIA tools are external
 system dependencies. They are not bundled in the FICC wheel. Build and test
 dependencies are pinned separately in requirements-dev.lock and web/package-lock.json.
+
+## Package notices
 
 Binary formats also include CPython 3.12.14 from the pinned standalone build.
 Their licenses/python directory retains native dependency notices and build

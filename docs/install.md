@@ -6,8 +6,24 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-Install a [Linux package](releases.md), try a separate demo, then enroll trusted machines.
-Keep live state and credentials outside the source checkout.
+<details>
+<summary>On this page</summary>
+
+- [Requirements](#requirements)
+- [Install a cloned repository](#install-a-cloned-repository)
+- [Update or remove a source installation](#update-or-remove-a-source-installation)
+- [Development environment](#development-environment)
+- [Try the interface](#try-the-interface)
+- [Connect a machine](#connect-a-machine)
+- [Start from the desktop](#start-from-the-desktop)
+- [Access and operation](#access-and-operation)
+
+</details>
+
+Install FICC, open a separate demonstration console, then connect a trusted
+Linux machine. Choose a [Linux package](releases.md) for a bundled runtime or use
+the source installer below. Store live state and credentials outside the source
+checkout.
 
 ## Requirements
 
@@ -182,7 +198,6 @@ ficc token-create --label monitor --scope nodes:read --scope resources:read \
 Add `--node ID` to restrict it to specific machines. Revoke a token in Access
 or with `ficc token-revoke ID`. Keep the output file private and delete it when
 no longer needed. Never put token values in shell arguments or source files.
-
 
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>

@@ -6,11 +6,24 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-Files shows two independent locations. Each location selects the controller or
-an enrolled machine, then a registered folder. The controller pane is server
-storage; the Upload picker selects files from the browser's computer.
+<details>
+<summary>On this page</summary>
+
+- [Register a root](#register-a-root)
+- [Browse and edit](#browse-and-edit)
+- [Transfer and recover](#transfer-and-recover)
+- [Access boundary](#access-boundary)
+
+</details>
+
+Use Files to browse registered folders, make explicit changes and transfer data
+between the controller and enrolled machines. The two panes select locations
+independently. A controller location is storage on the controller itself; the
+Upload picker reads files selected on the browser computer.
 
 The local owner registers existing folders through the private CLI socket:
+
+## Register a root
 
 ```sh
 mkdir -m 700 "$HOME/ficc-workspace"

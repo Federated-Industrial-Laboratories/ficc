@@ -6,9 +6,22 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-The service listens on 127.0.0.1. It does not trust proxy headers or allow CORS.
-Use the exact configured host and port. Remote proxy deployment is unsupported.
-The CLI uses the same API as the browser.
+<details>
+<summary>On this page</summary>
+
+- [Authentication](#authentication)
+- [Controller and job routes](#controller-and-job-routes)
+- [File routes](#file-routes)
+- [Terminal routes](#terminal-routes)
+- [Agent and bus routes](#agent-and-bus-routes)
+
+</details>
+
+The browser and CLI use the same authenticated local HTTP API. Connect to the
+exact configured host and port on `127.0.0.1`. The service rejects CORS and does
+not trust proxy headers. Remote proxy deployment is unsupported.
+
+## Authentication
 
 Browser login exchanges a single-use bootstrap credential for an HttpOnly,
 SameSite=Strict cookie. Obtain that credential through `ficc open`. The URL
@@ -19,6 +32,8 @@ Browser mutations require the session's X-CSRF-Token value and allowed Origin.
 API clients use `Authorization: Bearer TOKEN`. Read tokens from protected files
 or stdin. Do not expose them in process arguments. Each request checks expiry,
 current grants and node/root scope.
+
+## Controller and job routes
 
 | Method and path | Result |
 | --- | --- |

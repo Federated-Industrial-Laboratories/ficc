@@ -6,10 +6,21 @@
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
-The browser and CLI use one local HTTP API. A Python service owns inventory,
-authentication, audit data and resource snapshots in SQLite. OpenSSH connects
-to approved machine profiles. A small Python helper collects Linux resources.
-The helper runs under the remote account and opens no network listener.
+<details>
+<summary>On this page</summary>
+
+- [Connections](#connections)
+- [State](#state)
+- [Access](#access)
+- [Demonstration mode](#demonstration-mode)
+- [Coding agents and bus](#coding-agents-and-bus)
+
+</details>
+
+FICC connects a local browser and CLI to Linux machines through OpenSSH.
+One Python controller owns inventory, authentication, audit records and resource
+snapshots in SQLite. Each approved machine runs a small Python helper under its
+remote account. The helper opens no network listener.
 
 The browser uses local HTML, CSS and JavaScript. It does not execute code sent
 by a managed machine. The wheel includes all web assets and font licences.
