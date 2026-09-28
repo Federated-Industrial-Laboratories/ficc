@@ -45,8 +45,9 @@ replace code review or establish that software has no security defects.
 
 File roots are object capabilities within the trusted local or remote account.
 They refuse symlink traversal and bind registered directory identity. They do
-not isolate another program with the same account: an opened directory remains
-usable after external movement, and hard links can give an object other names.
+not isolate another program with the same account. An opened directory remains
+usable after external movement. Hard links can give an object other names.
+
 Keep root namespaces operator-managed. Detected changes are refused; continuous
 pathname confinement against a concurrent same-account writer is not promised.
 
@@ -64,13 +65,36 @@ data does not become arbitrary CSS or HTML.
 Coding-agent launch and bus send have separate node-scoped permissions. Selecting
 a runtime profile does not change provider login, model settings, sandbox settings
 or approval policy. Direct delivery can start work under the recipient agent's
-existing account. Bus messages are labelled participant testimony and carry no
+existing account. Bus messages are labeled participant testimony and carry no
 FICC approval authority. Revocation prevents later admission but cannot undo
 work that the runtime already accepted.
 
 Nodes expose only the fixed SSH helper exchange and private local spool tools.
 Controller credentials stay on the controller. An outbox cannot choose a different
 sender, run or grant. Runtime submissions with uncertain outcomes are not
-replayed automatically. Ordinary same-account processes remain inside the trusted
+replayed automatically.
+
+Ordinary same-account processes remain inside the trusted
 account boundary. Spools reject links, unsafe ownership, unknown members and
 capacity overflow. The native TUI owns runtime approval decisions.
+
+Runtime modules have a separate containment boundary. Executable packages require
+private namespaces, syscall filters and enforced cgroup limits. They receive no
+SSH keys, controller database, host home, display socket or provider socket.
+The host broker intersects current caller access, package-digest grants and panel
+targets. Missing containment prevents execution; there is no unrestricted fallback.
+
+Package inspection validates bounded contents and hashes. It does not authenticate
+publishers. All current packages show an unverified publisher state and need
+explicit source acceptance. New digests need new grants. Disabling a package
+revokes its calls and streams while retaining recovery records and saved data.
+
+Native displays use a separate verified runtime in their own bounded process.
+Opaque references bind a display to the current actor, panel and VM identity.
+Input is released on arrival and on focus or authority loss. Clipboard, file
+transfer, console audio and microphone input are disabled. See [display controls](docs/viewer.md).
+
+Workspace data has local-account file protection, not encryption at rest. Audio
+uses an explicit browser-local file selection and revocable playback leases.
+No module may place provider passwords in workspace state. Treat saved notes,
+operation history and backups as private data.

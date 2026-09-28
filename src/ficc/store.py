@@ -32,7 +32,7 @@ class Store:
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA synchronous=FULL")
         version = self.db.execute("PRAGMA user_version").fetchone()[0]
-        if version not in (0, 1, 2, 3, 4):
+        if version not in (0, 1, 2, 3, 4, 5, 6):
             self.db.close()
             raise ValueError("The state schema is not supported.")
         self.db.executescript("""
@@ -46,7 +46,6 @@ class Store:
                 action TEXT NOT NULL, target TEXT NOT NULL, outcome TEXT NOT NULL,
                 actor TEXT NOT NULL DEFAULT 'local-owner');
             CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-            PRAGMA user_version=4;
         """)
         if "actor" not in {row[1] for row in self.db.execute("PRAGMA table_info(audit)")}:
             self.db.execute("ALTER TABLE audit ADD COLUMN actor TEXT NOT NULL DEFAULT 'local-owner'")
@@ -54,6 +53,25 @@ class Store:
             self.db.execute("ALTER TABLE credentials ADD COLUMN roots TEXT NOT NULL DEFAULT 'null'")
         from .agent_store import initialize
         initialize(self.db)
+        from .module_editor_store import initialize as initialize_editor
+        from .modules import initialize as initialize_modules
+        from .workspace_store import initialize as initialize_workspaces
+        initialize_editor(self.db)
+        from .module_vm_store import initialize as initialize_vms
+        initialize_vms(self.db)
+        from .module_proxmox_store import initialize as initialize_proxmox
+        initialize_proxmox(self.db)
+        from .module_containers_store import initialize as initialize_containers
+        initialize_containers(self.db)
+        from .module_admin_store import initialize as initialize_administration
+        initialize_administration(self.db)
+        from .module_adapter_store import initialize as initialize_adapters
+        from .module_windows_store import initialize as initialize_windows
+        initialize_adapters(self.db)
+        initialize_windows(self.db)
+        initialize_modules(self.db)
+        initialize_workspaces(self.db)
+        self.db.execute("PRAGMA user_version=6")
         self.db.commit()
 
     def close(self) -> None:
@@ -85,6 +103,16 @@ class Store:
                 if self.db.execute("SELECT count(*) FROM nodes").fetchone()[0] >= MAX_NODES:
                     raise Failure("capacity", "The machine limit was reached.", 409)
             self.db.execute("INSERT OR REPLACE INTO nodes VALUES (?,?)", (node["id"], json.dumps(node)))
+
+    def endpoint_kind(self, endpoint_id: str) -> str:
+        with self.lock:
+            linux = self.db.execute("SELECT 1 FROM nodes WHERE id=?", (endpoint_id,)).fetchone()
+            windows = self.db.execute("SELECT 1 FROM module_windows_endpoints WHERE id=?", (endpoint_id,)).fetchone()
+        if linux and windows:
+            raise Failure("endpoint_conflict", "Multiple endpoint types use this identity.", 409)
+        if not linux and not windows:
+            raise Failure("not_found", "The registered endpoint was not found.", 404)
+        return "linux-ssh" if linux else "windows"
 
     def delete_node(self, node_id: str) -> None:
         with self.lock, self.db:

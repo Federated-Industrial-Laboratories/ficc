@@ -63,7 +63,9 @@ An outbox rejection is separate from these delivery receipts. For a permanently
 invalid reply, the host durably records a `host-rejected` acknowledgement with
 the exact request digest. The node retains the original outbox bytes in a
 `rejected-ID.json` file and a separate refusal receipt, then permits later items
-to progress. A lost acknowledgement is safe to repeat. Successful storage retains
+to progress. A lost acknowledgement is safe to repeat.
+
+Successful storage retains
 a distinct sent record. Node tools expose the refusals; the public agent record
 contains only the latest 16 summaries. Explicit closed-run archival includes all
 retained refusal files and preserves their hashes.
@@ -74,13 +76,14 @@ The JSONL envelope is version 1: `v`, `run`, `agent`, `seq`, `ts`, `type`, `body
 Supported types are finding, rank, question, answer, handoff, note and cost.
 Sequences are allocated per sender. Findings require claim and provenance; rank
 and answer references must name an earlier permitted message in the same run.
-The base envelope is compatible with agentbus JSONL tools. Optional extension
+
+JSONL tools can read the base envelope. Optional extension
 features and relation tokens are refused rather than silently discarded.
 Transport receipts are exported separately from canonical messages.
 
 Export and import require the service to be stopped so they hold exclusive state
-ownership. Import reads only the explicitly named private file, validates the
-whole run before committing it, and creates a closed historical run with no
+ownership. Import reads only the explicitly named private file. It validates the
+whole run before committing it and creates a closed historical run with no
 recipients or delivery effects:
 
 ```sh

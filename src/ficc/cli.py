@@ -54,6 +54,8 @@ def parser() -> argparse.ArgumentParser:
             item.add_argument("--port", type=int, default=8170)
             item.add_argument("--profile", action="append", default=[])
             item.add_argument("--ssh-config", type=Path)
+            item.add_argument("--viewer-runtime", type=Path, help="Path to the isolated native display runtime.")
+            item.add_argument("--windows-runtime", type=Path, help="Path to the isolated Windows transport runtime.")
             item.add_argument("--demo", action="store_true")
         elif name == "open":
             item.add_argument("--print-url", action="store_true")
@@ -98,6 +100,8 @@ def parser() -> argparse.ArgumentParser:
     add_history_commands(commands)
     from .agent_cli import add_commands as add_agent_commands
     add_agent_commands(commands)
+    from .module_cli import add_commands as add_module_commands
+    add_module_commands(commands)
     return result
 
 
@@ -131,7 +135,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "serve":
             os.umask(0o077)
             settings = Settings(state_dir=args.state_dir, port=args.port, profiles=tuple(args.profile),
-                                ssh_config=args.ssh_config, demo=args.demo)
+                                ssh_config=args.ssh_config, demo=args.demo, viewer_runtime=args.viewer_runtime,
+                                windows_runtime=args.windows_runtime)
             uvicorn.run(create_app(settings), host="127.0.0.1", port=settings.port,
                         access_log=False, proxy_headers=False, server_header=False,
                         limit_concurrency=64, timeout_keep_alive=5, ws="websockets",
@@ -166,6 +171,9 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command.startswith("root-"):
             from .file_cli import execute as execute_files
             execute_files(args)
+        elif args.command.startswith("module-"):
+            from .module_cli import execute as execute_modules
+            execute_modules(args)
         elif args.command == "token-create":
             fd = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
             try:

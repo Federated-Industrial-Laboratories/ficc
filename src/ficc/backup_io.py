@@ -15,13 +15,31 @@ from ficc_node.file_access import rename
 
 MAX_DATABASE = 256 * 1024**2
 MAX_TOTAL = 512 * 1024**2
-MAX_MEMBERS = 8194
-MAX_MANIFEST = 2 * 1024**2
+MAX_MEMBERS = 24578
+MAX_ENTRIES = 131072
+MAX_MANIFEST = 8 * 1024**2
 HEX32 = r"[a-f0-9]{32}"
 MEMBER = re.compile(r"(?:state\.sqlite3|trust/[a-f0-9]{64}|files/" + HEX32 + r"/" + HEX32 + r"\.json)\Z")
 
 
+def module_member(name):
+    if not isinstance(name, str) or not name.startswith("modules/"):
+        return False
+    parts = name.split("/", 2)
+    if len(parts) != 3 or not re.fullmatch(r"[a-f0-9]{64}", parts[1]):
+        return False
+    from .errors import Failure
+    from .modules.manifest import package_path
+    try:
+        package_path(parts[2])
+    except Failure:
+        return False
+    return True
+
+
 def limit(name):
+    if module_member(name):
+        return 65536 if name.split("/", 2)[2] == "manifest.json" else 16 * 1024**2
     if not isinstance(name, str) or not MEMBER.fullmatch(name):
         raise ValueError("The backup contains an unsupported member path.")
     return MAX_DATABASE if name == "state.sqlite3" else 262144 if name.startswith("files/") else 16384
@@ -44,6 +62,22 @@ def directory(path: Path, private=True):
             os.close(fd)
             fd = child
         if private:
+            checked(os.fstat(fd), directory=True)
+        yield fd
+    finally:
+        os.close(fd)
+
+
+@contextmanager
+def subdirectory(root, name):
+    fd = os.dup(root)
+    try:
+        for part in name.split("/"):
+            if part in {"", ".", ".."}:
+                raise ValueError("The backup directory path is invalid.")
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            os.close(fd)
+            fd = child
             checked(os.fstat(fd), directory=True)
         yield fd
     finally:
@@ -130,11 +164,13 @@ def inventory(root, bundle=False, maintenance=False):
         with os.scandir(fd) as entries:
             for entry in entries:
                 count += 1
-                if count > MAX_MEMBERS + 32:
+                if count > MAX_ENTRIES:
                     raise ValueError("The backup member count exceeds the limit.")
                 name = prefix + entry.name
                 info = entry.stat(follow_symlinks=False)
-                folders = (name in {"trust", "files", "downloads"}
+                module_folder = (name == "modules" or re.fullmatch(r"modules/[a-f0-9]{64}", name)
+                                 or module_member(name)) and stat.S_ISDIR(info.st_mode)
+                folders = (module_folder or name in {"trust", "files", "downloads"}
                            or (not bundle and name == "cli-requests") or re.fullmatch("files/" + HEX32, name))
                 if folders:
                     checked(info, directory=True)
@@ -143,6 +179,8 @@ def inventory(root, bundle=False, maintenance=False):
                         walk(child, name + "/")
                     finally:
                         os.close(child)
+                elif not bundle and name == "windows-private":
+                    checked(info, directory=True)
                 elif not bundle and name in {"service.lock", "state.sqlite3-wal", "state.sqlite3-shm"}:
                     checked(info)
                     if info.st_size > MAX_DATABASE:
@@ -206,10 +244,13 @@ def staging(destination: Path):
                 raise
             published = True
         finally:
-            if fd is not None:
-                os.close(fd)
             if not published:
                 if fd is None:
                     os.rmdir(name, dir_fd=parent)
                 else:
+                    # Restored module directories can already have read-only modes.
+                    for folder, _, _ in os.walk(f"/proc/self/fd/{fd}"):
+                        os.chmod(folder, 0o700)
                     shutil.rmtree(name, dir_fd=parent)
+            if fd is not None:
+                os.close(fd)

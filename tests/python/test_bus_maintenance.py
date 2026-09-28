@@ -55,7 +55,7 @@ def test_closed_bus_rows_survive_credential_erasure(console, tmp_path):
         assert db.execute("SELECT count(*) FROM credentials").fetchone()[0] == 0
         row = db.execute("SELECT value FROM bus_runs WHERE id=?", (run["id"],)).fetchone()
         assert json.loads(row[0])["id"] == run["id"]
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 6
 
 
 def test_history_refuses_retained_agent_before_terminal_retirement(console):

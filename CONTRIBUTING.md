@@ -33,7 +33,7 @@ captures outside the source directory. See [testing](docs/testing.md).
 
 Use small modules, explicit limits and typed API contracts. Target fewer than
 400 lines per source file; the source ceiling is 1,000 lines. Add an Apache-2.0
-SPDX identifier to source files. Keep third-party code and licence notices intact.
+SPDX identifier to source files. Keep third-party code and license notices intact.
 Use short technical sentences and consistent terms in product text.
 
 Test batched contracts with one and 64 distinct items. Include denied access,

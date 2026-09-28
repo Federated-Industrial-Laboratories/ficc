@@ -1,0 +1,95 @@
+{
+  "format_version": 1,
+  "version": "1.0.0",
+  "category": "system-administration",
+  "contract_version": 1,
+  "host_api": 1,
+  "dependencies": [],
+  "files": {},
+  "id": "org.ficc.system-status",
+  "display_name": "System status",
+  "publisher": "Federated Industrial Laboratories",
+  "description": "Saved resource measurements for selected systems. Stale data is marked.",
+  "runtime": {
+    "kind": "python",
+    "language": "python",
+    "protocol": 2,
+    "platform": "linux",
+    "architecture": "any",
+    "entry": "main.py"
+  },
+  "capabilities": [
+    "workspace:read",
+    "system:read"
+  ],
+  "actions": [
+    {
+      "id": "load",
+      "label": "Read saved status",
+      "parameters": {},
+      "capabilities": [
+        "system:read"
+      ]
+    }
+  ],
+  "ui": {
+    "type": "column",
+    "children": [
+      {
+        "type": "text",
+        "text": "Read the latest saved measurements. This action does not change a system."
+      },
+      {
+        "type": "button",
+        "label": "Read saved status",
+        "action": "load"
+      },
+      {
+        "type": "table",
+        "id": "systems",
+        "columns": [
+          {
+            "id": "name",
+            "label": "System"
+          },
+          {
+            "id": "state",
+            "label": "State"
+          },
+          {
+            "id": "cpu",
+            "label": "CPU %"
+          },
+          {
+            "id": "memory",
+            "label": "Memory %"
+          },
+          {
+            "id": "uptime",
+            "label": "Uptime (seconds)"
+          },
+          {
+            "id": "freshness",
+            "label": "Measurement"
+          },
+          {
+            "id": "error",
+            "label": "Error"
+          }
+        ],
+        "rows": [],
+        "bind": {
+          "rows": {
+            "action": "load",
+            "path": [
+              "results",
+              0,
+              "data",
+              "rows"
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

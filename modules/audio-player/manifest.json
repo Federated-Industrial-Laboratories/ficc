@@ -1,0 +1,33 @@
+{
+  "format_version": 1,
+  "version": "1.0.0",
+  "category": "productivity",
+  "contract_version": 1,
+  "host_api": 1,
+  "dependencies": [],
+  "files": {},
+  "id": "org.ficc.audio-player",
+  "display_name": "Audio player",
+  "publisher": "Federated Industrial Laboratories",
+  "description": "Audio player for the selected workspace.",
+  "runtime": {
+    "kind": "declarative",
+    "language": "none"
+  },
+  "capabilities": [
+    "workspace:read",
+    "workspace:write",
+    "audio:playback"
+  ],
+  "actions": [],
+  "ui": {
+    "type": "column",
+    "children": [
+      {
+        "type": "audio-player",
+        "id": "player",
+        "label": "Audio player"
+      }
+    ]
+  }
+}

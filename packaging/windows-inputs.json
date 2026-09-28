@@ -1,0 +1,133 @@
+{
+  "schema": 1,
+  "inputs": [
+    {
+      "id": "python",
+      "name": "cpython-3.12.14+20260924-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260924/cpython-3.12.14%2B20260924-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "sha256": "269b2c99e4db15b242bf01832f4fea1e8f1a664f273cff519393f296e9820b41",
+      "size": 34270188,
+      "release": "20260924"
+    },
+    {
+      "id": "pypsrp",
+      "name": "pypsrp-0.9.1-py3-none-any.whl",
+      "version": "0.9.1",
+      "url": "https://files.pythonhosted.org/packages/d1/6b/441a1ebd4a5975566b0d32be477cd6ec65e3962938e82ed499690ac82e1c/pypsrp-0.9.1-py3-none-any.whl",
+      "size": 92415,
+      "sha256": "1217b03397589f8e77c98dc9d2a4af2abc34a89ccc15efd4b6758ec76eb1bb7d"
+    },
+    {
+      "id": "cryptography",
+      "name": "cryptography-50.0.1-cp311-abi3-manylinux_2_34_x86_64.whl",
+      "version": "50.0.1",
+      "url": "https://files.pythonhosted.org/packages/85/66/6ccca4722987ddedaa7fc9c3f4708af7431f5535666c174350830888c6b7/cryptography-50.0.1-cp311-abi3-manylinux_2_34_x86_64.whl",
+      "size": 4746230,
+      "sha256": "51afcfceb15597cf2635068e4ac9a56b2abde622edde17f37d85fd7b5306497a"
+    },
+    {
+      "id": "pyspnego",
+      "name": "pyspnego-0.12.2-py3-none-any.whl",
+      "version": "0.12.2",
+      "url": "https://files.pythonhosted.org/packages/0e/8c/3d0154b8781a371ef1b791063da5a223187dd17738c5b188edc5e9657f9a/pyspnego-0.12.2-py3-none-any.whl",
+      "size": 130239,
+      "sha256": "04e7c9260ced15197b3f42b891ffa30fa98c37bb09372c5c2bf927bcdfe30b53"
+    },
+    {
+      "id": "requests",
+      "name": "requests-2.34.2-py3-none-any.whl",
+      "version": "2.34.2",
+      "url": "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl",
+      "size": 73075,
+      "sha256": "2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0"
+    },
+    {
+      "id": "certifi",
+      "name": "certifi-2026.7.22-py3-none-any.whl",
+      "version": "2026.7.22",
+      "url": "https://files.pythonhosted.org/packages/0b/a7/71ac2cff56fec219ed242bb11b8efb69fcc4bec75db06fb7bfe35de520e6/certifi-2026.7.22-py3-none-any.whl",
+      "size": 136983,
+      "sha256": "62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775"
+    },
+    {
+      "id": "cffi",
+      "name": "cffi-2.1.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "version": "2.1.1",
+      "url": "https://files.pythonhosted.org/packages/b1/db/dceb9dd5b231e1da801793f8acc9f3c52a7e1afe40bb1aae37e02b0faad5/cffi-2.1.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "size": 221822,
+      "sha256": "c1453022f490d2459a11819d83ad1d586e9ff65a12ac3e705ffebd46d3685dcf"
+    },
+    {
+      "id": "charset-normalizer",
+      "name": "charset_normalizer-3.5.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "version": "3.5.1",
+      "url": "https://files.pythonhosted.org/packages/6f/89/bb5108dc6c3651dca963f2b0a3ba19bbcb370c94e1b6d3e0e844a58e6dca/charset_normalizer-3.5.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "size": 248801,
+      "sha256": "b9af956078716df40d985fb0dfeb2c2120c5ca92ba4ff4b388acfd01cdc14d08"
+    },
+    {
+      "id": "idna",
+      "name": "idna-3.20-py3-none-any.whl",
+      "version": "3.20",
+      "url": "https://files.pythonhosted.org/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl",
+      "size": 69583,
+      "sha256": "ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c"
+    },
+    {
+      "id": "urllib3",
+      "name": "urllib3-2.8.0-py3-none-any.whl",
+      "version": "2.8.0",
+      "url": "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl",
+      "size": 135717,
+      "sha256": "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3"
+    },
+    {
+      "id": "pycparser",
+      "name": "pycparser-3.0-py3-none-any.whl",
+      "version": "3.0",
+      "url": "https://files.pythonhosted.org/packages/0c/c3/44f3fbbfa403ea2a7c779186dc20772604442dde72947e7d01069cbe98e3/pycparser-3.0-py3-none-any.whl",
+      "size": 48172,
+      "sha256": "b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992"
+    },
+    {
+      "id": "python-metadata",
+      "name": "cpython-3.12.14+20260924-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260924/cpython-3.12.14%2B20260924-x86_64-unknown-linux-gnu-pgo%2Blto-full.tar.zst",
+      "sha256": "c88ec70ba0973eb61fcdd595c0dfd8c21e6f46151a4d2b1f9ad18c5058e490d9",
+      "size": 98298831,
+      "release": "20260924"
+    },
+    {
+      "id": "python-build-source",
+      "name": "python-build-standalone-20260924.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/archive/refs/tags/20260924.tar.gz",
+      "size": 469431,
+      "sha256": "e733aa870d2f4dfe6a7ed5af0fdb10d8ec410d1999231cb7a5b1e35411eabf63",
+      "release": "20260924"
+    },
+    {
+      "id": "python-source",
+      "name": "cpython-3.12.14.tar.gz",
+      "url": "https://github.com/python/cpython/archive/refs/tags/v3.12.14.tar.gz",
+      "size": 27777501,
+      "sha256": "5b8f5847fc28eea401f7415dc367b8365485ee97f068cd1a0cee124a096bb171",
+      "release": "3.12.14"
+    },
+    {
+      "id": "bdb-source",
+      "name": "db-6.0.19.tar.gz",
+      "url": "https://ftp.osuosl.org/pub/blfs/conglomeration/db/db-6.0.19.tar.gz",
+      "size": 36541923,
+      "sha256": "2917c28f60903908c2ca4587ded1363b812c4e830a5326aaa77c9879d13ae18e",
+      "release": "6.0.19"
+    },
+    {
+      "id": "zlib-ng-license",
+      "name": "LICENSE.zlib-ng.txt",
+      "url": "https://raw.githubusercontent.com/zlib-ng/zlib-ng/2.2.4/LICENSE.md",
+      "size": 867,
+      "sha256": "6c9f0d975b41afaa34d22f55bb8986ce69e5cb7ad327cb2b28820cd425edf5ee",
+      "release": "2.2.4"
+    }
+  ]
+}

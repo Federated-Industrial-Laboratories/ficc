@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "inputs": [
+    {
+      "id": "guacamole",
+      "version": "1.6.0",
+      "name": "guacamole-server-1.6.0.tar.gz",
+      "url": "https://archive.apache.org/dist/guacamole/1.6.0/source/guacamole-server-1.6.0.tar.gz",
+      "sha256": "8bc45675da96d7b6f39728160181e3d4ff3c08f460f6d26de5805b642bf13f2b",
+      "size": 1252749,
+      "license": "Apache-2.0",
+      "signer": "F467E54ACC52F1D2778826865B2977AEE5E4518F"
+    },
+    {
+      "id": "libvncclient",
+      "version": "0.9.15+git42494999",
+      "revision": "42494999e6492aaab9c1db785ecd293ef10b3aed",
+      "name": "libvncserver-42494999e6492aaab9c1db785ecd293ef10b3aed.tar.gz",
+      "url": "https://codeload.github.com/LibVNC/libvncserver/tar.gz/42494999e6492aaab9c1db785ecd293ef10b3aed",
+      "sha256": "0d5c7d5c6ac3b4df83cdaa3c2494a7bfa340a0f3ac4fec82b863ba8fd33e5044",
+      "size": 612012,
+      "license": "GPL-2.0-or-later",
+      "security_fixes": [
+        "540332be3e0acc566fa64da6f1b4680c72c724dd",
+        "5b270544b85233668b98161323297d418a8f5fd1",
+        "009008e2f4d5a54dd71f422070df3af7b3dbc931"
+      ]
+    },
+    {
+      "id": "freerdp",
+      "optional": "rdp",
+      "version": "3.32.1",
+      "name": "freerdp-3.32.1.tar.gz",
+      "url": "https://github.com/FreeRDP/FreeRDP/releases/download/3.32.1/freerdp-3.32.1.tar.gz",
+      "sha256": "3021cf8848efbd0064664e187cb61e6101e4e74a4d8ffb495d9f7715e22d67de",
+      "size": 11258926,
+      "license": "Apache-2.0"
+    }
+  ],
+  "rdp_patches": [
+    {
+      "name": "viewer-guacamole-postconnect.patch",
+      "sha256": "a1acc4abffd6dbcfc508ac38fc2ffa8d63d79345efb8d8862ab27a0406c013f2",
+      "upstream": "https://github.com/apache/guacamole-server/commit/ab36756b596520ae2a94cd4d25e406e0b5aa820b",
+      "issue": "https://issues.apache.org/jira/browse/GUACAMOLE-2328"
+    }
+  ]
+}

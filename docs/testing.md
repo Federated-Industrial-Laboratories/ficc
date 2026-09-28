@@ -14,6 +14,7 @@
 - [Browser checks](#browser-checks)
 - [Installed packages](#installed-packages)
 - [Maintenance and operation checks](#maintenance-and-operation-checks)
+- [Runtime modules and providers](#runtime-modules-and-providers)
 
 </details>
 
@@ -31,7 +32,7 @@ python -m build --no-isolation
 ```
 
 The source check detects common credential formats, private infrastructure text,
-missing licence identifiers and oversized source files. Its negative fixtures
+missing license identifiers and oversized source files. Its negative fixtures
 must fail when restricted content is present. A clean source scan is not proof
 that all possible secrets are absent.
 
@@ -126,6 +127,54 @@ message rendering and receipt stages. Browser fixtures do not establish native
 agent protocol behavior. Test the installed adapter version separately, with
 its actual extension or Unix endpoint, and exercise an isolated node workflow.
 An accepted message is not evidence of completed agent work.
+
+## Runtime modules and providers
+
+Current VM provider qualification is:
+
+| Provider | Verified behavior | Limit |
+| --- | --- | --- |
+| KVM/libvirt | Real inventory, power actions and interactive display through FICC. | Requires a configured provider profile and compatible native viewer. |
+| Proxmox VE | Real inventory, power actions and authenticated display through FICC. | Requires a supported provider version, grants and native viewer. |
+| Hyper-V | Package protocol, sandbox and component fixtures. | Real Windows lifecycle and VMConnect are not qualified. |
+| VirtualBox | No complete provider package. | Local IPC execution remains disabled. |
+| VMware vSphere | None. | Not included. |
+
+Hyper-V and VirtualBox are not supported for operational use in this source state.
+Their unit checks do not establish working VM management or display.
+
+Module checks cover archive validation, exact digest grants, malformed protocol messages and cancellation.
+Workspace checks cover revision conflicts, missing packages, independent windows, geometry recovery and nested fullscreen.
+Editor checks retain conflicting copies and refuse unsafe roots or changed file identities.
+Audio checks cover local playback, master controls, lease loss and competing windows.
+Keep executable-module and native-viewer checks enabled in their supported host environment:
+
+```sh
+FICC_MODULE_HOST_TESTS=1 python -m pytest tests/python/test_module_host_integration.py
+FICC_VIEWER_HOST_TESTS=1 FICC_VIEWER_RUNTIME=/path/to/verified-viewer \
+  python -m pytest tests/python/test_viewer_host.py
+```
+
+Build all six SDK variants and run their protocol conformance checks.
+Also run them through the real controller with mandatory isolation and selected grants.
+See [SDK build and qualification](../sdk/README.md) for the required commands.
+A direct executable test does not qualify its sandbox or host broker.
+
+Actual provider tests are explicit opt-ins because they change disposable resources.
+Use dedicated accounts, pinned SSH configurations and fixtures matching each test's documented names.
+Do not point these tests at production resources. Read the test's setup and cleanup requirements first.
+Provider tests cover inventory, lifecycle, revocation, unknown outcomes and exact receipt removal.
+Distinct one-resource and 64-resource tests do not imply 64 concurrent VM displays or running guests.
+
+Administration service fixtures use a dedicated user manager.
+Power tests require a separate disposable guest and an independent observer of boot and shutdown.
+A power acknowledgment or lost connection cannot establish that the requested state was reached.
+Restore fixture baselines and retain any uncertain receipts for explicit inspection.
+
+Installed checks include every supplied archive, runtime discovery and the complete native display process boundary.
+Verify copied licenses, corresponding sources and the package inventory after extraction.
+Test an incompatible native runtime: implicit discovery disables display, while an invalid explicit selection refuses startup.
+Visible browser workflows must exercise actual provider connections as well as isolated UI fixtures.
 
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>

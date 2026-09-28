@@ -1,0 +1,33 @@
+{
+  "format_version": 1,
+  "version": "1.0.0",
+  "category": "productivity",
+  "contract_version": 1,
+  "host_api": 1,
+  "dependencies": [],
+  "files": {},
+  "id": "org.ficc.notes",
+  "display_name": "Notes",
+  "publisher": "Federated Industrial Laboratories",
+  "description": "Notes for the selected workspace.",
+  "runtime": {
+    "kind": "declarative",
+    "language": "none"
+  },
+  "capabilities": [
+    "workspace:read",
+    "workspace:write"
+  ],
+  "actions": [],
+  "ui": {
+    "type": "column",
+    "children": [
+      {
+        "type": "editor",
+        "id": "notes",
+        "label": "Notes",
+        "value": ""
+      }
+    ]
+  }
+}

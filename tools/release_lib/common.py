@@ -46,7 +46,7 @@ def fetch(lock: dict, cache: Path) -> dict[str, Path]:
             fd, temporary = tempfile.mkstemp(dir=cache, prefix=".download-")
             try:
                 with os.fdopen(fd, "wb") as output, urllib.request.urlopen(item["url"], timeout=60) as response:
-                    remaining = item["size"] + 1
+                    remaining = item["size"] + (not item.get("appimage_runtime_prefix", False))
                     while remaining:
                         block = response.read(min(1024 * 1024, remaining))
                         if not block:
@@ -54,6 +54,13 @@ def fetch(lock: dict, cache: Path) -> dict[str, Path]:
                         output.write(block)
                         remaining -= len(block)
                 candidate = Path(temporary)
+                if item.get("appimage_runtime_prefix", False):
+                    data = bytearray(candidate.read_bytes())
+                    offset = item["digest_md5_offset"]
+                    if len(data) != item["size"] or type(offset) is not int or not 0 <= offset <= len(data) - 16:
+                        raise ValueError("Invalid AppImage runtime prefix")
+                    data[offset:offset + 16] = bytes(16)
+                    candidate.write_bytes(data)
                 if candidate.stat().st_size != item["size"] or digest(candidate) != item["sha256"]:
                     raise ValueError("Downloaded input differs from its pinned hash: " + name)
                 candidate.replace(target)

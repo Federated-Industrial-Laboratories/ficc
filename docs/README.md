@@ -39,6 +39,18 @@ page contents, command copying and a search index that runs in your browser.
 | 12 | [Testing](testing.md) | Source, Python, SSH, browser and installed-system checks. |
 | 13 | [Dependencies](dependencies.md) | Locked components, bundled assets and their licences. |
 | 14 | [Linux packages](releases.md) | Binary formats, verification, first startup, upgrade and removal. |
+| 15 | [Runtime modules](modules.md) | Inspect packages, select grants, enable, update and remove modules. |
+| 16 | [Workspaces](workspaces.md) | Saved panels, tiling, separate windows, notes and file editing. |
+| 17 | [Workspace sound](audio.md) | Local playback, master controls and window ownership. |
+| 18 | [Remote displays](viewer.md) | Input release, nested fullscreen and display limits. |
+| 19 | [Native viewer runtime](viewer-runtime.md) | Build, install, platform checks, licenses and corresponding sources. |
+| 20 | [Libvirt provider](providers/libvirt.md) | VM inventory, confirmed lifecycle requests and VNC prerequisites. |
+| 21 | [Containers](containers.md) | Docker, Podman and Kubernetes profiles, operations and recovery. |
+| 22 | [Module SDK](../sdk/README.md) | Five language families, package tools, protocols and host components. |
+| 23 | [System administration](system-admin.md) | Systemd profiles, service actions, logs and confirmed power requests. |
+| 24 | [Proxmox provider](providers/proxmox.md) | Pinned provider builds, VM tasks and recovery. |
+| 25 | [Windows endpoints](windows-endpoints.md) | Registered JEA commands, private credentials and separate display connections. |
+| 26 | [Provider adapter SDK](../sdk/ADAPTERS.md) | Runtime provider packages, account grants and operation receipts. |
 
 ## Terms used in the manuals
 
@@ -53,6 +65,10 @@ page contents, command copying and a search index that runs in your browser.
 | Receipt | Evidence of a delivery stage, separate from task completion. |
 | Reconcile | Inspect a saved operation identity after its outcome became uncertain. |
 | Archive | Explicitly preserve completed history before reclaiming active capacity. |
+| Module package | An immutable runtime archive identified by its exact digest. |
+| Module panel | A package instance with saved data and a specific target selection. |
+| Workspace | A saved group of module panels. |
+| Workspace view | One window's panel arrangement, separate from shared workspace data. |
 
 ## Find a task
 
@@ -66,6 +82,10 @@ page contents, command copying and a search index that runs in your browser.
 | Contact another agent | [Agent bus](bus.md) |
 | Prepare a controller upgrade | [Operation](operations.md#state-copy-and-upgrades) and [backup](backup.md) |
 | Reclaim retained capacity | [History archives](history.md) and [closed bus runs](bus.md#portable-runs-and-explicit-archival) |
+| Add a module | [Package inspection and grants](modules.md#install-and-enable) |
+| Use multiple monitors | [Workspace windows](workspaces.md#separate-windows-and-fullscreen) |
+| Edit a system file | [Registered-root editor](workspaces.md#included-productivity-panels) |
+| Release VM keyboard input | [Remote display controls](viewer.md) |
 
 ## Conventions
 

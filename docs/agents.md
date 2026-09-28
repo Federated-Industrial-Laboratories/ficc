@@ -50,7 +50,9 @@ retained runs have been archived.
 
 In Bus, create a run. In Agents, select that run and a registered profile, review
 the preview and explicitly launch. The returned terminal ID names the same
-session in Terminals. Closing a tile detaches its viewer. Stop Agent stops its
+session in Terminals. Closing a tile detaches its viewer.
+
+Stop Agent stops its
 exact tmux session. An interrupted launch remains unknown; Reconcile only checks
 the saved identity and never creates a replacement. Node forgetting and helper
 upgrade refuse active or uncertain agent work.
@@ -69,12 +71,15 @@ Codex 0.156.1 uses an owned private Unix app-server and attaches its native TUI 
 the exact thread returned by `thread/start`. The bridge uses a bounded WebSocket
 connection and the version-specific queue API. Queue admission can start agent
 work. The native TUI handles runtime approval requests; FICC never answers them.
+
 The queue's client message ID is correlation data, not an exactly-once guarantee.
 FICC records a durable uncertain boundary before submission. A matching user
 message ID and exact content in the same thread establishes session inclusion.
+
 A disappeared queue entry does not. A changed TUI thread suspends direct delivery.
 Confirmed rebinding validates the observed thread against the owned server. A
 thread change is refused while old direct outcomes remain uncertain or submitted.
+
 The bridge can reconcile those outcomes against the original thread while
 suspended. It then follows the confirmed binding for all new submissions. A
 read-side failure can be recovered by explicitly rebinding the same thread;
@@ -100,7 +105,9 @@ printf '%s' '{"text":"Build checks passed."}' |
 Codex receives these tool instructions as thread instructions without editing
 workspace files. OMP exposes the same operations as its registered tool. Inbox
 listing returns at most eight messages and a continuation ID. Reading an inbox
-records tool access without starting a turn. `--delivery direct` is explicit and
+records tool access without starting a turn.
+
+`--delivery direct` is explicit and
 requires a recipient with a supported direct adapter. Replies can name only
 selected agents enrolled in the same run. FICC never automatically replies or
 broadcasts messages.
@@ -109,7 +116,9 @@ Invalid message bodies are refused locally before outbox publication. Permanent
 host refusals are retained separately from successful storage. The Agents page
 shows the latest 16 refusal IDs, codes, details and times. Use `rejects` to list
 node refusal receipts eight at a time, with `--after` for another page, and
-`rejected KEY` to inspect the original message. OMP exposes these same actions
+`rejected KEY` to inspect the original message.
+
+OMP exposes these same actions
 in its bus tool. Corrected content requires a new request key. Transient capacity
 errors and expired or revoked launch grants leave pending messages in place.
 
@@ -117,7 +126,7 @@ errors and expired or revoked launch grants leave pending messages in place.
 
 Agent read, execute and stop permissions are distinct. Bus read and send are also
 distinct, with node restrictions checked for each participant. Launch requires
-both `agents:execute` and `bus:send`; terminal attachment additionally requires
+both `agents:execute` and `bus:send`; terminal attachment also requires
 `terminals:execute`. Existing credentials gain no scopes during schema migration.
 
 Each launch binds the originating credential for agent outbox authority. Expiry

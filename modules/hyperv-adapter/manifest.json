@@ -1,0 +1,19 @@
+{
+  "format_version": 1,
+  "id": "org.ficc.hyperv-adapter",
+  "version": "1.0.0",
+  "category": "virtual-machines",
+  "contract_version": 1,
+  "host_api": 1,
+  "role": "provider-adapter",
+  "display_name": "Hyper-V provider adapter",
+  "publisher": "Federated Industrial Laboratories",
+  "description": "Use a registered Windows JEA endpoint for Hyper-V inventory, start, guest shutdown and VMConnect.",
+  "runtime": {"kind":"python","language":"python","protocol":1,"platform":"linux","architecture":"any","entry":"main.py"},
+  "adapter": {"version":1,"family":"virtual-machines","execution":"controller","transport":"winrm-jea","consistency":"checked-before-dispatch","operations":["inventory","status","start","shutdown","console"]},
+  "capabilities": ["provider:admin"],
+  "dependencies": [],
+  "actions": [],
+  "ui": {"type":"column","children":[]},
+  "files": {}
+}

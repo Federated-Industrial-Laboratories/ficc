@@ -19,3 +19,4 @@ coverage/
 test-results/
 playwright-report/
 src/ficc/static/
+src/ficc/module_packages/

@@ -13,8 +13,11 @@ def dispatch(request, data=b"", state_dir=None, cancel=None):
     if request.get("version") != "3" or not isinstance(data, bytes) or len(data) > CHUNK:
         raise FileError("invalid_request", "The file request is invalid.")
     action, root = request["action"], request["root"]
-    if data and action != "transfer.write":
+    if data and action not in {"transfer.write", "editor.save"}:
         raise FileError("invalid_request", "This request cannot contain file bytes.")
+    if action.startswith("editor."):
+        from .editor import dispatch as editor_dispatch
+        return editor_dispatch(request, data, state_dir, cancel)
     if action == "file.root":
         return file_actions.probe(root), b""
     if action == "file.list":

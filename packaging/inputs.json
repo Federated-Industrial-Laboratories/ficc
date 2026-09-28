@@ -24,12 +24,14 @@
     {
       "id": "runtime",
       "name": "runtime-x86_64",
-      "url": "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64",
+      "url": "https://github.com/Federated-Industrial-Laboratories/ficc/releases/download/v0.1.0/FICC-0.1.0-x86_64.AppImage",
       "sha256": "1cc49bcf1e2ccd593c379adb17c9f85a36d619088296504de95b1d06215aebbf",
       "size": 944632,
       "release": "continuous",
       "revision": "75849dce7cc37e4319b633df1f116ca895c71a12",
-      "digest_md5_offset": 932096
+      "digest_md5_offset": 932096,
+      "upstream_url": "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64",
+      "appimage_runtime_prefix": true
     },
     {
       "id": "python-metadata",

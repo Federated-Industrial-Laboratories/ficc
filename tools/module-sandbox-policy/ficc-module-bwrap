@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Derived from AppArmor's apparmor-4.0 bwrap-userns-restrict extra profile.
+# Modified 2026-09-28: FICC profile names; no optional local policy overrides.
+# See README.md and COPYING for provenance, scope and licence.
+#
+# Bootstrap may use namespace capabilities. Each executed child is stacked
+# with a profile that denies capabilities, including inside user namespaces.
+# This policy does not replace the FICC mount, syscall or cgroup boundary.
+
+abi <abi/4.0>,
+include <tunables/global>
+
+profile ficc_module_bwrap /usr/bin/bwrap flags=(attach_disconnected,mediate_deleted) {
+  allow capability,
+  allow file rwlkm /{**,},
+  allow network,
+  allow unix,
+  allow ptrace,
+  allow signal,
+  allow mqueue,
+  allow io_uring,
+  allow userns,
+  allow mount,
+  allow umount,
+  allow pivot_root,
+  allow dbus,
+  allow px /** -> ficc_module_bwrap//&ficc_module_payload,
+}
+
+profile ficc_module_payload flags=(attach_disconnected,mediate_deleted) {
+  allow file rwlkm /{**,},
+  allow network,
+  allow unix,
+  allow ptrace,
+  allow signal,
+  allow mqueue,
+  allow io_uring,
+  allow userns,
+  allow mount,
+  allow umount,
+  allow pivot_root,
+  allow dbus,
+  allow pix /** -> &ficc_module_payload,
+  audit deny capability,
+}

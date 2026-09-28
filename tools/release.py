@@ -24,6 +24,8 @@ def main() -> None:
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--allow-dirty", action="store_true", help="Build a marked qualification candidate")
+    parser.add_argument("--viewer-runtime", type=Path, help="Include a trusted local native viewer runtime")
+    parser.add_argument("--windows-runtime", type=Path, help="Include a trusted local Windows transport runtime")
     args = parser.parse_args()
     if platform.system() != "Linux" or platform.machine() != "x86_64":
         raise ValueError("This release target requires Linux x86_64")
@@ -46,7 +48,9 @@ def main() -> None:
     write_json(source_archive / "release-source.json", provenance)
     archive_tree(source_archive, output / (source_archive.name + ".tar.gz"), provenance["epoch"])
     notices.sources(inputs, lock, work, output, version, provenance["epoch"])
-    tree, version = payload.build(source, work, inputs, provenance, lock)
+    tree, version = payload.build(source, work, inputs, provenance, lock,
+                                 viewer_runtime=args.viewer_runtime, windows_runtime=args.windows_runtime,
+                                 module_cache=cache / "modules")
     epoch = provenance["epoch"]
     portable = output / (tree.name + ".tar.gz")
     archive_tree(tree, portable, epoch)

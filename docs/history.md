@@ -67,14 +67,14 @@ SHA-256 hashes. FICC moves only its own validated records; it never walks
 registered file roots. Remote job output stays on that node. Back up completed
 archives separately if you need copies elsewhere.
 
-After all nodes confirm completion, one controller transaction rotates the job
-and terminal controller identities, revokes all credentials, clears archived
-execution records, and clears cached observations. Node IDs, enrolled SSH trust,
+After all nodes confirm completion, one controller transaction rotates job
+and terminal controller identities, revokes all credentials, and clears archived
+records and cached observations. Node IDs, enrolled SSH trust,
 approved profiles, registered roots and file reference keys remain. Private lock
 files remain at their original paths. Start FICC, refresh the nodes, obtain fresh
 credentials and use new command keys before issuing work.
 
-Archives continue to consume storage. New jobs still need sufficient physical
+Archives continue to consume storage. New jobs still need enough physical
 free space. There is no archive expiry or deletion command; retain and manage
 completed archives through your normal backup policy.
 

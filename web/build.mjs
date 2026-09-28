@@ -2,6 +2,8 @@
 // Copy local web assets into the Python package; exit zero on success.
 import { cp, mkdir, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 const source = fileURLToPath(new URL('./static/', import.meta.url));
 const destination = fileURLToPath(new URL('../src/ficc/static/', import.meta.url));
@@ -19,4 +21,15 @@ for (const [name, files] of Object.entries({
     await cp(input, `${target}/${file.split('/').at(-1)}`);
   }
 }
+const dockview = `${destination}/vendor/dockview`;
+await mkdir(dockview, { recursive: true });
+for (const file of ['dist/dockview-core.min.js', 'LICENCE.md']) {
+  const input = fileURLToPath(new URL(`./node_modules/dockview-core/${file}`, import.meta.url));
+  await cp(input, `${dockview}/${file.split('/').at(-1)}`);
+}
+await promisify(execFile)('python3', [
+  fileURLToPath(new URL('../tools/viewer_assets.py', import.meta.url)),
+  '--cache', fileURLToPath(new URL('./node_modules/.ficc-viewer/', import.meta.url)),
+  '--output', `${destination}/vendor/guacamole`,
+], { timeout: 180000, maxBuffer: 8192 });
 console.log('Local web assets built.');

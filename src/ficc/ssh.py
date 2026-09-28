@@ -39,11 +39,18 @@ finally:
  if os.path.exists(name): os.unlink(name)
 """
 INSTALL = "exec python3 -c " + shlex.quote(INSTALL_SCRIPT)
+NODE_SUPPORT_FILES = (
+    "errors.py", "pipe_ready.py", "modules/validation.py", "modules/manifest.py",
+    "modules/ui.py", "modules/adapter_manifest.py", "modules/adapter_protocol.py",
+    "modules/adapter_vm_protocol.py", "modules/protocol.py", "modules/sandbox.py",
+    "modules/sandbox_io.py", "modules/watcher.py",
+)
 
 
 def archive() -> bytes:
     output = io.BytesIO()
     root = importlib.resources.files("ficc_node")
+    support = importlib.resources.files("ficc")
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as bundle:
         bundle.writestr("__main__.py", "from ficc_node.__main__ import main\nraise SystemExit(main())\n")
         for item in sorted(root.iterdir(), key=lambda item: item.name):
@@ -51,6 +58,10 @@ def archive() -> bytes:
             if not name.endswith(".py"):
                 continue
             bundle.writestr("ficc_node/" + name, root.joinpath(name).read_bytes())
+        bundle.writestr("ficc/__init__.py", "")
+        bundle.writestr("ficc/modules/__init__.py", "")
+        for name in NODE_SUPPORT_FILES:
+            bundle.writestr("ficc/" + name, support.joinpath(name).read_bytes())
     return output.getvalue()
 
 
