@@ -1,0 +1,394 @@
+{
+  "format_version": 1,
+  "id": "org.ficc.component-gallery",
+  "version": "1.0.0",
+  "display_name": "Component gallery",
+  "publisher": "Federated Industrial Laboratories",
+  "description": "Sample host controls and bounded local action results. No provider connection is used.",
+  "category": "productivity",
+  "contract_version": 1,
+  "host_api": 1,
+  "runtime": {
+    "kind": "python",
+    "language": "python",
+    "entry": "main.py",
+    "platform": "linux",
+    "architecture": "any"
+  },
+  "capabilities": [],
+  "dependencies": [],
+  "files": {},
+  "actions": [
+    {
+      "id": "load",
+      "label": "Load sample rows",
+      "parameters": {
+        "count": {
+          "type": "integer",
+          "required": true,
+          "min": 1,
+          "max": 128
+        }
+      },
+      "capabilities": []
+    },
+    {
+      "id": "select",
+      "label": "Read selection",
+      "parameters": {
+        "selected": {
+          "type": "string-list",
+          "required": true,
+          "max_items": 128,
+          "max_length": 128
+        }
+      },
+      "capabilities": []
+    }
+  ],
+  "ui": {
+    "type": "column",
+    "children": [
+      {
+        "type": "text",
+        "text": "Sample controls and data. These actions do not connect to a provider."
+      },
+      {
+        "type": "menu",
+        "label": "Sample menu",
+        "children": [
+          {
+            "type": "button",
+            "label": "Refresh sample rows",
+            "action": "load",
+            "parameters": {
+              "count": {
+                "field": "count"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "toolbar",
+        "label": "Sample actions",
+        "children": [
+          {
+            "type": "field",
+            "name": "count",
+            "label": "Row count",
+            "input_type": "number",
+            "value": 64
+          },
+          {
+            "type": "button",
+            "label": "Load sample rows",
+            "action": "load",
+            "parameters": {
+              "count": {
+                "field": "count"
+              }
+            }
+          },
+          {
+            "type": "button",
+            "label": "Read selection",
+            "action": "select",
+            "parameters": {
+              "selected": {
+                "selection": "resources"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "status",
+        "label": "Action state",
+        "text": "No rows loaded",
+        "bind": {
+          "text": {
+            "action": "load",
+            "path": [
+              "results",
+              0,
+              "data",
+              "text"
+            ]
+          }
+        }
+      },
+      {
+        "type": "text",
+        "text": "No selection read",
+        "bind": {
+          "text": {
+            "action": "select",
+            "path": [
+              "results",
+              0,
+              "data",
+              "text"
+            ]
+          }
+        }
+      },
+      {
+        "type": "tabs",
+        "label": "Gallery pages",
+        "items": [
+          {
+            "id": "data",
+            "label": "Data",
+            "children": [
+              {
+                "type": "table",
+                "id": "resources",
+                "label": "Sample resources",
+                "selection": "multiple",
+                "page_size": 8,
+                "columns": [
+                  {
+                    "id": "name",
+                    "label": "Name"
+                  },
+                  {
+                    "id": "value",
+                    "label": "Value"
+                  },
+                  {
+                    "id": "state",
+                    "label": "State"
+                  }
+                ],
+                "rows": [],
+                "state": "empty",
+                "bind": {
+                  "rows": {
+                    "action": "load",
+                    "path": [
+                      "results",
+                      0,
+                      "data",
+                      "rows"
+                    ]
+                  },
+                  "state": {
+                    "action": "load",
+                    "path": [
+                      "results",
+                      0,
+                      "data",
+                      "state"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "details",
+                "label": "Sample details",
+                "items": [
+                  {
+                    "label": "Source",
+                    "value": "Sample data"
+                  }
+                ],
+                "bind": {
+                  "items": {
+                    "action": "load",
+                    "path": [
+                      "results",
+                      0,
+                      "data",
+                      "details"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "log",
+                "label": "Sample log",
+                "lines": [],
+                "bind": {
+                  "lines": {
+                    "action": "load",
+                    "path": [
+                      "results",
+                      0,
+                      "data",
+                      "lines"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "controls",
+            "label": "Controls",
+            "children": [
+              {
+                "type": "select",
+                "name": "view",
+                "label": "View mode",
+                "value": "compact",
+                "options": [
+                  {
+                    "id": "compact",
+                    "label": "Compact"
+                  },
+                  {
+                    "id": "wide",
+                    "label": "Wide"
+                  }
+                ]
+              },
+              {
+                "type": "radio",
+                "name": "density",
+                "label": "Density",
+                "value": "small",
+                "options": [
+                  {
+                    "id": "small",
+                    "label": "Small"
+                  },
+                  {
+                    "id": "large",
+                    "label": "Large"
+                  }
+                ]
+              },
+              {
+                "type": "field",
+                "name": "enabled",
+                "input_type": "checkbox",
+                "label": "Use sample values",
+                "value": true
+              },
+              {
+                "type": "slider",
+                "name": "level",
+                "label": "Level",
+                "min": 0,
+                "max": 100,
+                "step": 1,
+                "value": 32
+              },
+              {
+                "type": "progress",
+                "label": "Sample progress",
+                "value": 0,
+                "max": 128,
+                "bind": {
+                  "value": {
+                    "action": "load",
+                    "path": [
+                      "results",
+                      0,
+                      "data",
+                      "value"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "meter",
+                "label": "Sample meter",
+                "value": 0,
+                "min": 0,
+                "max": 128,
+                "bind": {
+                  "value": {
+                    "action": "load",
+                    "path": [
+                      "results",
+                      0,
+                      "data",
+                      "value"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "tree",
+                "name": "resource",
+                "label": "Sample tree",
+                "items": [
+                  {
+                    "id": "sample-root",
+                    "label": "Samples",
+                    "children": [
+                      {
+                        "id": "sample-a",
+                        "label": "Sample A"
+                      },
+                      {
+                        "id": "sample-b",
+                        "label": "Sample B"
+                      }
+                    ]
+                  }
+                ],
+                "value": ""
+              },
+              {
+                "type": "pager",
+                "name": "page",
+                "label": "Sample pages",
+                "page": 1,
+                "total": 4
+              },
+              {
+                "type": "credential",
+                "name": "credential",
+                "label": "Sample credential reference",
+                "ref": "hostcredential-example"
+              }
+            ]
+          },
+          {
+            "id": "states",
+            "label": "States",
+            "children": [
+              {
+                "type": "group",
+                "label": "Read states",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "A request is in progress.",
+                    "state": "loading"
+                  },
+                  {
+                    "type": "text",
+                    "text": "No result is available.",
+                    "state": "empty"
+                  },
+                  {
+                    "type": "text",
+                    "text": "The last result remains visible.",
+                    "state": "stale"
+                  },
+                  {
+                    "type": "text",
+                    "text": "The request failed.",
+                    "state": "error",
+                    "message": "Sample error"
+                  },
+                  {
+                    "type": "field",
+                    "name": "disabled",
+                    "label": "Disabled field",
+                    "value": "Read only",
+                    "disabled": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

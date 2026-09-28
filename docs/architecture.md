@@ -14,6 +14,7 @@
 - [Access](#access)
 - [Demonstration mode](#demonstration-mode)
 - [Coding agents and bus](#coding-agents-and-bus)
+- [Runtime modules and workspaces](#runtime-modules-and-workspaces)
 
 </details>
 
@@ -23,13 +24,14 @@ snapshots in SQLite. Each approved machine runs a small Python helper under its
 remote account. The helper opens no network listener.
 
 The browser uses local HTML, CSS and JavaScript. It does not execute code sent
-by a managed machine. The wheel includes all web assets and font licences.
+by a managed machine. The wheel includes all web assets and font licenses.
 Node.js is required to build and test these assets, not to serve the application.
 
 The installed service provides observation, access management and durable jobs.
 Typed requests travel to the helper through SSH stdin. A fixed node runner reads
 saved arguments and starts programs under bounded systemd user services. SQLite
 intent and node receipts support reconciliation after a controller restart.
+
 Registered roots and verified file transfers use descriptor-relative helper
 operations. Interactive terminals connect pinned OpenSSH through a supervised
 PTY and an authenticated, flow-controlled WebSocket. Local xterm.js assets
@@ -47,6 +49,7 @@ FICC-owned SSH master connections for at most 300 seconds. A probe renews its
 connection when fewer than 11 seconds remain for its 10-second deadline. Every probe resolves
 its complete SSH configuration, checks its pinned key and checks current access.
 Configuration changes, revocation and node removal close affected connections.
+
 A finite supervisor ends each master even if the controller exits unexpectedly;
 the maximum remaining lifetime after a crash is 302 seconds, including kill grace.
 Jobs, files, helper installation and terminals use fresh SSH connections. FICC
@@ -91,10 +94,48 @@ use a registered local inbox tool. Private node spools carry no controller secre
 Two relay exchanges run concurrently with per-agent coordination. Launch admission
 has a separate lock; a blocked node does not hold the healthy-node stop lock.
 Controller and node persistence precede acknowledgement. Runtime uncertainty is
-retained until matching session evidence exists. Closed-run archival publishes
+retained until matching session evidence exists.
+
+Closed-run archival publishes
 controller evidence before moving exact quiescent node spools and releasing host
 capacity. Backup and history maintenance include the combined schema and refuse
 unresolved agent work. See [agents](agents.md) and [bus](bus.md).
+
+## Runtime modules and workspaces
+
+Schema5 adds installed package inventories, grants, workspaces, view layouts and provider receipts.
+Schema6 adds separate Windows endpoints and immutable packaged adapter profiles and receipts.
+The controller validates separate runtime archives after the application build.
+Supplied modules use the same installation, trust and activation steps as other archives.
+An archive digest identifies exact bytes; it does not authenticate a publisher.
+
+Executable modules run in separate, bounded processes with private namespaces and no network access.
+They receive framed JSON through private pipes. Ordinary modules receive no controller token, SSH key or provider socket.
+The controller checks each broker request against the caller, package digest, panel and selected system grants.
+
+Separate VM, container and administration providers validate their own resources and operations.
+Ordinary panel modules request previews. The host confirms their lifecycle actions separately.
+
+Provider adapter packages use separately registered transports and broad provider account grants.
+The host supplies credential custody, transport limits, confirmations, journals and display components.
+An adapter supplies provider parsing, resource identity and operation tracking.
+Its account grant can change provider resources during any call; ordinary panel grants cannot restrict that account.
+Declared consistency appears before confirmation and in retained receipts.
+
+The browser renders validated component descriptions. It does not load module scripts, HTML or styles.
+Dockview arranges module panels inside each workspace and workspace tiles inside each window.
+Each window has separate layout identities; workspace data remains shared and uses revision checks.
+The audio service shares preferences and issues one renewable playback lease per module instance.
+
+The native viewer is a separate optional process with its own namespaces and resource limits.
+The controller supplies a verified SSH or registered display stream and checks browser output and input bounds.
+Provider connection details and temporary display credentials stay outside browser messages and saved layouts.
+The viewer has no clipboard, file transfer or audio channel. Workspace sound has separate controls.
+
+Durable intents and node receipts retain uncertain changes without automatic replay.
+Retained operations prevent removal of their authority records until explicit cleanup succeeds.
+Permission revocation and security disable remain available. Restored packages and provider profiles stay disabled.
+Backup removes execution grants and refuses unresolved work. See [modules](modules.md), [workspaces](workspaces.md) and [backup](backup.md).
 
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>

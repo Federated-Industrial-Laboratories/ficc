@@ -33,10 +33,11 @@ def save(path, value, maximum=MAX_INTENT):
 
 def digest(db):
     result = hashlib.sha256()
-    for table in sorted(database.TABLES):
+    for table in sorted(database.tables(db)):
         result.update(table.encode() + b"\n")
         for row in db.execute(f"SELECT * FROM {table} ORDER BY rowid"):
-            result.update(json.dumps(row, allow_nan=False, separators=(",", ":")).encode() + b"\n")
+            values = [{"blob": item.hex()} if isinstance(item, bytes) else item for item in row]
+            result.update(json.dumps(values, allow_nan=False, separators=(",", ":")).encode() + b"\n")
     return result.hexdigest()
 
 

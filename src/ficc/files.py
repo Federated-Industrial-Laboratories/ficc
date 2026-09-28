@@ -16,6 +16,7 @@ from .errors import Failure
 from .file_refs import References
 from .file_store import FileStore, key_check
 from .file_transport import FileTransport
+from .module_editor_store import retained as editor_retained
 
 ACTION_SCOPE = {"mkdir": "files:write", "rename": "files:write", "mode": "files:mode", "delete": "files:delete"}
 
@@ -57,6 +58,8 @@ class Files:
     def unregister(self, root_id):
         self.service.live()
         self.store.root(root_id)
+        if editor_retained(self.service.store, root_id=root_id):
+            raise Failure("editor_retained", "Recover and remove retained edit copies before removing this folder.", 409)
         transfers = getattr(self.service, "transfers", None)
         if self.active(root_id=root_id) or (transfers and transfers.active(root_id=root_id)):
             raise Failure("root_busy", "Resolve file operations and discard retained downloads or partials before removing this root.", 409)

@@ -1,0 +1,8 @@
+{
+  "counts": [1, 64],
+  "long_target_characters": ["x", "\u03bb", "\ud83d\ude80"],
+  "messages": ["Hello", "Quotes: \" \\ and newline\n", "Unicode: \u03bb \u2665 \ud83d\ude80"],
+  "action": "echo",
+  "errors": ["unsupported_action"],
+  "invalid_inputs": ["truncated_header", "truncated_body", "oversized_frame", "invalid_json", "wrong_version", "extra_frame", "duplicate_target", "empty_targets", "too_many_targets"]
+}

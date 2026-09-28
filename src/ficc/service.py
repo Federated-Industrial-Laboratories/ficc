@@ -9,17 +9,30 @@ import time
 from contextlib import asynccontextmanager
 
 from .agents import Agents
+from .audio_sessions import AudioSessions
 from .auth import Auth
 from .bus import Bus
 from .errors import Failure
 from .files import Files
 from .jobs import Jobs
+from .module_adapter_vm import AdapterVMs
+from .module_adapters import Adapters
+from .module_admin import Administration
+from .module_containers import Containers
+from .module_proxmox import Proxmox
+from .module_vm import VMs
+from .module_vm_hosts import VMHosts
+from .module_windows import WindowsEndpoints
+from .modules import Registry
+from .modules.runtime import Runtime
 from .settings import MAX_NODES, Settings
 from .ssh import SSH
 from .state_lock import StateLock
 from .store import Store
 from .terminals import Terminals
 from .transfers import Transfers
+from .viewer_sessions import Viewers
+from .workspace_store import WorkspaceStore
 
 PUBLIC_FIELDS = {"id", "name", "profile", "host", "account", "fingerprint", "state",
                  "last_seen", "capabilities", "resources", "error"}
@@ -50,11 +63,24 @@ class Service:
     def initialize(self, settings: Settings) -> None:
         self.store = Store(settings.state_dir / "state.sqlite3")
         self.auth = Auth(self.store)
+        self.modules = Registry(self.store, settings.state_dir / "modules")
+        self.module_runtime = Runtime(self.modules)
+        self.workspaces = WorkspaceStore(self.store)
+        self.audio = AudioSessions(self)
         self.jobs = Jobs(self)
         self.ssh = SSH(settings)
         self.auth.on_revoke = lambda: self.ssh.reset()
         self.terminals = Terminals(self)
         self.files = Files(self)
+        self.vms = VMs(self)
+        self.proxmox = Proxmox(self)
+        self.windows = WindowsEndpoints(self)
+        self.adapters = Adapters(self, windows=self.windows)
+        self.adapter_vms = AdapterVMs(self)
+        self.vm_providers = VMHosts(self)
+        self.containers = Containers(self)
+        self.administration = Administration(self)
+        self.viewers = Viewers(self)
         self.transfers = Transfers(self)
         self.bus = Bus(self)
         self.agents = Agents(self)

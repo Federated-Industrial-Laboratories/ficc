@@ -1,1 +1,3 @@
 web/static/fonts/* -whitespace
+# Unified patches retain a context marker on blank lines.
+packaging/*.patch whitespace=-blank-at-eol

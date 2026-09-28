@@ -3,8 +3,9 @@
 Build x86_64 AppImage, Debian amd64, Arch Linux and portable archives from one
 isolated CPython payload. Assembly and publication are separate commands.
 
-Use Linux x86_64, Python 3.12 or later, Node.js 20 or later, npm, dpkg-deb, zstd,
-SquashFS tools and Docker or Podman. Install requirements-dev.lock in a build
+Use Linux x86_64, Python 3.12 or later, Node.js 22 or later, npm, dpkg-deb, zstd,
+SquashFS tools and Docker or Podman. Native modules also require C/C++ compilers
+and OpenSSL development files. Install requirements-dev.lock in a build
 virtual environment. Use the same interpreter for the commands below.
 
 ```sh
@@ -14,6 +15,7 @@ python tools/release.py --cache /tmp/ficc-inputs \
 
 Work and output directories must be new and outside the source checkout.
 The input cache may be reused; every input is checked against inputs.json.
+Native module dependencies use their declared hashes and a separate cache subdirectory.
 `--allow-dirty` marks an uncommitted qualification build. Such a build is not a
 publication candidate. A source archive includes release-source.json and can
 be rebuilt with this same command after extracting it and installing build tools.
@@ -43,10 +45,17 @@ docker run --rm --network=none \
     cp *.pkg.tar.zst /release/
   '
 python tools/finalize_release.py --output /tmp/ficc-release \
-  --arch-package /tmp/ficc-release/ficc-bin-0.1.0-1-x86_64.pkg.tar.zst
+  --arch-package /tmp/ficc-release/ficc-bin-0.2.0-1-x86_64.pkg.tar.zst
 ```
 
 ## Qualification
+
+Add `--viewer-runtime /path/to/verified-viewer-runtime` to include the native display decoder.
+Add `--windows-runtime /path/to/verified-windows-runtime` to include the Windows transport helper.
+Both are optional, separately validated directories. Their files, notices and source records enter the payload inventory.
+The corresponding components also enter the combined SBOM. Each runtime retains its recorded platform requirements.
+
+See [native displays](../docs/viewer-runtime.md) and [Windows management](../docs/windows-endpoints.md) for reproducible build commands.
 
 `tools/qualify_package.py` checks every payload file and link, the embedded
 helper archive, a real terminal child, local HTTP authentication, one-use login,

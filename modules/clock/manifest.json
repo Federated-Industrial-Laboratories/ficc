@@ -1,0 +1,32 @@
+{
+  "format_version": 1,
+  "version": "1.0.0",
+  "category": "productivity",
+  "contract_version": 1,
+  "host_api": 1,
+  "dependencies": [],
+  "files": {},
+  "id": "org.ficc.clock",
+  "display_name": "Clock",
+  "publisher": "Federated Industrial Laboratories",
+  "description": "Clock for the selected workspace.",
+  "runtime": {
+    "kind": "declarative",
+    "language": "none"
+  },
+  "capabilities": [
+    "workspace:read"
+  ],
+  "actions": [],
+  "ui": {
+    "type": "column",
+    "children": [
+      {
+        "type": "clock",
+        "id": "clock",
+        "label": "UTC clock",
+        "timezone": "UTC"
+      }
+    ]
+  }
+}

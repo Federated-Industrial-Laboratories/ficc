@@ -14,6 +14,8 @@ import tarfile
 import tomllib
 from pathlib import Path
 
+from viewer_runtime import install as install_viewer
+
 from .common import digest, normalize_sdist, normalize_tree, run, unpack, write_json
 from .notices import install as install_notices
 
@@ -82,7 +84,9 @@ def repair_records(site: Path, payload: Path) -> None:
             csv.writer(stream, lineterminator="\n").writerows(rows)
 
 
-def build(source: Path, work: Path, inputs: dict[str, Path], provenance: dict, lock: dict) -> tuple[Path, str]:
+def build(source: Path, work: Path, inputs: dict[str, Path], provenance: dict, lock: dict,
+          *, viewer_runtime: Path | None = None, windows_runtime: Path | None = None,
+          module_cache: Path | None = None) -> tuple[Path, str]:
     version = tomllib.loads((source / "pyproject.toml").read_text())["project"]["version"]
     payload = work / f"ficc-{version}-linux-x86_64"
     unpack(inputs["python"], payload)
@@ -95,6 +99,8 @@ def build(source: Path, work: Path, inputs: dict[str, Path], provenance: dict, l
     env.pop("PYTHONHOME", None)
     run(["npm", "ci", "--prefix", "web"], cwd=source, env=env)
     run(["npm", "run", "build", "--prefix", "web"], cwd=source, env=env)
+    run([sys.executable, "tools/build-modules.py", "defaults", "--output", "src/ficc/module_packages",
+         "--cache", str(module_cache or work / "module-build"), "--fetch"], cwd=source, env=env)
     run([sys.executable, "-m", "build", "--no-isolation"], cwd=source, env=env)
     normalize_sdist(source / f"dist/ficc-{version}.tar.gz", work, provenance["epoch"])
     wheels = work / "wheels"
@@ -150,10 +156,20 @@ print(json.dumps([{'name':d.metadata['Name'],'version':d.version,'license':d.met
                   for d in sorted(distributions, key=lambda d: d["name"].lower())]
     components.append({"type": "framework", "name": "CPython", "version": lock["python"],
                        "properties": [{"name": "ficc:build", "value": lock["inputs"][0]["release"]}]})
-    for name, ver in (("xterm.js", "6.0.0"), ("FitAddon", "0.11.0"), ("Michroma", "1.100"),
+    for name, ver in (("xterm.js", "6.0.0"), ("FitAddon", "0.11.0"), ("dockview-core", "8.3.1"),
+                      ("guacamole-common-js", "1.6.0"), ("Michroma", "1.100"),
                       ("Barlow Semi Condensed", "1.408"), ("JetBrains Mono", "2.304")):
         components.append({"type": "library", "name": name, "version": ver})
     components.extend(install_notices(payload, inputs, lock))
+    if viewer_runtime is not None:
+        runtime = install_viewer(viewer_runtime, payload / 'viewer-runtime')
+        native = json.loads((runtime / 'sbom.cdx.json').read_text())
+        components.append(native['metadata']['component'])
+        components.extend(native['components'])
+    if windows_runtime is not None:
+        from windows_runtime import install as install_windows
+        runtime = install_windows(windows_runtime, payload / 'windows-runtime')
+        components.extend(json.loads((runtime / 'sbom.cdx.json').read_text())['components'])
     write_json(payload / "sbom.cdx.json", {"bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1,
                                           "components": components})
     manifest = {str(p.relative_to(payload)): digest(p) for p in sorted(payload.rglob("*"))

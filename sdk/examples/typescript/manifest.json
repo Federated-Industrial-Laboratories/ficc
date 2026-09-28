@@ -1,0 +1,49 @@
+{
+  "format_version": 1,
+  "version": "1.0.0",
+  "category": "productivity",
+  "contract_version": 1,
+  "host_api": 1,
+  "dependencies": [],
+  "files": {},
+  "id": "org.example.echo.typescript",
+  "display_name": "Echo typescript",
+  "runtime": {
+    "kind": "javascript",
+    "language": "typescript",
+    "entry": "main.mjs",
+    "platform": "linux",
+    "architecture": "any"
+  },
+  "capabilities": [],
+  "actions": [
+    {
+      "id": "echo",
+      "label": "Echo",
+      "parameters": {
+        "message": {
+          "type": "string",
+          "required": true,
+          "max_length": 512
+        }
+      },
+      "capabilities": []
+    }
+  ],
+  "ui": {
+    "type": "column",
+    "children": [
+      {
+        "type": "field",
+        "name": "message",
+        "label": "Message",
+        "value": "Hello"
+      },
+      {
+        "type": "button",
+        "label": "Run",
+        "action": "echo"
+      }
+    ]
+  }
+}

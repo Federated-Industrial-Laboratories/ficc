@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: Apache-2.0
+# Backport Apache Guacamole ab36756b596520ae2a94cd4d25e406e0b5aa820b to 1.6.0.
+--- a/src/protocols/rdp/rdp.c
++++ b/src/protocols/rdp/rdp.c
+@@ -166,7 +166,6 @@
+ static BOOL rdp_freerdp_pre_connect(freerdp* instance) {
+ 
+     rdpContext* context = GUAC_RDP_CONTEXT(instance);
+-    rdpGraphics* graphics = context->graphics;
+ 
+     guac_client* client = ((rdp_freerdp_context*) context)->client;
+     guac_rdp_client* rdp_client = (guac_rdp_client*) client->data;
+@@ -191,6 +190,23 @@
+         } while (*(++current) != NULL);
+ 
+     }
++
++    /*
++     * If the freerdp instance does not have a LoadChannels callback for
++     * loading plugins we use the PreConnect callback to load plugins instead.
++     */
++    #ifndef RDP_INST_HAS_LOAD_CHANNELS
++        rdp_freerdp_load_channels(instance);
++    #endif
++
++    return TRUE;
++}
++
++/* Initialize GDI after FreeRDP creates the negotiated connection cache. */
++static BOOL rdp_freerdp_post_connect(freerdp* instance) {
++
++    rdpContext* context = GUAC_RDP_CONTEXT(instance);
++    rdpGraphics* graphics = context->graphics;
+ 
+     /* Init FreeRDP internal GDI implementation */
+     if (!gdi_init(instance, guac_rdp_get_native_pixel_format(FALSE)))
+@@ -219,14 +235,6 @@
+ 
+     GUAC_RDP_CONTEXT(instance)->update->SurfaceFrameMarker = guac_rdp_gdi_surface_frame_marker;
+     GUAC_RDP_CONTEXT(instance)->update->altsec->FrameMarker = guac_rdp_gdi_frame_marker;
+-
+-    /*
+-     * If the freerdp instance does not have a LoadChannels callback for
+-     * loading plugins we use the PreConnect callback to load plugins instead.
+-     */
+-    #ifndef RDP_INST_HAS_LOAD_CHANNELS
+-        rdp_freerdp_load_channels(instance);
+-    #endif
+ 
+     return TRUE;
+ }
+@@ -549,6 +557,7 @@
+         rdp_inst->LoadChannels = rdp_freerdp_load_channels;
+     #endif
+     rdp_inst->PreConnect = rdp_freerdp_pre_connect;
++    rdp_inst->PostConnect = rdp_freerdp_post_connect;
+     rdp_inst->Authenticate = rdp_freerdp_authenticate;
+ 
+ #ifdef HAVE_FREERDP_VERIFYCERTIFICATEEX

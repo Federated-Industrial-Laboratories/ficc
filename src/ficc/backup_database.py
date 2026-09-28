@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Validate quiescent schema-four snapshots and remove credential storage."""
+"""Validate quiescent snapshots and remove credential storage."""
 
 import json
 import re
@@ -12,8 +12,9 @@ from ficc_node.job_spec import TERMINAL as JOB_TERMINAL
 
 from .backup_io import MAX_DATABASE
 
-SCHEMA = 4
-TABLES = {
+SCHEMA = 6
+SUPPORTED = {4, 5, SCHEMA}
+LEGACY_TABLES = {
     "nodes": ("id value", 64),
     "credentials": ("id digest kind label scopes nodes expires csrf roots", 512),
     "audit": ("id at action target outcome actor", 10000),
@@ -30,6 +31,39 @@ TABLES = {
     "bus_messages": ("id actor key digest value", 16384),
     "bus_deliveries": ("id actor key digest value", 32768),
 }
+MODULE_TABLES = {**LEGACY_TABLES,
+    "module_container_profiles": ("id node_id value", 64),
+    "module_container_operations": ("id actor key digest value", 1024),
+    "module_admin_profiles": ("id node_id value", 64),
+    "module_admin_operations": ("id actor key digest value", 1024),
+    "module_vm_profiles": ("node_id value", 64),
+    "module_vm_operations": ("id actor key digest value", 1024),
+    "module_proxmox_profiles": ("node_id value", 64),
+    "module_proxmox_operations": ("id actor key digest value", 1024),
+    "module_editor_operations": ("id actor key value", 128),
+    "module_packages": ("digest package_id version manifest installed enabled revision", 64),
+    "module_grants": ("digest capability target_id", 16384),
+    "module_history": ("id package_id previous_digest new_digest action at", 1024),
+    "workspaces": ("id value", 64),
+    "workspace_views": ("id workspace_id value", 256),
+    "workspace_surfaces": ("id value", 64),
+}
+TABLES = {**MODULE_TABLES,
+    "module_windows_endpoints": ("id value", 64),
+    "module_adapter_profiles": ("id endpoint_id digest value", 64),
+    "module_adapter_operations": ("id actor key digest value", 1024),
+}
+
+
+def version(db):
+    return db.execute("PRAGMA user_version").fetchone()[0]
+
+
+def tables(db):
+    revision = version(db)
+    if revision not in SUPPORTED:
+        raise ValueError("The state schema is not supported.")
+    return {4: LEGACY_TABLES, 5: MODULE_TABLES, SCHEMA: TABLES}[revision]
 
 
 def connect(path: Path, readonly=False):
@@ -55,22 +89,21 @@ def records(db, table):
 
 
 def schema(db):
-    if db.execute("PRAGMA user_version").fetchone()[0] != SCHEMA:
-        raise ValueError("Backup and restore require the current state schema.")
+    expected = tables(db)
     objects = db.execute("SELECT type,name,sql FROM sqlite_schema").fetchall()
     names = set()
     for kind, name, sql in objects:
         if kind == "index" and sql is None and name.startswith("sqlite_autoindex_"):
             continue
-        if kind != "table" or name not in TABLES or "CREATE VIRTUAL" in (sql or "").upper():
+        if kind != "table" or name not in expected or "CREATE VIRTUAL" in (sql or "").upper():
             raise ValueError("The database contains an unsupported schema object.")
         names.add(name)
         columns = [row[1] for row in db.execute(f"PRAGMA table_info({name})")]
-        if columns != TABLES[name][0].split():
+        if columns != expected[name][0].split():
             raise ValueError("The database table layout is not supported.")
-        if db.execute(f"SELECT count(*) FROM {name}").fetchone()[0] > TABLES[name][1]:
+        if db.execute(f"SELECT count(*) FROM {name}").fetchone()[0] > expected[name][1]:
             raise ValueError("The retained state exceeds its supported capacity.")
-    if names != set(TABLES):
+    if names != set(expected):
         raise ValueError("The database schema is incomplete.")
     if db.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
         raise ValueError("The database integrity check failed.")
@@ -78,6 +111,30 @@ def schema(db):
 
 def quiescent(db):
     schema(db)
+    if version(db) >= 5:
+        from .backup_modules import records as module_records
+        module_records(db)
+        from .module_editor_store import validate_records as editor_records
+        editor_records(db, quiescent=True)
+        from .module_vm_store import validate_records as vm_records
+        vm_records(db.execute("SELECT node_id,value FROM module_vm_profiles").fetchall(),
+                   db.execute("SELECT id,actor,key,digest,value FROM module_vm_operations").fetchall(),
+                   {row[0] for row in db.execute("SELECT id FROM nodes")})
+        from .module_proxmox_store import validate_records as proxmox_records
+        proxmox_records(db.execute("SELECT node_id,value FROM module_proxmox_profiles").fetchall(),
+                        db.execute("SELECT id,actor,key,digest,value FROM module_proxmox_operations").fetchall(),
+                        {row[0] for row in db.execute("SELECT id FROM nodes")})
+        from .module_containers_store import validate_records as container_records
+        container_records(db.execute("SELECT id,node_id,value FROM module_container_profiles").fetchall(),
+                          db.execute("SELECT id,actor,key,digest,value FROM module_container_operations").fetchall(),
+                          {row[0] for row in db.execute("SELECT id FROM nodes")})
+        from .module_admin_store import validate_records as admin_records
+        admin_records(db.execute("SELECT id,node_id,value FROM module_admin_profiles").fetchall(),
+                      db.execute("SELECT id,actor,key,digest,value FROM module_admin_operations").fetchall(),
+                      {row[0] for row in db.execute("SELECT id FROM nodes")})
+    if version(db) >= 6:
+        from .backup_adapters import validate_records
+        validate_records(db)
     for node in records(db, "nodes"):
         if not isinstance(node.get("id"), str):
             raise ValueError("A machine record identity is invalid.")
@@ -135,6 +192,26 @@ def sanitize(path: Path, restored=False):
         with db:
             db.execute("DELETE FROM credentials")
             if restored:
+                if version(db) >= 5:
+                    db.execute("DELETE FROM module_grants")
+                    db.execute("UPDATE module_packages SET enabled=0,revision=revision+1")
+                    for table in ("module_vm_profiles", "module_proxmox_profiles"):
+                        for value in records(db, table):
+                            value.update(enabled=False, revision=value["revision"] + 1)
+                            db.execute(f"UPDATE {table} SET value=? WHERE node_id=?",
+                                       (json.dumps(value), value["node_id"]))
+                    for table in ("module_container_profiles", "module_admin_profiles"):
+                        for value in records(db, table):
+                            value.update(enabled=False, revision=value["revision"] + 1)
+                            db.execute(f"UPDATE {table} SET value=? WHERE id=?",
+                                       (json.dumps(value), value["id"]))
+                if version(db) >= 6:
+                    from .module_windows_store import disable_restored
+                    disable_restored(db)
+                    for value in records(db, "module_adapter_profiles"):
+                        value.update(enabled=False, revision=value["revision"] + 1)
+                        db.execute("UPDATE module_adapter_profiles SET value=? WHERE id=?",
+                                   (json.dumps(value), value["id"]))
                 for value in records(db, "nodes"):
                     value.update(resources=None, last_seen=None, capabilities={}, state="unconfigured",
                                  error={"code": "restored_state", "message": "Refresh this machine after restore."})

@@ -16,6 +16,8 @@ import tempfile
 from pathlib import Path
 
 from source_runtime import download, secure_dir, unpack
+from viewer_runtime import install as install_viewer
+from windows_runtime import install as install_windows
 
 MARKER = '#!/bin/sh\n# FICC source installation\n'
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,15 +42,23 @@ def source_copy(destination: Path) -> None:
         shutil.copyfile(ROOT / name, destination / name)
 
     def ignored(directory, names):
-        skip = {n for n in names if n in {'__pycache__', 'node_modules', 'static'}
+        skip = {n for n in names if n in {'__pycache__', 'node_modules', 'static', 'module_packages'}
                 or n.endswith('.egg-info')}
         for name in set(names) - skip:
             if (Path(directory) / name).is_symlink():
                 raise ValueError('Source links are unsupported')
         return skip
 
-    for name in ('src', 'node'):
+    for name in ('src', 'node', 'modules'):
         shutil.copytree(ROOT / name, destination / name, ignore=ignored)
+    (destination / 'tools').mkdir()
+    for name in ('build-modules.py', 'module_native_build.py', 'viewer_assets.py'):
+        shutil.copyfile(ROOT / 'tools' / name, destination / 'tools' / name)
+    (destination / 'sdk').mkdir()
+    shutil.copytree(ROOT / 'sdk/python', destination / 'sdk/python', ignore=ignored)
+    shutil.copytree(ROOT / 'sdk/native', destination / 'sdk/native', ignore=ignored)
+    for name in ('build.py', 'dependencies.json'):
+        shutil.copyfile(ROOT / 'sdk' / name, destination / 'sdk' / name)
     web = destination / 'web'
     web.mkdir()
     for name in ('package.json', 'package-lock.json', 'build.mjs'):
@@ -63,9 +73,9 @@ def install(args) -> Path:
         raise ValueError('The source installer supports Linux x86_64')
     if sys.version_info < (3, 10) or not hasattr(__import__('tarfile'), 'data_filter'):
         raise ValueError('Use an updated system Python 3.10 or later')
-    required = ['ssh', 'timeout'] + ([] if args.no_desktop else ['systemctl', 'xdg-open'])
+    required = ['ssh', 'timeout', 'cc', 'c++'] + ([] if args.no_desktop else ['systemctl', 'xdg-open'])
     if any(shutil.which(name) is None for name in required):
-        raise ValueError('Install OpenSSH client, coreutils, systemd and xdg-utils; see docs/install.md')
+        raise ValueError('Install the documented compiler and system prerequisites; see docs/install.md')
     data = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share')))
     base = secure_dir(data / 'ficc/source-installs')
     cache = secure_dir(Path(os.environ.get('XDG_CACHE_HOME', str(Path.home() / '.cache'))) / 'ficc/installer')
@@ -98,12 +108,18 @@ def install(args) -> Path:
                     run([python, '-m', 'pip', 'install', '--require-hashes', '-r', source / filename], env=env)
                 run([node_bin / 'npm', 'ci', '--ignore-scripts', '--prefix', source / 'web'], env=env)
                 run([node_bin / 'npm', 'run', 'build', '--prefix', source / 'web'], env=env)
+                run([python, source / 'tools/build-modules.py', 'defaults', '--output',
+                     source / 'src/ficc/module_packages', '--cache', cache / 'modules', '--fetch'], env=env)
                 run([python, '-m', 'build', '--wheel', '--no-isolation', source], env=env)
                 wheels = list((source / 'dist').glob('*.whl'))
                 if len(wheels) != 1:
                     raise ValueError('Build must produce exactly one wheel')
                 run([python, '-m', 'pip', 'install', '--no-deps', wheels[0]], env=env)
             executable = target / 'venv/bin/ficc'
+            if args.viewer_runtime is not None:
+                install_viewer(args.viewer_runtime, target / 'venv/viewer-runtime')
+            if args.windows_runtime is not None:
+                install_windows(args.windows_runtime, target / 'venv/windows-runtime')
             run([executable, '--version'])
             # Retain the runtime if launcher installation partially writes its configuration.
             activating = True
@@ -135,6 +151,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--profile', action='append', default=[], help='Approve a trusted SSH alias on first installation')
     parser.add_argument('--no-desktop', action='store_true', help='Install command only; use serve/open without systemd')
+    parser.add_argument('--viewer-runtime', type=Path, help='Copy a trusted local native viewer runtime after integrity checks')
+    parser.add_argument('--windows-runtime', type=Path, help='Copy a trusted local Windows transport runtime after integrity checks')
     args = parser.parse_args()
     if args.no_desktop and args.profile:
         parser.error('--profile requires desktop installation; use serve --profile for command-only operation')

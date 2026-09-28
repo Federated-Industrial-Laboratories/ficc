@@ -1,0 +1,46 @@
+{
+  "format_version": 1,
+  "version": "1.0.0",
+  "category": "system-administration",
+  "contract_version": 1,
+  "host_api": 1,
+  "dependencies": [],
+  "files": {},
+  "id": "org.example.resources.javascript",
+  "display_name": "Resources javascript",
+  "runtime": {
+    "kind": "javascript",
+    "language": "javascript",
+    "entry": "main.mjs",
+    "platform": "linux",
+    "architecture": "any",
+    "protocol": 2
+  },
+  "capabilities": [
+    "system:read"
+  ],
+  "actions": [
+    {
+      "id": "read",
+      "label": "Read resources",
+      "parameters": {},
+      "capabilities": [
+        "system:read"
+      ]
+    }
+  ],
+  "ui": {
+    "type": "column",
+    "children": [
+      {
+        "type": "text",
+        "text": "Read saved system resources through the host broker."
+      },
+      {
+        "type": "button",
+        "label": "Read resources",
+        "action": "read"
+      }
+    ]
+  }
+}

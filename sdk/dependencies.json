@@ -1,0 +1,22 @@
+{
+  "cJSON.c": {
+    "url": "https://raw.githubusercontent.com/DaveGamble/cJSON/v1.7.19/cJSON.c",
+    "sha256": "298581a04a36c0165da4b0aade235c23088cb2faa58651d720ea2f3706ed0b0d",
+    "bytes": 80399
+  },
+  "cJSON.h": {
+    "url": "https://raw.githubusercontent.com/DaveGamble/cJSON/v1.7.19/cJSON.h",
+    "sha256": "25b0145150d500498e4d209cec69c18c42cf818bffcc54690be3b895a2a16dee",
+    "bytes": 16394
+  },
+  "LICENSE": {
+    "url": "https://raw.githubusercontent.com/DaveGamble/cJSON/v1.7.19/LICENSE",
+    "sha256": "a36dda207c36db5818729c54e7ad4e8b0c6fba847491ba64f372c1a2037b6d5c",
+    "bytes": 1084
+  },
+  "typescript.tgz": {
+    "url": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+    "sha256": "10e108c9cf7d5f2879053dff18515fb405abf2ccef63eaaf017d9c571687a1d3",
+    "bytes": 4377468
+  }
+}

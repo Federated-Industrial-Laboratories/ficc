@@ -22,7 +22,7 @@ hashes. The tables below use license identifiers from those pinned distributions
 
 ## Python runtime
 
-| Python runtime distribution | Version | Licence |
+| Python runtime distribution | Version | License |
 | --- | --- | --- |
 | annotated-doc | 0.0.5 | MIT |
 | annotated-types | 0.8.0 | MIT |
@@ -42,22 +42,30 @@ hashes. The tables below use license identifiers from those pinned distributions
 | uvicorn | 0.53.0 | BSD-3-Clause |
 | websockets | 17.1 | BSD-3-Clause |
 
-Installed Python distributions retain their licence files under their
+Installed Python distributions retain their license files under their
 `.dist-info/` directories. Preserve those files when distributing an offline
 environment. In particular, certifi retains its MPL-2.0 certificate-source notice.
 
 ## Browser assets
 
-The browser bundles xterm.js 6.0.0 and FitAddon 0.11.0 under MIT. Their licence
+The browser bundles xterm.js 6.0.0 and FitAddon 0.11.0 under MIT. Their license
 files are included under `ficc/static/vendor/` in the wheel. Fonts retain OFL-1.1:
 Michroma 1.100, Barlow Semi Condensed 1.408, and JetBrains Mono 2.304. Their
 original notices are under `ficc/static/fonts/`; see [NOTICE](../NOTICE).
+
+Dockview core 8.3.1 supplies workspace layout under MIT.
+The browser uses Guacamole common JavaScript 1.6.0 under Apache-2.0 for remote displays.
+Both bundles and their licenses are local assets; no external script host is required.
 
 ## System and build dependencies
 
 OpenSSH, GNU coreutils, systemd, tmux and optional NVIDIA tools are external
 system dependencies. They are not bundled in the FICC wheel. Build and test
 dependencies are pinned separately in requirements-dev.lock and web/package-lock.json.
+
+Executable modules require Bubblewrap, a working user systemd manager and effective cgroup resource controls.
+The host checks these requirements before enablement. There is no unrestricted fallback.
+The SDK's native examples have separate pinned JSON dependencies and notices in [SDK third-party notices](../sdk/THIRD-PARTY.md).
 
 ## Package notices
 
@@ -66,6 +74,11 @@ Their licenses/python directory retains native dependency notices and build
 metadata. AppImage adds its separate runtime and licenses/appimage notices.
 The release includes corresponding source archives and THIRD-PARTY.md.
 See [Linux packages](releases.md) for the distribution contents.
+
+An optional [native viewer runtime](viewer-runtime.md) adds Guacamole, patched LibVNCClient and their recursive library dependencies.
+It retains exact platform requirements, an inventory, licenses, build records and corresponding sources.
+Its components also appear in the binary package SBOM when that runtime is included.
+The linked viewer retains GPL-3.0-or-later terms; the separate controller retains Apache-2.0.
 
 A release inventory identifies the exact wheel, its runtime dependency
 artifacts and all bundled browser/font components. Include a CycloneDX SBOM and

@@ -57,7 +57,9 @@ control sequences. Log access needs the separate jobs:logs grant.
 Normal cancellation asks the recorded service to stop, then applies a finite
 grace period. Forced stop is a separate explicit action. The UI shows a request
 before it shows confirmed termination. A lost connection during cancellation
-does not prove that the job stopped. The pending request survives a controller
+does not prove that the job stopped.
+
+The pending request survives a controller
 restart and retries connection failures with its current cancellation grant.
 If that grant expires or is revoked, retries stop and a denial stays visible.
 Request cancellation again with current authority. FICC cannot cancel unrelated
@@ -74,7 +76,9 @@ stricter ancestor limits when present. Runtime is finite, at most 86400 seconds.
 One managed job is admitted per node. A running or unknown job prevents a
 conflicting launch. GPU choices use device UUIDs and declared memory need.
 Fresh capacity is checked before launch, but another program can still allocate
-the device. Reservations coordinate FICC jobs; they do not enforce VRAM limits
+the device.
+
+Reservations coordinate FICC jobs; they do not enforce VRAM limits
 or exclusive use. CUDA_VISIBLE_DEVICES is set from the reservation and is empty
 when no GPU was selected. External programs remain outside FICC ownership.
 
@@ -83,7 +87,9 @@ bytes reported. Each node reserves output space against a 2 GiB retained limit
 and retains at most 256 job receipts. The controller retains at most 2048
 operations and lists the newest 200. New work is refused when retained capacity
 is full. Active or uncertain receipts are never evicted to make room. Automated
-expiry is disabled. Use the explicit [history archive command](history.md) to
+expiry is disabled.
+
+Use the explicit [history archive command](history.md) to
 retain completed history and recover admission capacity. Preserve receipts while
 reconciling a job or an uncertain submission. Archived logs still consume disk
 space. New jobs require at least their 64 MiB output allowance plus 256 MiB of
@@ -153,6 +159,7 @@ job ID to its request digest before starting a deterministic systemd unit.
 The helper stages a complete runner and request before publishing that intent.
 Interrupted staging is recovered under the node lock; published intents and
 records with possible execution evidence are preserved.
+
 Repeated matching submissions query that job. Different content under the same
 identity is refused. A missing acknowledgement triggers reconciliation, never
 automatic payload replay. This prevents duplicate dispatch within retained

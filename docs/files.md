@@ -43,7 +43,7 @@ A root keeps its directory identity. Replacing the directory makes the root
 unavailable; register the intended replacement explicitly. Symbolic links in
 paths and mount crossings below the root are refused. The file adapter requires
 Linux openat2 on x86_64 or aarch64 and compatible filesystem rename semantics.
-Unsupported platforms fail closed. Descriptor mode changes additionally require
+Unsupported platforms fail closed. Descriptor mode changes also require
 Linux fchmodat2 with AT_EMPTY_PATH support (Linux 6.6 or later); unavailable
 mode changes fail without using a pathname fallback.
 
@@ -65,7 +65,9 @@ Entries show type, byte size, modification time, numeric owner/group and mode.
 Names with invalid UTF-8 or control bytes use escaped display text. Selection
 uses an opaque identity, so changing a displayed name cannot redirect an action.
 Listings contain at most 200 entries per page and refuse directories exceeding
-10,000 entries. Changed cursors require a refresh. Text previews are at most
+10,000 entries.
+
+Changed cursors require a refresh. Text previews are at most
 64 KiB. File content is never rendered as an HTML document.
 
 Create directory, Rename, Change mode and Delete show the selected effects before
@@ -85,7 +87,7 @@ success. An uncertain publish remains visible for recovery.
 
 Upload selects browser files and uses bounded, SHA-256 checked chunks. Resume
 requires the original file again and verifies its accepted prefix; matching
-name and size alone are insufficient. Source changes require a new transfer.
+name and size alone do not prove identity. Source changes require a new transfer.
 Cancel and cleanup are separate from deleting a completed destination.
 
 Download first prepares a verified private controller spool, then offers an
@@ -97,6 +99,7 @@ Limits are 16 GiB per file, 64 GiB reserved partial/spool storage, 64 pending
 items and four active file channels. Interrupted partials retain their storage
 reservation until explicit cleanup. No automatic eviction removes recovery data.
 Completed download spools retain their reservation until Discard download.
+
 If a verified destination retains staging files, Clean retained partial removes only
 those staging files. The committed destination remains intact. Retained artifacts
 must be cleaned before their roots can be removed or helpers replaced.
@@ -108,13 +111,17 @@ Transfer history requires read permission on each item's source and destination
 roots, except the private download spool. Mutation responses include receipts
 only for the items explicitly requested under the required action permissions.
 Use repeated `--root ROOT_ID` options with token-create to restrict roots,
-and repeated `--node NODE_ID` options for remote machines. A node-restricted
+and repeated `--node NODE_ID` options for remote machines.
+
+A node-restricted
 credential cannot use controller roots. Read-only roots refuse mutations even
 for the owner. Current grants are checked again during transfer and publication.
 
 Roots provide API access control inside a trusted operating-system account.
-They are not a sandbox against other programs with that account. A descriptor
-still refers to an opened object if another program moves its directory; an
+They are not a sandbox against other programs with that account.
+
+A descriptor
+still refers to an opened object if another program moves its directory. An
 external rename, hard link or privileged mount operation can change its pathname
 or aliases. Detected changes are refused, but continuous pathname confinement
 against such writers is not promised. Keep registered namespaces operator-managed.

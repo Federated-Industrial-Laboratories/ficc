@@ -207,7 +207,7 @@ def test_schema_three_migration_preserves_credentials_and_rows(tmp_path):
     path.chmod(0o600)
     store = Store(path)
     try:
-        assert store.db.execute("PRAGMA user_version").fetchone()[0] == 4
+        assert store.db.execute("PRAGMA user_version").fetchone()[0] == 6
         assert Auth(store).resolve("secret").scopes == ["terminals:read"]
         with pytest.raises(Failure):
             Auth(store).resolve("secret").require("agents:execute")

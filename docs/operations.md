@@ -87,8 +87,9 @@ A changed key blocks observation. Independently verify a replacement key and
 the machine identity first. Forget the old local enrollment, update the trusted
 local SSH configuration, and preview a new enrollment. Complete the explicit
 [history archive](history.md) before forgetting a machine with retained work.
+
 If its old identity is unavailable, preserve that state and reconcile it before
-archival; a replacement key does not prove that the old work is finished.
+archival. A replacement key does not prove that the old work is finished.
 Forgetting a machine does not remove its helper or affect other SSH clients.
 
 ## State copy and upgrades
@@ -107,6 +108,7 @@ The managed-job version migrates controller state from schema 1 to schema 2.
 The coding-agent version migrates schemas 1, 2 and 3 to schema 4. Helper protocol 3
 adds an explicit agents capability. The controller preserves prior credentials
 without new scopes; sign in again or deliberately issue a new scoped credential.
+
 Stop the service and keep a complete private pre-upgrade copy first.
 The older observation-only version refuses schema 2. A downgrade needs its
 pre-upgrade state copy; restoring that copy loses subsequent job records and
@@ -124,7 +126,9 @@ using that separate downgrade procedure.
 Stop and disable the user service before removing the environment and unit file.
 Remove its matching desktop entry and launcher configuration, then run
 `systemctl --user daemon-reload`. These steps do not remove enrolled state.
-Keep the state directory unless its deletion is explicitly intended. The helper
+Keep the state directory unless its deletion is explicitly intended.
+
+The helper
 remains at `~/.local/lib/ficc/node.pyz` on each enrolled node. Remove that exact
 file through an ordinary authenticated SSH session if it is no longer required.
 Do not delete unrelated files in the parent directory.

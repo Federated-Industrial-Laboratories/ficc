@@ -7,24 +7,8 @@ import signal
 import subprocess
 
 from .errors import Failure
+from .pipe_ready import ready
 from .settings import MAX_MESSAGE
-
-
-async def ready(fd: int, writing: bool = False) -> None:
-    loop = asyncio.get_running_loop()
-    future = loop.create_future()
-
-    def notify() -> None:
-        if not future.done():
-            future.set_result(None)
-
-    add = loop.add_writer if writing else loop.add_reader
-    remove = loop.remove_writer if writing else loop.remove_reader
-    add(fd, notify)
-    try:
-        await future
-    finally:
-        remove(fd)
 
 
 async def run(command: list[str], payload: bytes = b"", timeout: float = 10,

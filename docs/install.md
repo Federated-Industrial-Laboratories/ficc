@@ -29,13 +29,15 @@ checkout.
 
 Binary packages include Python. The source installer downloads a private Python
 and requires an updated system Python 3.10 or later to bootstrap it. Manually
-managed source and wheel installations need Python 3.12 or later. All controllers
+managed source and wheel installations need Python 3.12 or later.
+
+All controllers
 need Linux, OpenSSH and GNU coreutils `timeout`. Nodes require
 OpenSSH server and Python 3.12 or later. NVIDIA reporting uses a bounded,
 structured nvidia-smi query when available. Missing GPU support does
 not prevent CPU and memory observation.
 
-Node.js 20 or later is a build and browser-test dependency. It is not needed
+Node.js 22 or later is a build and browser-test dependency. It is not needed
 to run an installed wheel. The [package guide](releases.md) lists native controller formats.
 Actual node checks use Ubuntu 26.04 and Python 3.14.
 These are separate platform roles; other controller/node combinations require
@@ -48,7 +50,7 @@ system prerequisites if they are absent:
 
 ```sh
 sudo apt update
-sudo apt install python3 openssh-client coreutils systemd xdg-utils ca-certificates
+sudo apt install python3 openssh-client coreutils systemd xdg-utils ca-certificates build-essential libssl-dev
 ```
 
 From the clone, run:
@@ -64,6 +66,10 @@ wheel. No system Python packages are changed. Internet access is required for
 downloads. Python and Node need not be installed at the application's required
 versions beforehand. Bootstrap Python must include maintained tar extraction
 filters; apply distribution security updates if this check fails.
+
+The supplied native module requires C/C++ build tools and OpenSSL development
+files. Its SDK inputs use fixed download sizes and SHA-256 checksums. These tools
+are source-build dependencies; installing a built module archive runs no compiler.
 
 The runtime lives under `~/.local/share/ficc/source-installs/` and the command is
 `~/.local/bin/ficc`. XDG_DATA_HOME and XDG_CACHE_HOME are respected. The checkout
@@ -88,6 +94,20 @@ be set explicitly with `ficc install-launcher` after stopping it.
 For a terminal-only setup, use `./install.sh --no-desktop`, then `ficc serve`
 and `ficc open --print-url` in separate terminals. This installs the command
 without changing any existing launcher; it does not require a user service manager.
+
+The installer includes separate [supplied module archives](modules.md). They remain
+uninstalled and disabled until inspected and granted through the module manager.
+Program modules require Bubblewrap and a usable systemd user manager, including
+on a command-only controller. Unavailable containment refuses module execution.
+
+For VM displays, add `--viewer-runtime /path/to/verified-runtime` to the source
+installer. It copies the separate runtime into the private installation. The
+controller verifies its platform and complete file inventory before using it.
+See [native viewer installation](viewer-runtime.md) for build and license details.
+
+For Windows management, add `--windows-runtime /path/to/verified-windows-runtime`.
+The installer copies its checked files into the new installation.
+See [Windows endpoints](windows-endpoints.md) for build, trust and platform requirements.
 
 ## Update or remove a source installation
 

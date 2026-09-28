@@ -6,6 +6,12 @@ on:
     paths:
       - 'packaging/**'
       - 'pyproject.toml'
+      - 'modules/**'
+      - 'sdk/**'
+      - 'tools/build-modules.py'
+      - 'tools/module_native_build.py'
+      - 'tools/*viewer*'
+      - 'tools/*windows*'
       - 'install.sh'
       - 'tools/*source*'
       - 'requirements-build.lock'
@@ -31,7 +37,7 @@ jobs:
         with:
           node-version: '22.23.3'
       - run: python -m pip install --require-hashes -r requirements-dev.lock
-      - run: sudo apt-get update && sudo apt-get install -y zstd squashfs-tools
+      - run: sudo apt-get update && sudo apt-get install -y build-essential libssl-dev zstd squashfs-tools
       - name: Read package version
         run: |
           python -c 'import tomllib; v=tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]; print("FICC_VERSION="+v); print("FICC_DEB_VERSION="+v.replace("rc", "~rc"))' >> "$GITHUB_ENV"

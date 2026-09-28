@@ -10,9 +10,10 @@ import time
 from contextlib import closing
 from pathlib import Path
 
-from . import __version__, backup_cli
+from . import __version__, backup_cli, backup_modules
 from . import backup_database as database
 from . import backup_io as files
+from .modules.archive import recover_stages
 from .state_lock import StateLock
 
 
@@ -80,11 +81,13 @@ def export_locked(state_dir: Path, destination: Path, ownership: StateLock, main
         actual = os.stat("service.lock", dir_fd=source, follow_symlinks=False)
         if (owned.st_dev, owned.st_ino) != (actual.st_dev, actual.st_ino):
             raise ValueError("The backup ownership belongs to another state directory.")
+        recover_stages(Path(f"/proc/self/fd/{source}/modules"))
         names = files.inventory(source, maintenance=maintenance)
         capacity(source, names)
         database_path = Path(f"/proc/self/fd/{source}/state.sqlite3")
         with closing(database.connect(database_path, readonly=True)) as db:
             controller = database.quiescent(db)
+            schema = database.version(db)
             backup_cli.reconciled(source, db, decode)
         for name in names:
             receipt(source, name, controller)
@@ -100,14 +103,19 @@ def export_locked(state_dir: Path, destination: Path, ownership: StateLock, main
                     members[name] = files.copy(source, target, name)
             if sum(value["size"] for value in members.values()) > files.MAX_TOTAL:
                 raise ValueError("The backup exceeds the total size limit.")
+            with closing(database.connect(folder / "state.sqlite3", readonly=True)) as db:
+                if schema >= 5:
+                    backup_modules.payloads(db, target, members)
+                elif any(name.startswith("modules/") for name in members):
+                    raise ValueError("The legacy database has unrecorded module payloads.")
             manifest = {"format": "ficc-state", "format_version": 1, "application_version": __version__,
-                        "schema": database.SCHEMA, "created_at": int(time.time()), "controller_id": controller,
+                        "schema": schema, "created_at": int(time.time()), "controller_id": controller,
                         "members": members}
             raw = files.encode(manifest)
             if len(raw) > files.MAX_MANIFEST:
                 raise ValueError("The backup manifest exceeds the size limit.")
             files.write(target, "manifest.json", raw)
-    return {"backup": str(destination), "members": len(members), "schema": database.SCHEMA,
+    return {"backup": str(destination), "members": len(members), "schema": schema,
             "credentials_removed": True}
 
 
@@ -116,7 +124,7 @@ def manifest(source):
     fields = {"format", "format_version", "application_version", "schema", "created_at", "controller_id", "members"}
     if (not isinstance(value, dict) or set(value) != fields or value["format"] != "ficc-state"
             or type(value["format_version"]) is not int or value["format_version"] != 1
-            or type(value["schema"]) is not int or value["schema"] != database.SCHEMA
+            or type(value["schema"]) is not int or value["schema"] not in database.SUPPORTED
             or not isinstance(value["application_version"], str) or not 1 <= len(value["application_version"]) <= 80
             or type(value["created_at"]) is not int or value["created_at"] < 0
             or not isinstance(value["controller_id"], str) or not re.fullmatch(files.HEX32, value["controller_id"])
@@ -152,10 +160,17 @@ def restore(bundle: Path, destination: Path, confirm_remote_idle=False):
             controller = database.sanitize(folder / "state.sqlite3", restored=True)
             if controller != value["controller_id"]:
                 raise ValueError("The manifest and database controller identities do not match.")
+            with closing(database.connect(folder / "state.sqlite3", readonly=True)) as db:
+                if database.version(db) != value["schema"]:
+                    raise ValueError("The manifest and database schemas do not match.")
+                if value["schema"] >= 5:
+                    backup_modules.payloads(db, target, value["members"], seal=True)
+                elif any(name.startswith("modules/") for name in value["members"]):
+                    raise ValueError("The legacy database has unrecorded module payloads.")
             with files.member(target, "state.sqlite3") as fd:
                 os.fsync(fd)
-    return {"state_dir": str(destination.absolute()), "schema": database.SCHEMA,
-            "credentials_removed": True, "observations_cleared": True}
+    return {"state_dir": str(destination.absolute()), "schema": value["schema"],
+            "credentials_removed": True, "observations_cleared": True, "module_grants_removed": True}
 
 
 def add_commands(commands):

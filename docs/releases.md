@@ -18,8 +18,14 @@
 
 </details>
 
-Install [FICC 0.1.0](https://github.com/Federated-Industrial-Laboratories/ficc/releases/tag/v0.1.0)
-on Linux x86_64 with one of the packages below. Each package includes Python and
+Download FICC from [GitHub Releases](https://github.com/Federated-Industrial-Laboratories/ficc/releases).
+Use a Linux x86_64 package below. The examples use version 0.2.0.
+Check the published release version before downloading. These manuals also cover the current source version.
+
+Hyper-V and VirtualBox are not supported for operational use in version 0.2.0.
+See [provider support](testing.md#runtime-modules-and-providers) before installing VM modules.
+
+Each package includes Python and
 application dependencies. Nodes need their own Python and SSH setup. The
 controller needs OpenSSH, GNU coreutils and xdg-utils; desktop startup also
 requires a systemd user manager. Installation does not start a root service.
@@ -39,14 +45,14 @@ obtain the files and checksum list from the trusted project release page.
 ## Debian and Ubuntu
 
 ```sh
-sudo apt install ./ficc_0.1.0_amd64.deb
+sudo apt install ./ficc_0.2.0_amd64.deb
 ficc desktop
 ```
 
 ## Arch Linux
 
 ```sh
-sudo pacman -U ./ficc-bin-0.1.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ./ficc-bin-0.2.0-1-x86_64.pkg.tar.zst
 ficc desktop
 ```
 
@@ -58,8 +64,8 @@ Extract it and run `makepkg` as a regular user to build the package locally.
 Run the executable from a directory owned by the desktop account.
 
 ```sh
-chmod +x FICC-0.1.0-x86_64.AppImage
-./FICC-0.1.0-x86_64.AppImage
+chmod +x FICC-0.2.0-x86_64.AppImage
+./FICC-0.2.0-x86_64.AppImage
 ```
 
 On first desktop use, FICC verifies and copies the bundled runtime into
@@ -72,7 +78,7 @@ Opening the AppImage requires a working FUSE installation. Without FUSE, extract
 into the directory where FICC will remain:
 
 ```sh
-./FICC-0.1.0-x86_64.AppImage --appimage-extract
+./FICC-0.2.0-x86_64.AppImage --appimage-extract
 ./squashfs-root/AppRun desktop
 ```
 
@@ -84,16 +90,16 @@ extraction directory must remain available while its launcher is installed.
 ## Portable archive
 
 ```sh
-tar -xzf ficc-0.1.0-linux-x86_64.tar.gz
-./ficc-0.1.0-linux-x86_64/ficc desktop
+tar -xzf ficc-0.2.0-linux-x86_64.tar.gz
+./ficc-0.2.0-linux-x86_64/ficc desktop
 ```
 
 The first desktop start creates a private on-demand user service and opens the
 browser with a one-use sign-in. It approves no SSH aliases. Follow
 [machine enrollment](install.md#connect-a-machine) to configure trusted profiles.
-An existing launcher configuration remains authoritative. Changing formats or
-moving a portable or explicitly extracted directory requires reinstalling that launcher after
-stopping the previous service, with the same state and approved profiles.
+An existing launcher configuration remains authoritative. Stop the service before
+changing formats or moving a portable or extracted directory. Then reinstall
+the launcher with the same state and approved profiles.
 
 ## Upgrade and remove
 
@@ -108,7 +114,9 @@ Use `sudo apt remove ficc` or `sudo pacman -R ficc-bin` to remove a native packa
 Removal preserves private state and user launcher files. To retire the launcher,
 run `systemctl --user disable --now ficc.service`, remove its generated service
 and desktop entry, then run `systemctl --user daemon-reload`. Use the configured
-service name if it differs. AppImage installations also retain versioned runtime
+service name if it differs.
+
+AppImage installations also retain versioned runtime
 directories under `~/.local/share/ficc/runtimes/` (or XDG_DATA_HOME). After stopping
 all launchers that use a runtime, its directory can be removed. Keep the runtime
 selected by any retained launcher configuration. Remove private state only when
@@ -118,7 +126,7 @@ it is no longer needed.
 
 Each release includes SHA256SUMS, build.json, a CycloneDX inventory, complete FICC
 source and a third-party source archive. The payload's bundle.json binds its
-files and links to the source and build inputs. THIRD-PARTY.md describes licences
+files and links to the source and build inputs. THIRD-PARTY.md describes licenses
 and source correspondence. The AppImage runtime's native dependency versions are
 only listed where upstream provides evidence; its remaining build dependencies
 are named without a claimed binary version.

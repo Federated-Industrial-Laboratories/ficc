@@ -1,0 +1,216 @@
+{
+  "format_version": 1,
+  "id": "org.ficc.libvirt",
+  "version": "1.0.0",
+  "category": "virtual-machines",
+  "contract_version": 1,
+  "host_api": 1,
+  "display_name": "Libvirt VMs",
+  "publisher": "Federated Industrial Laboratories",
+  "description": "Inventory, start, graceful shutdown and VNC consoles for enrolled libvirt systems.",
+  "runtime": {
+    "kind": "python",
+    "language": "python",
+    "protocol": 2,
+    "platform": "linux",
+    "architecture": "any",
+    "entry": "main.py"
+  },
+  "capabilities": [
+    "workspace:read",
+    "vm:read",
+    "vm:power",
+    "vm:console"
+  ],
+  "dependencies": [],
+  "optional_capabilities": ["vm:power", "vm:console"],
+  "actions": [
+    {
+      "id": "load",
+      "label": "Read VM inventory",
+      "parameters": {
+        "offset": {
+          "type": "integer",
+          "min": 0,
+          "max": 4096
+        }
+      },
+      "capabilities": [
+        "vm:read"
+      ]
+    },
+    {
+      "id": "preview-start",
+      "label": "Preview start",
+      "parameters": {
+        "vm_ids": {
+          "type": "string-list",
+          "required": true,
+          "max_items": 64,
+          "max_length": 73
+        }
+      },
+      "capabilities": [
+        "vm:read",
+        "vm:power"
+      ]
+    },
+    {
+      "id": "preview-shutdown",
+      "label": "Preview graceful shutdown",
+      "parameters": {
+        "vm_ids": {
+          "type": "string-list",
+          "required": true,
+          "max_items": 64,
+          "max_length": 73
+        }
+      },
+      "capabilities": [
+        "vm:read",
+        "vm:power"
+      ]
+    },
+    {
+      "id": "open-console",
+      "label": "Open selected console",
+      "parameters": {
+        "vm_ids": {
+          "type": "string-list",
+          "required": true,
+          "max_items": 64,
+          "max_length": 73
+        }
+      },
+      "capabilities": [
+        "vm:console"
+      ]
+    }
+  ],
+  "ui": {
+    "type": "column",
+    "children": [
+      {
+        "type": "text",
+        "text": "Select enrolled systems with a configured libvirt profile. Power actions require confirmation in the host. Select one VM to open its VNC console."
+      },
+      {
+        "type": "toolbar",
+        "children": [
+          {
+            "type": "field",
+            "name": "offset",
+            "label": "Inventory offset",
+            "input_type": "number",
+            "value": 0
+          },
+          {
+            "type": "button",
+            "label": "Read VM inventory",
+            "action": "load",
+            "parameters": {
+              "offset": {
+                "field": "offset"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "",
+        "bind": {
+          "text": {
+            "action": "load",
+            "path": [
+              "results",
+              0,
+              "data",
+              "notice"
+            ]
+          }
+        }
+      },
+      {
+        "type": "table",
+        "id": "vms",
+        "selection": "multiple",
+        "page_size": 32,
+        "columns": [
+          {
+            "id": "name",
+            "label": "VM"
+          },
+          {
+            "id": "system",
+            "label": "System"
+          },
+          {
+            "id": "state",
+            "label": "State"
+          },
+          {
+            "id": "vcpus",
+            "label": "vCPUs"
+          },
+          {
+            "id": "memory",
+            "label": "Memory (KiB)"
+          },
+          {
+            "id": "error",
+            "label": "Error"
+          }
+        ],
+        "rows": [],
+        "bind": {
+          "rows": {
+            "action": "load",
+            "path": [
+              "results",
+              0,
+              "data",
+              "rows"
+            ]
+          }
+        }
+      },
+      {
+        "type": "toolbar",
+        "children": [
+          {
+            "type": "button",
+            "label": "Preview start",
+            "action": "preview-start",
+            "parameters": {
+              "vm_ids": {
+                "selection": "vms"
+              }
+            }
+          },
+          {
+            "type": "button",
+            "label": "Preview graceful shutdown",
+            "action": "preview-shutdown",
+            "parameters": {
+              "vm_ids": {
+                "selection": "vms"
+              }
+            }
+          },
+          {
+            "type": "button",
+            "label": "Open selected console",
+            "action": "open-console",
+            "parameters": {
+              "vm_ids": {
+                "selection": "vms"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "files": {}
+}

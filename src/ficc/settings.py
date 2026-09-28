@@ -1,18 +1,26 @@
 # SPDX-License-Identifier: Apache-2.0
 """Validate local service settings and private state paths."""
 
+import logging
 import os
 import re
 import stat
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .native_runtime import discover
+from .windows_runtime import discover as discover_windows
+
 PROFILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\Z")
 SCOPES = {"nodes:read", "nodes:write", "resources:read", "tokens:manage", "audit:read",
           "jobs:read", "jobs:execute", "jobs:cancel", "jobs:logs",
           "files:read", "files:write", "files:mode", "files:delete",
           "terminals:read", "terminals:execute", "terminals:stop",
-          "agents:read", "agents:execute", "agents:stop", "bus:read", "bus:send"}
+          "agents:read", "agents:execute", "agents:stop", "bus:read", "bus:send",
+          "workspaces:read", "workspaces:write", "modules:read", "modules:manage",
+          "modules:execute", "audio:playback", "vm:read", "vm:power", "vm:console", "providers:write",
+          "container:read", "container:logs", "container:power",
+          "admin:read", "admin:logs", "admin:services", "admin:power"}
 MAX_NODES = 64
 MAX_MESSAGE = 1024 * 1024
 
@@ -41,9 +49,29 @@ class Settings:
     poll_interval: float = 5.0
     stale_after: float = 15.0
     control: bool = True
+    viewer_runtime: Path | None = None
+    viewer_runtime_error: str | None = field(default=None, init=False)
+    windows_runtime: Path | None = None
+    windows_runtime_error: str | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         self.state_dir = Path(self.state_dir).absolute()
+        if self.viewer_runtime is not None:
+            self.viewer_runtime = discover(Path(self.viewer_runtime))
+        else:
+            try:
+                self.viewer_runtime = discover()
+            except (OSError, ValueError):
+                self.viewer_runtime_error = "The installed display runtime is invalid or incompatible. Install a verified runtime for this host."
+                logging.getLogger(__name__).warning(self.viewer_runtime_error)
+        if self.windows_runtime is not None:
+            self.windows_runtime = discover_windows(Path(self.windows_runtime))
+        else:
+            try:
+                self.windows_runtime = discover_windows()
+            except (OSError, ValueError):
+                self.windows_runtime_error = "The installed Windows transport is invalid or incompatible. Install a verified runtime for this host."
+                logging.getLogger(__name__).warning(self.windows_runtime_error)
         if not 1024 <= self.port <= 65535:
             raise ValueError("Port must be between 1024 and 65535.")
         if len(self.profiles) > MAX_NODES or any(not PROFILE.fullmatch(p) for p in self.profiles):

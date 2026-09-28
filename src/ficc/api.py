@@ -20,11 +20,21 @@ from .control import Control
 from .errors import Failure
 from .file_routes import install as install_file_routes
 from .job_routes import install as install_job_routes
+from .module_adapter_routes import install as install_adapter_profiles
+from .module_admin_routes import install as install_module_administration
+from .module_containers_routes import install as install_module_containers
+from .module_editor import install as install_module_editor
+from .module_editor_store import retained as editor_retained
+from .module_routes import install as install_module_routes
+from .module_vm_routes import install as install_module_vms
+from .module_windows_routes import install as install_windows_endpoints
 from .schema import Bootstrap, EnrolRequest, PreviewRequest, RefreshRequest
 from .service import Service
 from .settings import MAX_MESSAGE, Settings
 from .terminal_routes import install as install_terminal_routes
 from .transfer_routes import install as install_transfer_routes
+from .viewer_routes import install as install_viewers
+from .workspace_routes import install as install_workspace_routes
 
 COOKIE = "ficc_session"
 
@@ -59,6 +69,13 @@ def create_app(settings: Settings) -> FastAPI:
                 await service.files.close()
                 await service.jobs.close()
                 await service.terminals.close()
+                await service.viewers.close()
+                await service.adapter_vms.close()
+                await service.containers.close()
+                await service.administration.close()
+                await service.adapters.stop()
+                await service.windows.close()
+                await service.module_runtime.stop()
                 if settings.control:
                     await control.close()
             finally:
@@ -72,9 +89,12 @@ def create_app(settings: Settings) -> FastAPI:
     app.state.service = service
     origins = {settings.origin, f"http://localhost:{settings.port}"}
     hosts = {origin.removeprefix("http://") for origin in origins}
+    package_uploads = 0
 
     @app.middleware("http")
     async def guards(request: Request, call_next):
+        nonlocal package_uploads
+        package_slot = False
         try:
             if request.headers.get("host") not in hosts:
                 raise Failure("invalid_host", "The request host is not allowed.", 403)
@@ -84,14 +104,21 @@ def create_app(settings: Settings) -> FastAPI:
             if request.headers.get("sec-fetch-site") == "cross-site":
                 raise Failure("invalid_origin", "Cross-site requests are not allowed.", 403)
             if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+                if request.url.path == "/api/v1/module-install-previews":
+                    principal(request, "modules:manage")
+                    if package_uploads >= 2:
+                        raise Failure("capacity", "Wait for a package upload to finish.", 429)
+                    package_uploads += 1
+                    package_slot = True
+                maximum = 16 * 1024 * 1024 if request.url.path == "/api/v1/module-install-previews" else MAX_MESSAGE
                 content_length = request.headers.get("content-length", "0")
-                if not content_length.isdigit() or int(content_length) > MAX_MESSAGE:
+                if not content_length.isdigit() or int(content_length) > maximum:
                     raise Failure("request_limit", "The request exceeds the limit.", 413)
                 data = bytearray()
                 async with asyncio.timeout(5):
                     async for chunk in request.stream():
                         data.extend(chunk)
-                        if len(data) > MAX_MESSAGE:
+                        if len(data) > maximum:
                             raise Failure("request_limit", "The request exceeds the limit.", 413)
                 request._body = bytes(data)
             response = await call_next(request)
@@ -99,10 +126,13 @@ def create_app(settings: Settings) -> FastAPI:
             response = failure_response(exc)
         except TimeoutError:
             response = failure_response(Failure("request_timeout", "The request timed out.", 408))
+        finally:
+            if package_slot:
+                package_uploads -= 1
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; "
             "style-src-elem 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; font-src 'self'; "
-            f"img-src 'self' data:; connect-src 'self' ws://127.0.0.1:{settings.port} "
+            f"img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws://127.0.0.1:{settings.port} "
             f"ws://localhost:{settings.port}; object-src 'none'; "
             "base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -245,12 +275,22 @@ def create_app(settings: Settings) -> FastAPI:
         unrestricted(value)
         async with service.configuration(node_id):
             service.authorize(value.id, "nodes:write", node_id)
+            if editor_retained(service.store, node_id=node_id):
+                raise Failure("editor_retained", "Recover and remove retained edit copies before forgetting this machine.", 409)
             if (service.jobs.store.active(node_id) or service.terminals.busy(node_id)
                     or any(root["node_id"] == node_id for root in service.files.registered())
                     or service.files.active(node_id=node_id) or service.transfers.active(node_id=node_id)):
                 raise Failure("node_busy", "Remove registered roots and resolve active work before forgetting this machine.", 409)
             if service.retained_history(node_id):
                 raise Failure("history_retained", "Archive completed history before forgetting this machine.", 409)
+            if any(item["node_id"] == node_id for item in service.containers.records.profiles()) or any(
+                    item["node_id"] == node_id for value in service.containers.records.all() for item in value["targets"]):
+                raise Failure("container_retained", "Remove container receipts and profiles before forgetting this machine.", 409)
+            if any(item["node_id"] == node_id for item in service.administration.records.profiles()) or any(
+                    item["node_id"] == node_id for value in service.administration.records.all() for item in value["targets"]):
+                raise Failure("admin_retained", "Remove administration profiles and operation receipts before removing this machine.", 409)
+            if service.vm_providers.retained(node_id):
+                raise Failure("vm_retained", "Remove VM profiles and operation receipts before forgetting this machine.", 409)
             service.store.delete_node(node_id)
             service.ssh.reset(node_id)
             service.store.audit("node.forget", node_id, actor=value.id)
@@ -285,6 +325,15 @@ def create_app(settings: Settings) -> FastAPI:
     install_transfer_routes(app, service, principal)
     install_job_routes(app, service, principal)
     install_terminal_routes(app, service, principal, origins, hosts)
+    install_workspace_routes(app, service, principal)
+    install_module_routes(app, service, principal)
+    install_module_editor(app, service, principal)
+    install_module_vms(app, service, principal)
+    install_adapter_profiles(app, service, principal)
+    install_windows_endpoints(app, service, principal)
+    install_module_containers(app, service, principal)
+    install_module_administration(app, service, principal)
+    install_viewers(app, service, principal, origins, hosts)
 
     static = Path(__file__).parent / "static"
     if static.is_dir():

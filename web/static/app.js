@@ -9,18 +9,22 @@ import { overview } from './overview.js';
 import { access, activity } from './access.js';
 import { agents } from './agents.js';
 import { bus } from './bus.js';
+import { workspaces } from './workspaces.js';
 
 const main = document.querySelector('#main');
 const nav = [...document.querySelectorAll('[data-view]')];
 const signOut = document.querySelector('#sign-out');
-let current, currentView;
+let current, currentView, navigating = false;
 
-function navigate(view, focus = false) {
+async function navigate(view, focus = false) {
   if (!getSession()) return;
-  if (current && currentView === view) return;
+  if (navigating || current && currentView === view) return;
+  navigating = true;
+  try {
+  if (current?.prepareLeave && !await current.prepareLeave()) return;
   for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
   current?.dispose();
-  current = ({ overview, jobs, files, terminals, agents, bus, access, activity })[view]();
+  current = ({ overview, jobs, files, terminals, agents, bus, access, activity, workspaces })[view]();
   currentView = view;
   main.replaceChildren(current.element);
   for (const item of nav) {
@@ -28,12 +32,13 @@ function navigate(view, focus = false) {
     else item.removeAttribute('aria-current');
   }
   if (focus) main.focus();
+  } finally { navigating = false; }
 }
 for (const item of nav) item.addEventListener('click', () => navigate(item.dataset.view, true));
-window.addEventListener('ficc-open-terminal', event => {
+window.addEventListener('ficc-open-terminal', async event => {
   if (!getSession() || typeof event.detail?.terminalId !== 'string') return;
-  navigate('terminals', true);
-  current.openTerminal(event.detail.terminalId);
+  await navigate('terminals', true);
+  if (currentView === 'terminals') current.openTerminal(event.detail.terminalId);
 });
 
 function locked(message = 'Open this console with the FICC command line to start an authenticated session.') {
@@ -54,7 +59,10 @@ function locked(message = 'Open this console with the FICC command line to start
 window.addEventListener('session-expired', () => locked('Your session expired or was revoked. Run ficc open to sign in again.'));
 signOut.addEventListener('click', async () => {
   signOut.disabled = true;
-  try { await request('/session', { method: 'DELETE' }); locked('You signed out. Run ficc open to start a new session.'); }
+  try {
+    if (current?.prepareLeave && !await current.prepareLeave()) return;
+    await request('/session', { method: 'DELETE' }); locked('You signed out. Run ficc open to start a new session.');
+  }
   catch (error) { if (getSession()) main.prepend(errorPanel(error)); }
   finally { signOut.disabled = false; }
 });
@@ -71,7 +79,9 @@ async function start() {
     const banner = document.querySelector('#mode-banner');
     banner.hidden = session.mode !== 'demo';
     banner.textContent = 'SIMULATION MODE / All machines and resource values are simulated. Live SSH adapters are disabled.';
-    navigate('overview');
+    const query = new URLSearchParams(location.search);
+    document.body.classList.toggle('workspace-window', query.get('window') === '1');
+    await navigate(query.has('surface') || query.has('workspace') ? 'workspaces' : 'overview');
   } catch (error) {
     if ([401, 403].includes(error.status)) locked(hasBootstrap ?
       'This sign-in link is invalid, expired or already used. Run ficc open for a new link.' : undefined);

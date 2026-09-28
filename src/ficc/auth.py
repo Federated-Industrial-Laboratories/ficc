@@ -60,7 +60,7 @@ class Auth:
             if len(node_ids) > MAX_NODES or any(not isinstance(n, str) for n in node_ids):
                 raise Failure("invalid_nodes", "The machine selection is invalid.")
             for node_id in node_ids:
-                self.store.node(node_id)
+                self.store.endpoint_kind(node_id)
         if root_ids is not None:
             if len(root_ids) > 64 or any(not isinstance(r, str) for r in root_ids):
                 raise Failure("invalid_roots", "The folder selection is invalid.")

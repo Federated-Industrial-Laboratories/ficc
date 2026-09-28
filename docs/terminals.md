@@ -42,7 +42,9 @@ a missing session becomes closed. This check does not create a replacement.
 Focus terminal explicitly before typing. Ctrl+Shift+Escape returns focus to
 that pane's toolbar. Only the selected visible terminal receives keyboard input.
 Machine tabs preserve connections and output; hidden terminals cannot receive
-input. Arrow keys, Home and End select machine tabs when a tab has keyboard focus.
+input.
+
+Arrow keys, Home and End select machine tabs when a tab has keyboard focus.
 Disconnected input is refused
 and never queued for reconnection. Resize follows the terminal pane within
 2-300 columns and 2-120 rows. Scrollback retains 2,000 rows in the browser.

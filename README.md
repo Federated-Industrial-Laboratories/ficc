@@ -5,7 +5,7 @@
 <p align="center">A local console for Linux clusters, connected through OpenSSH.</p>
 
 <p align="center">
-  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.1.0 | Python 3.12 or later | OpenSSH">
+  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.2.0 | Python 3.12 or later | OpenSSH">
 </p>
 
 <p align="center">
@@ -22,6 +22,18 @@ one local web interface. A Python service owns the local API and recorded state.
 Approved SSH connections reach small helpers on enrolled machines. Existing SSH
 tools continue to work.
 
+Runtime modules add saved workspaces, VM and container controls, text editors and
+shared sound. Supplied modules use the same inspected archives and explicit grants
+as other packages. The [SDK](sdk/README.md) supports C, C++, Rust, Python and
+JavaScript, including TypeScript authoring.
+
+Hyper-V and VirtualBox are not supported for operational use in version 0.2.0.
+Hyper-V includes experimental package sources; real Windows lifecycle and VMConnect remain unqualified.
+VirtualBox has no complete provider package, and its local IPC transport remains disabled.
+Use KVM/libvirt or Proxmox VE for verified VM inventory, power actions and display.
+
+See [provider support](docs/testing.md#runtime-modules-and-providers) for requirements and limits.
+
 The interface uses white and silver panels, orange controls and compact tables.
 All application assets are local, including fonts. The controller listens on
 loopback; shared remote access remains outside this release.
@@ -36,6 +48,7 @@ loopback; shared remote access remains outside this release.
 | Terminals | Interactive SSH and tmux sessions with machine tabs, adjustable splits, tile zoom and fullscreen. |
 | Agents | Registered OMP, Codex and generic commands with their own managed terminal sessions. |
 | Bus | Host-owned runs, explicit recipients, direct adapters and a tool-readable inbox. |
+| Workspace | Runtime modules, saved docked or floating panels, workspace tiling, separate monitor windows and sound. |
 | Access and Activity | Expiring scoped credentials, node/root restrictions and recorded actions. |
 
 > [!NOTE]
@@ -59,7 +72,9 @@ history and node output. No history expires automatically.
 | Managed jobs | A usable systemd user manager and the controls shown in the job preview. |
 | Persistent terminals | tmux on the selected node. |
 | Coding agents | An installed runtime and its provider sign-in on the selected node. |
-| Build and browser checks | Node.js 20 or later and the locked development dependencies. |
+| Program modules | Bubblewrap, a systemd user manager and enforced namespace, syscall and cgroup controls. |
+| VM displays | A separate compatible native viewer runtime and the provider's supported console. |
+| Build and browser checks | Node.js 22 or later, C/C++ tools, OpenSSL development files and locked dependencies. |
 
 Binary packages bundle Python and need no Node.js. See the
 [Linux packages](docs/releases.md) for AppImage, Debian, Arch and portable formats.
@@ -67,6 +82,7 @@ Controller and node qualification are separate; nodes still need Python and SSH.
 prevent CPU and memory observation.
 
 See [installation](docs/install.md) and [testing](docs/testing.md).
+See [modules](docs/modules.md) for grants and [native viewer installation](docs/viewer-runtime.md) for display requirements.
 
 </details>
 
@@ -95,8 +111,9 @@ Use `./install.sh --profile rack-01` to approve an existing trusted alias.
 
 When `~/.local/bin` is on PATH, use `ficc` to open the console, `ficc status`
 to check it and `ficc stop` to stop it. The installer prints a PATH command when
-needed. An updated system Python 3.10 or later, OpenSSH, coreutils, systemd and
-xdg-utils are required. [Installation](docs/install.md) covers prerequisites,
+needed. Use an updated system Python 3.10 or later.
+Install OpenSSH, coreutils, systemd, xdg-utils and native build prerequisites.
+[Installation](docs/install.md) covers prerequisites,
 command-only setups, updates and development environments.
 
 ## Try the interface
@@ -146,8 +163,10 @@ See [operation](docs/operations.md) before changing existing launcher settings.
 ## Coding agents and messages
 
 Install and sign in to the chosen coding agent on its node. Register its exact
-executable and workspace with `ficc agent-profile-add`. In **Bus**, create a run;
-in **Agents**, select that run and profile, review the preview, then launch.
+executable and workspace with `ficc agent-profile-add`.
+
+Create a run in Bus. Select that run and profile in Agents, review the preview,
+then launch.
 **Open terminal** selects that agent's native terminal in the tiled workspace.
 
 OMP 18.1.12 and Codex 0.156.1 have native direct adapters. Other commands can use
@@ -170,6 +189,8 @@ web/            HTML, CSS, JavaScript and locked build dependencies
 tests/          Python, SSH, browser and source checks
 docs/           operator guides and reference; start at docs/README.md
 tools/          source and development checks
+modules/        independent supplied module sources
+sdk/            language libraries, examples, component format and conformance
 ```
 
 </details>
@@ -184,9 +205,10 @@ and a guide to each manual. Start with [architecture](docs/architecture.md),
 [installation](docs/install.md) and [operation](docs/operations.md).
 
 Read [security](SECURITY.md) before issuing credentials or opening a terminal.
-[Testing](docs/testing.md) states qualification boundaries;
-[contributing](CONTRIBUTING.md) describes the branch, check and pull-request policy.
-[Dependencies](docs/dependencies.md) retain their separate licences and notices.
+
+[Testing](docs/testing.md) states qualification boundaries.
+[Contributing](CONTRIBUTING.md) describes the branch, check and pull-request policy.
+[Dependencies](docs/dependencies.md) retain their separate licenses and notices.
 
 <p align="center"><img src=".github/assets/divider.svg" width="720" alt=""></p>
 
