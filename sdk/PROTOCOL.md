@@ -1,4 +1,6 @@
-# Process protocol 1
+# Process protocols
+
+## Process protocol 1
 
 One action starts one process. The host writes two frames to standard input,
 closes that stream and waits for the complete response. There is no persistent
@@ -53,7 +55,7 @@ and JavaScript packages can declare `any`. The host runs Python in isolated mode
 and Node.js with native addons disabled. The Python example loads its bundled SDK
 by its exact sibling path so isolated mode does not require a mutable import path.
 
-# Process protocol 2
+## Process protocol 2
 
 An executable manifest can set `runtime.protocol` to `2`. Omission selects
 protocol 1. Declarative runtimes do not accept this field. Existing protocol 1

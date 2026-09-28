@@ -67,6 +67,42 @@ def test_cached_download_requires_exact_digest(tmp_path):
         fetch({"inputs": [item]}, tmp_path)
 
 
+@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("tamper", [False, True])
+def test_preserved_runtime_prefix_checks_original_bytes(tmp_path, monkeypatch, count, tamper):
+    items, bodies, expected = [], {}, {}
+    for index in range(count):
+        name = f"runtime-{index}"
+        runtime = f"distinct {index:06d}".encode() + bytes(16) + f"code {index}".encode()
+        offset = len(f"distinct {index:06d}".encode())
+        data = bytearray(runtime)
+        data[offset:offset + 16] = bytes([index + 1]) * 16
+        if tamper and index == count - 1:
+            data[-1] ^= 1
+        url = f"https://github.com/example/release/{name}.AppImage"
+        bodies[url] = bytes(data) + b"separate filesystem content"
+        expected[name] = runtime
+        items.append({"id": name, "name": name, "url": url, "size": len(runtime),
+                      "sha256": hashlib.sha256(runtime).hexdigest(), "appimage_runtime_prefix": True,
+                      "digest_md5_offset": offset})
+    calls = []
+
+    def download(url, timeout):
+        calls.append(url)
+        return io.BytesIO(bodies[url])
+
+    monkeypatch.setattr("urllib.request.urlopen", download)
+    if tamper:
+        with pytest.raises(ValueError, match="pinned hash"):
+            fetch({"inputs": items}, tmp_path)
+        assert not (tmp_path / items[-1]["name"]).exists()
+    else:
+        result = fetch({"inputs": items}, tmp_path)
+        assert {name: path.read_bytes() for name, path in result.items()} == expected
+    assert calls == [item["url"] for item in items]
+    assert not list(tmp_path.glob(".download-*"))
+
+
 def test_distribution_record_cannot_escape_payload(tmp_path):
     site = tmp_path / "site"
     record = site / "example.dist-info/RECORD"

@@ -21,8 +21,12 @@ publication candidate. A source archive includes release-source.json and can
 be rebuilt with this same command after extracting it and installing build tools.
 
 Runtime downloads use exact lengths and SHA-256 digests. Continuous AppImage
-upstream assets can be replaced: retain the verified build cache. A changed
-upstream asset fails closed and requires an explicitly reviewed lock update.
+upstream assets can be replaced. The pinned runtime is preserved in the published
+FICC 0.1.0 AppImage. Assembly reads its bounded runtime prefix and clears the
+embedded AppImage checksum field before checking the original runtime SHA-256.
+The executable bytes and corresponding source revision remain unchanged.
+
+Retain the verified build cache. Other changed inputs fail their pinned checks.
 The runtime source and build instructions are also distributed for rebuilding.
 
 ## Arch package

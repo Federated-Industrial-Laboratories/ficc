@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: '22'
       - run: python -m pip install --require-hashes -r requirements-dev.lock
-      - run: sudo apt-get update && sudo apt-get install -y build-essential libssl-dev openssh-server tmux zstd squashfs-tools
+      - run: sudo apt-get update && sudo apt-get install -y bubblewrap build-essential libssl-dev openssh-server tmux zstd squashfs-tools
       - run: npm ci --prefix web && npm run build --prefix web
       - run: python tools/build-modules.py defaults --fetch --output src/ficc/module_packages
       - run: python -m pip install --no-deps --no-build-isolation -e .
