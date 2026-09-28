@@ -56,7 +56,7 @@ for (const kind of ['vms', 'containers', 'admin']) for (const count of [1, 64]) 
   await page.getByRole('button', { name: `Review ${label} action in FICC`, exact: true }).click();
   const dialog = page.getByRole('dialog');
   if (!vm) await expect(dialog).toContainText(admin ? 'Unit dependencies' : '10 seconds');
-  expect(await dialog.getByRole('row').count()).toBe(count + 1);
+  await expect(dialog.getByRole('row')).toHaveCount(count + 1);
   const confirm = dialog.getByRole('button', { name: vm ? 'Shut down these VMs' : admin ? 'Stop these services' : 'Stop these containers', exact: true });
   await confirm.click();
   await expect(dialog).toContainText('Retry uses the same operation key');

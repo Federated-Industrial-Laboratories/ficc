@@ -39,7 +39,7 @@ async function install(page, name, workspaces, kind = 'notes') {
   await dialog.getByRole('button', { name: 'Enable with selected grants', exact: true }).click();
   await expect(row).toContainText('Enabled');
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
-  await page.getByLabel('Installed module').selectOption({ label: name });
+  await page.getByLabel('Installed module', { exact: true }).selectOption({ label: name });
   await page.getByRole('button', { name: 'Add module', exact: true }).click();
 }
 
