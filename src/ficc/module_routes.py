@@ -16,6 +16,7 @@ from .module_bundle import read as read_supplied
 from .module_capabilities import catalogue, require_target
 from .module_fetch import fetch_package
 from .modules import inspect_archive
+from .modules.sandbox import require_runtime
 from .schema import Model
 from .workspace_schema import Digest, Identity
 
@@ -155,6 +156,7 @@ def install(app, service, principal):
         sandbox_ready = False
         if current["manifest"]["runtime"]["kind"] != "declarative" and body.enabled:
             service.live()
+            require_runtime(current["manifest"], service.modules.verify(digest))
             status = await service.module_runtime.sandbox.probe()
             if not status.available:
                 raise Failure("module_sandbox_unavailable", status.reason, 503)

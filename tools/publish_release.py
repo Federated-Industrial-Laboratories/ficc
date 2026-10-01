@@ -70,10 +70,16 @@ def find_release(endpoint: str, tag: str):
     return matches[0] if matches else None
 
 
-def publish(output: Path, repo: str, notes: Path, publish_now: bool) -> str:
+def publish(output: Path, repo: str, notes: Path, publish_now: bool, tag: str | None = None) -> str:
     build, assets = validate(output)
     version, commit = build['version'], build['source']['commit']
-    tag = 'v' + version
+    default_tag = 'v' + version
+    allowed_tags = {default_tag}
+    if 'rc' not in version:
+        allowed_tags.add(default_tag + '-stable')
+    tag = default_tag if tag is None else tag
+    if tag not in allowed_tags:
+        raise ValueError('Release tag must match the package version and release status')
     endpoint = 'repos/' + repo
     default = gh('api', endpoint)['default_branch']
     if gh('api', endpoint + '/commits/' + default)['sha'] != commit:
@@ -86,7 +92,7 @@ def publish(output: Path, repo: str, notes: Path, publish_now: bool) -> str:
         raise ValueError('Published releases are immutable; use a new version')
     if not release:
         subprocess.run(['gh', 'release', 'create', tag, '--repo', repo, '--draft', '--target', commit,
-                        '--title', 'FICC ' + version, '--notes-file', str(notes)], check=True)
+                        '--title', 'FICC ' + tag[1:], '--notes-file', str(notes)], check=True)
         release = find_release(endpoint, tag)
         if release is None:
             raise ValueError('Created draft is not visible; check repository release permissions')
@@ -122,9 +128,10 @@ def main() -> None:
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--repo', default='Federated-Industrial-Laboratories/ficc')
     parser.add_argument('--notes', type=Path, required=True)
+    parser.add_argument('--tag', help='Version tag, with an optional -stable suffix for stable packages')
     parser.add_argument('--publish', action='store_true', help='Publish after verifying every uploaded asset')
     args = parser.parse_args()
-    print(publish(args.output, args.repo, args.notes, args.publish))
+    print(publish(args.output, args.repo, args.notes, args.publish, args.tag))
 
 
 if __name__ == '__main__':

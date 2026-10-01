@@ -52,6 +52,7 @@ def test_live_domain_display_and_cleanup(live_vm):
         arguments, header = await live.service.vms.console_command(descriptor, guard)
         with pytest.raises(Complete):
             async with asyncio.timeout(30):
-                await bridge(Socket(), Path(os.environ["FICC_VIEWER_RUNTIME"]), arguments, header, guard)
+                await bridge(Socket(), Path(os.environ["FICC_VIEWER_RUNTIME"]), arguments, header, guard,
+                             authentication=descriptor["graphics"]["authentication"])
         assert counts["img"] and counts["end"] and counts["size"] and counts["sync"]
     live.client.portal.call(run)

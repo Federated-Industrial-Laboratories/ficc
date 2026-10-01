@@ -95,7 +95,8 @@ class Output:
         op, args = values[0], values[1:]
         counts = {"ready": (1,), "name": (1,), "sync": (1, 2), "size": (3,), "rect": (5,),
                   "cfill": (6,), "copy": (9,), "cursor": (7,), "dispose": (1,), "reset": (1,),
-                  "img": (6,), "blob": (2,), "end": (1,), "error": (2,), "disconnect": (0,), "nop": (0,)}
+                  "img": (6,), "blob": (2,), "end": (1,), "mouse": (2, 4),
+                  "error": (2,), "disconnect": (0,), "nop": (0,)}
         if op not in counts or len(args) not in counts[op]:
             raise OutputError("Unsupported display output instruction.")
         if op in {"ready", "name"}:
@@ -135,6 +136,12 @@ class Output:
                 raise OutputError("Display image exceeds its limit.")
             stream.extend(data)
             return []
+        elif op == "mouse":
+            number(args[0], 4095)
+            number(args[1], 2159)
+            if len(args) == 4:
+                number(args[2], 31)
+                number(args[3], 2**53 - 1)
         elif op == "size":
             layer = self.layer(args[0])
             self.layers[layer] = (0, 0)

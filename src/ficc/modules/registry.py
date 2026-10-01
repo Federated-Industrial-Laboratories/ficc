@@ -15,6 +15,7 @@ from ..errors import Failure
 from ..module_capabilities import SUPPORTED
 from .archive import Inspection, inspect_archive, publish, recover_stages, verify
 from .manifest import required_capabilities
+from .sandbox import require_runtime
 from .ui import reference
 from .validation import digest as valid_digest
 from .validation import fields, invalid, loads, strings
@@ -125,7 +126,8 @@ class Registry:
             current = self.get(digest)
             manifest = current["manifest"]
             if enabled:
-                self.verify(digest)
+                package = self.verify(digest)
+                require_runtime(manifest, package)
                 if set(required_capabilities(manifest)) - SUPPORTED:
                     raise Failure("module_capability_unavailable",
                                   "This package requires a capability that is not available.", 409)

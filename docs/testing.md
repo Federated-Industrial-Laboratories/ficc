@@ -136,12 +136,20 @@ Current VM provider qualification is:
 | --- | --- | --- |
 | KVM/libvirt | Real inventory, power actions and interactive display through FICC. | Requires a configured provider profile and compatible native viewer. |
 | Proxmox VE | Real inventory, power actions and authenticated display through FICC. | Requires a supported provider version, grants and native viewer. |
-| Hyper-V | Package protocol, sandbox and component fixtures. | Real Windows lifecycle and VMConnect are not qualified. |
-| VirtualBox | No complete provider package. | Local IPC execution remains disabled. |
+| Hyper-V | Real inventory, confirmed start and graceful shutdown, interactive VMConnect, revocation and retained outcomes. | Windows Server 2025; HTTPS WinRM, fixed JEA endpoint and separately pinned display account required. |
+| VirtualBox | Real inventory, confirmed start and graceful shutdown, interactive private display and revocation. | VirtualBox 7.2.20r175154 on Ubuntu 26.04 x86_64; account sandbox and matching free display extension required. |
 | VMware vSphere | None. | Not included. |
 
-Hyper-V and VirtualBox are not supported for operational use in this source state.
-Their unit checks do not establish working VM management or display.
+Hyper-V qualification covers one and 64 distinct lightweight VM definitions, confirmed starts and observed outcomes.
+A separate bootable Linux guest completes graceful shutdown and interactive VMConnect checks.
+The 64-VM case does not establish capacity for 64 fully loaded guest operating systems.
+Inventory and commits have finite deadlines; lost acknowledgements remain unknown until explicitly reconciled.
+See [Windows endpoint requirements](windows-endpoints.md).
+
+VirtualBox qualification includes 64 distinct VM definitions for inventory, status, previews and stale-action refusal.
+It does not establish 64 concurrently running guests or displays.
+The bootable guest completes a separate real power and console workflow.
+See [VirtualBox requirements and limits](providers/virtualbox.md).
 
 Module checks cover archive validation, exact digest grants, malformed protocol messages and cancellation.
 Workspace checks cover revision conflicts, missing packages, independent windows, geometry recovery and nested fullscreen.
@@ -165,6 +173,18 @@ Use dedicated accounts, pinned SSH configurations and fixtures matching each tes
 Do not point these tests at production resources. Read the test's setup and cleanup requirements first.
 Provider tests cover inventory, lifecycle, revocation, unknown outcomes and exact receipt removal.
 Distinct one-resource and 64-resource tests do not imply 64 concurrent VM displays or running guests.
+
+The real browser display check uses an isolated controller with a prepared, running disposable VM.
+Set `FICC_URL`, `FICC_STATE_DIR`, and `FICC_CLI` for that controller.
+Set `FICC_VIEWER_FIXTURE=1` and select `libvirt`, `proxmox`, `hyperv`, or `virtualbox` with `FICC_VIEWER_PROVIDER`.
+Use `FICC_VIEWER_WORKSPACE`, `FICC_VIEWER_PANEL`, and `FICC_VIEWER_MACHINE` to select the exact fixture.
+Packaged providers also require the registered profile ID in `FICC_VIEWER_PROFILE`.
+
+Run `viewer.spec.mjs` with the browser configuration above and `FICC_HEADED=1`.
+The check covers display output, input release, nested fullscreen, small-window restoration, and grant revocation.
+It restores the module's previous activation and grants after the check.
+Do not run concurrent operations against that module during this check.
+Confirm guest input separately by observing the guest's response to a harmless console command.
 
 Administration service fixtures use a dedicated user manager.
 Power tests require a separate disposable guest and an independent observer of boot and shutdown.

@@ -13,11 +13,11 @@ from publish_release import validate, verify_assets  # noqa: E402
 from release_lib.common import digest  # noqa: E402
 
 
-def local_release(root):
-    names = required_artifacts('1.0.0') | {'ficc-bin-1.0.0-1-x86_64.pkg.tar.zst'}
+def local_release(root, version='1.0.0'):
+    names = required_artifacts(version) | {f'ficc-bin-{version}-1-x86_64.pkg.tar.zst'}
     for name in names:
         (root / name).write_text('distinct synthetic ' + name)
-    build = {'version': '1.0.0', 'source': {'commit': 'a' * 40, 'dirty': False}, 'formats_complete': True,
+    build = {'version': version, 'source': {'commit': 'a' * 40, 'dirty': False}, 'formats_complete': True,
              'artifacts': {n: digest(root / n) for n in names}}
     (root / 'build.json').write_text(json.dumps(build))
     sums(root)
@@ -73,7 +73,8 @@ def test_remote_assets_are_checked_individually(count, failure):
 
 
 @pytest.mark.parametrize('failure', ['none', 'wrong-tag', 'wrong-master', 'uploaded-digest'])
-def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, monkeypatch, failure):
+@pytest.mark.parametrize('tag', [None, 'v1.0.0-stable'])
+def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, monkeypatch, failure, tag):
     import publish_release as module
 
     local_release(tmp_path)
@@ -81,7 +82,7 @@ def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, 
     remote = [{'name': n, 'state': 'uploaded', **v} for n, v in assets.items()]
     if failure == 'uploaded-digest':
         remote[-1]['digest'] = 'sha256:' + 'f' * 64
-    release = {'id': 42, 'tag_name': 'v1.0.0', 'draft': True, 'target_commitish': 'a' * 40, 'assets': remote, 'html_url': 'https://example.com/release'}
+    release = {'id': 42, 'tag_name': tag or 'v1.0.0', 'draft': True, 'target_commitish': 'a' * 40, 'assets': remote, 'html_url': 'https://example.com/release'}
     calls = []
 
     def fake_gh(*args, **kwargs):
@@ -101,6 +102,8 @@ def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, 
     def fake_run(command, **kwargs):
         calls.append(command)
         if command[:3] == ['gh', 'release', 'edit']:
+            assert command[3] == release['tag_name']
+            assert '--prerelease=false' in command and '--latest=true' in command
             release['draft'] = False
 
     # A nonempty ref object models an existing version tag.
@@ -108,21 +111,22 @@ def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, 
 
     def ref_gh(*args, **kwargs):
         result = original_gh(*args, **kwargs)
-        return {'ref': 'refs/tags/v1.0.0'} if result == {} else result
+        return {'ref': 'refs/tags/' + release['tag_name']} if result == {} else result
 
     monkeypatch.setattr(module, 'gh', ref_gh)
     monkeypatch.setattr(module.subprocess, 'run', fake_run)
     if failure == 'none':
-        assert module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True) == release['html_url']
+        assert module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True, tag) == release['html_url']
         assert len(calls) == 1 and '--draft=false' in calls[0]
     else:
         with pytest.raises(ValueError):
-            module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True)
+            module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True, tag)
         assert not calls and release['draft']
 
 
 @pytest.mark.parametrize('resume', [False, True])
-def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monkeypatch, resume):
+@pytest.mark.parametrize('tag', [None, 'v1.0.0-stable'])
+def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monkeypatch, resume, tag):
     import subprocess
 
     import publish_release as module
@@ -130,7 +134,7 @@ def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monk
     local_release(tmp_path)
     _, expected = validate(tmp_path)
     assets = [{'name': n, 'state': 'uploaded', **v} for n, v in list(expected.items())[:3]] if resume else []
-    release = {'id': 42, 'tag_name': 'v1.0.0', 'draft': True, 'target_commitish': 'a' * 40,
+    release = {'id': 42, 'tag_name': tag or 'v1.0.0', 'draft': True, 'target_commitish': 'a' * 40,
                'assets': assets, 'html_url': 'https://example.com/release'}
     created, mutations = resume, []
 
@@ -145,7 +149,7 @@ def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monk
             elif '/commits/' in endpoint:
                 value = {'sha': 'a' * 40}
             elif '/git/ref/tags/' in endpoint:
-                value = {'ref': 'refs/tags/v1.0.0'}
+                value = {'ref': 'refs/tags/' + release['tag_name']}
             elif endpoint == 'repos/example/ficc/releases':
                 assert command[3:] == ['--paginate']
                 value = [[], [release]] if created else [[]]
@@ -155,10 +159,12 @@ def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monk
             body = '\n'.join(json.dumps(page, indent=2) for page in value) if '--paginate' in command else json.dumps(value)
             return subprocess.CompletedProcess(command, 0, body, '')
         assert command[:2] == ['gh', 'release']
+        assert command[3] == release['tag_name']
         action = command[2]
         mutations.append(action)
         if action == 'create':
             assert not created and '--draft' in command
+            assert command[command.index('--title') + 1] == 'FICC ' + release['tag_name'][1:]
             created = True
         elif action == 'upload':
             name = Path(command[4]).name
@@ -166,13 +172,33 @@ def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monk
             assets.append({'name': name, 'state': 'uploaded', **expected[name]})
         else:
             assert action == 'edit' and '--draft=false' in command
+            assert '--prerelease=false' in command and '--latest=true' in command
             module.verify_assets(assets, expected, complete=True)
             release['draft'] = False
         return subprocess.CompletedProcess(command, 0, '', '')
 
     monkeypatch.setattr(module.subprocess, 'run', fake_run)
-    assert module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True) == release['html_url']
+    assert module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True, tag) == release['html_url']
     assert mutations.count('create') == (0 if resume else 1)
     assert mutations.count('upload') == (9 if resume else 12)
     assert mutations[-1] == 'edit' and mutations.count('edit') == 1
     assert not release['draft']
+
+
+@pytest.mark.parametrize(('version', 'tag'), [
+    ('1.0.0', 'v1.0.1-stable'), ('1.0.0', 'v1.0.0-nightly'),
+    ('1.0.0', 'v1.0.0-stable/extra'), ('1.0.0', ''),
+    ('1.0.0rc1', 'v1.0.0rc1-stable'),
+])
+def test_invalid_release_tag_is_refused_before_remote_access(tmp_path, monkeypatch, version, tag):
+    import publish_release as module
+
+    local_release(tmp_path, version)
+
+    def unexpected(*args, **kwargs):
+        pytest.fail('Invalid tag must be refused before a remote request or mutation')
+
+    monkeypatch.setattr(module, 'gh', unexpected)
+    monkeypatch.setattr(module.subprocess, 'run', unexpected)
+    with pytest.raises(ValueError, match='Release tag'):
+        module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True, tag)

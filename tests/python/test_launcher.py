@@ -11,7 +11,15 @@ import pytest
 
 from ficc import launcher
 from ficc.cli import parser
-from ficc.launcher_config import LaunchConfig, desktop_text, load, save, unit_text, write_file
+from ficc.launcher_config import (
+    LaunchConfig,
+    desktop_text,
+    legacy_unit_text,
+    load,
+    save,
+    unit_text,
+    write_file,
+)
 
 
 def configured(tmp_path):
@@ -92,6 +100,40 @@ def test_stop_verifies_unit_before_touching_service(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="Different"):
         launcher.stop(path)
     assert calls == []
+
+
+@pytest.mark.parametrize("already_ready", [False, True])
+def test_legacy_start_retains_settings_and_ready_process(tmp_path, monkeypatch, already_ready):
+    path, config = configured(tmp_path)
+    unit = Path(config.unit_path)
+    unit.write_text(legacy_unit_text(config, path))
+    saved = path.read_bytes()
+    calls = []
+    readiness = iter([already_ready, True])
+    monkeypatch.setattr(launcher, "ready", lambda value: next(readiness))
+
+    def systemctl(*args, **kwargs):
+        calls.append(args)
+        output = config.unit_path if "--property=FragmentPath" in args else ""
+        return subprocess.CompletedProcess(args, 0, output, "")
+
+    monkeypatch.setattr(launcher, "systemctl", systemctl)
+    assert launcher.start(path) == config
+    assert path.read_bytes() == saved
+    mutations = [args[0] for args in calls if args[0] != "show"]
+    assert mutations == ([] if already_ready else ["stop", "daemon-reload", "start"])
+    assert unit.read_text() == (legacy_unit_text if already_ready else unit_text)(config, path)
+
+
+def test_changed_legacy_service_is_never_rewritten(tmp_path, monkeypatch):
+    path, config = configured(tmp_path)
+    unit = Path(config.unit_path)
+    original = legacy_unit_text(config, path) + "\n# Local change\n"
+    unit.write_text(original)
+    monkeypatch.setattr(launcher, "systemctl", lambda *a, **kw: pytest.fail("contacted manager"))
+    with pytest.raises(ValueError, match="differs"):
+        launcher.start(path)
+    assert unit.read_text() == original
 
 
 def test_overridden_unit_is_refused(tmp_path, monkeypatch):

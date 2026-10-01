@@ -8,6 +8,8 @@ import re
 import struct
 import time
 
+from ficc_node.adapter_display import descriptor as display_descriptor
+
 from ..backup_io import read
 from ..errors import Failure
 from ..module_vm_store import node_identity
@@ -19,7 +21,8 @@ from ..ssh import transport_failure
 from .libvirt import entry
 
 COMMAND = entry("adapter_rpc")
-LOCAL_IPC_QUALIFIED = False
+CONSOLE_COMMAND = entry("adapter_console")
+LOCAL_IPC_QUALIFIED = True
 
 
 class EndpointTransport:
@@ -149,6 +152,7 @@ class EndpointTransport:
                 "digest": selected["digest"], "request": conversation.request}, check, timeout=timeout + 2)
         if self.windows is None:
             raise Failure("adapter_transport_unavailable", "The Windows endpoint transport is unavailable.", 503)
+        timeout = 30
         deadline = time.monotonic() + timeout
         async def forward(call):
             check()
@@ -191,11 +195,27 @@ class EndpointTransport:
                     or re.fullmatch(r"[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}", value) is None):
                 raise Failure("adapter_console_invalid", "The registered VM display identity is invalid.", 409)
             return {"protocol": "rdp", "authentication": "registered-account"}
-        raise Failure("adapter_console_unavailable", "The local provider display resource is not qualified.", 503)
+        self.local_available()
+        parameters = fields(proposal["parameters"], {"pid", "socket_path", "password"})
+        if proposal["kind"] != "vnc" or not isinstance(parameters["password"], str) or re.fullmatch(r"[A-Za-z0-9]{8}", parameters["password"]) is None:
+            raise Failure("adapter_console_invalid", "The local display credential or protocol is invalid.", 409)
+        value = await self.rpc(selected["endpoint_id"], "display-describe", {
+            "binding_id": selected["transport_binding_id"], "parameters": {key: parameters[key] for key in ("pid", "socket_path")}}, check)
+        return {"protocol": "vnc", "authentication": "rfb-password", "audio": False, "display": display_descriptor(value)}
 
     async def console_command(self, descriptor, check):
         check()
-        raise Failure("adapter_console_unavailable", "The local provider display resource is not qualified.", 503)
+        selected, proposal = descriptor["profile"], descriptor["proposal"]
+        if selected["endpoint_kind"] != "linux-ssh":
+            raise Failure("adapter_console_unavailable", "This display does not use the local stream transport.", 503)
+        current = await self.console_descriptor(selected, proposal, check)
+        if current != descriptor["graphics"]:
+            raise Failure("adapter_console_changed", "The display process or listener changed after selection.", 409)
+        node = self.service.store.node(selected["endpoint_id"])
+        arguments = await self.service.ssh.arguments(node)
+        check()
+        return arguments + [CONSOLE_COMMAND], dumps({"binding_id": selected["transport_binding_id"],
+            "display": current["display"], "password": proposal["parameters"]["password"]}) + b"\n"
 
     async def console_connection(self, descriptor, check):
         selected, proposal = descriptor["profile"], descriptor["proposal"]

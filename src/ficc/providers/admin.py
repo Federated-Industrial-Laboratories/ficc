@@ -19,13 +19,17 @@ def response_error(value):
 
 
 def description(value):
-    spec.fields(value, set(spec.EXPECTED) | {"detail", "metrics"})
+    spec.fields(value, set(spec.EXPECTED) | {"detail", "metrics"}, {"power"})
     spec.expected({key: value[key] for key in spec.EXPECTED})
     spec.text(value["detail"], 128, empty=True)
     if value["metrics"] is not None:
         spec.fields(value["metrics"], {"uptime_seconds", "memory_total", "memory_available"})
         for item in value["metrics"].values():
             spec.integer(item, 0, 2**53 - 1)
+    if "power" in value:
+        spec.fields(value["power"], spec.POWER)
+        if any(not isinstance(item, str) or item not in spec.POWER_ACCESS for item in value["power"].values()):
+            raise ValueError("Invalid power permission status.")
     return value
 
 

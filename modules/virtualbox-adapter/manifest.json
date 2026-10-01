@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "id": "org.ficc.virtualbox-adapter",
+  "version": "1.0.0",
+  "category": "virtual-machines",
+  "contract_version": 1,
+  "host_api": 1,
+  "role": "provider-adapter",
+  "display_name": "VirtualBox provider adapter",
+  "publisher": "Federated Industrial Laboratories",
+  "description": "Use an enrolled VirtualBox account for VM inventory, start, guest shutdown and VNC.",
+  "runtime": {
+    "kind": "native",
+    "language": "c",
+    "protocol": 1,
+    "platform": "linux",
+    "architecture": "x86_64",
+    "entry": "program"
+  },
+  "adapter": {
+    "version": 1,
+    "family": "virtual-machines",
+    "execution": "enrolled-node",
+    "transport": "local-ipc",
+    "consistency": "checked-before-dispatch",
+    "operations": [
+      "inventory",
+      "status",
+      "start",
+      "shutdown",
+      "console"
+    ]
+  },
+  "capabilities": [
+    "provider:admin"
+  ],
+  "dependencies": [],
+  "actions": [],
+  "ui": {
+    "type": "column",
+    "children": []
+  },
+  "files": {}
+}

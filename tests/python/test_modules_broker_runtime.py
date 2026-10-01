@@ -97,7 +97,7 @@ def pipe_runtime(registry, monkeypatch):
 
     # Only unit tests substitute the platform boundary. Real tests below do not.
     monkeypatch.setattr(runtime.sandbox, 'probe', probe)
-    monkeypatch.setattr(sandbox, 'command', lambda path, *_args: [sys.executable, '-I', str(path / 'main.py')])
+    monkeypatch.setattr(sandbox, 'command', lambda path, *_args, **_kwargs: [sys.executable, '-I', str(path / 'main.py')])
     monkeypatch.setattr(sandbox, 'enforcement', enforcement)
     monkeypatch.setattr(sandbox, 'management', management)
     return runtime

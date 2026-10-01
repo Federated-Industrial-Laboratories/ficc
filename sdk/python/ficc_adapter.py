@@ -39,9 +39,11 @@ def request(value):
     ids, count = [], 0
     for binding in bindings:
         exact(binding, {"id", "endpoint_id", "endpoint_revision", "machine_identity", "consistency",
-                        "resources", "parameters"}, {"intent", "receipt"})
+                        "resources", "parameters"}, {"intent", "receipt", "transport_binding_id"})
         identity(binding["id"])
         identity(binding["endpoint_id"])
+        if "transport_binding_id" in binding:
+            identity(binding["transport_binding_id"])
         identity(binding["machine_identity"], HASH)
         ids.append(binding["id"])
         if (type(binding["endpoint_revision"]) is not int or binding["endpoint_revision"] < 1

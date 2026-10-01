@@ -17,6 +17,7 @@ from .launcher_config import (
     NAME,
     LaunchConfig,
     desktop_text,
+    legacy_unit_text,
     load,
     save,
     unit_text,
@@ -56,9 +57,10 @@ def startup_lock(path: Path):
         os.close(fd)
 
 
-def verify_unit(config: LaunchConfig, path: Path) -> None:
+def verify_unit(config: LaunchConfig, path: Path) -> bool:
     unit = Path(config.unit_path)
-    if unit.is_symlink() or unit.read_text() != unit_text(config, path):
+    actual = unit.read_text() if not unit.is_symlink() else None
+    if actual not in {unit_text(config, path), legacy_unit_text(config, path)}:
         raise ValueError("The installed service differs from this launcher configuration. Reinstall the launcher.")
     result = systemctl("show", config.unit, "--property=FragmentPath", "--value")
     if result.stdout.strip() != config.unit_path:
@@ -66,6 +68,7 @@ def verify_unit(config: LaunchConfig, path: Path) -> None:
     result = systemctl("show", config.unit, "--property=DropInPaths", "--value")
     if result.stdout.strip():
         raise ValueError("Service overrides are present. Remove the overrides or use a different launcher name.")
+    return actual == legacy_unit_text(config, path)
 
 
 def install(args, *, only_if_missing: bool = False) -> dict:
@@ -135,9 +138,14 @@ def start(path: Path) -> LaunchConfig:
     path = path.absolute()
     with startup_lock(path):
         config = load(path)
-        verify_unit(config, path)
+        legacy = verify_unit(config, path)
         if ready(config):
             return config
+        if legacy:
+            systemctl("stop", config.unit)
+            write_file(Path(config.unit_path), unit_text(config, path))
+            systemctl("daemon-reload")
+            verify_unit(config, path)
         systemctl("start", config.unit)
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:

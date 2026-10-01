@@ -5,7 +5,7 @@
 <p align="center">A local console for Linux clusters, connected through OpenSSH.</p>
 
 <p align="center">
-  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.2.0 | Python 3.12 or later | OpenSSH">
+  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 2.0.0-stable | Python 3.12 or later | OpenSSH">
 </p>
 
 <p align="center">
@@ -27,10 +27,10 @@ shared sound. Supplied modules use the same inspected archives and explicit gran
 as other packages. The [SDK](sdk/README.md) supports C, C++, Rust, Python and
 JavaScript, including TypeScript authoring.
 
-Hyper-V and VirtualBox are not supported for operational use in version 0.2.0.
-Hyper-V includes experimental package sources; real Windows lifecycle and VMConnect remain unqualified.
-VirtualBox has no complete provider package, and its local IPC transport remains disabled.
-Use KVM/libvirt or Proxmox VE for verified VM inventory, power actions and display.
+KVM/libvirt, Proxmox VE, Hyper-V and VirtualBox provide verified VM inventory, power actions and display.
+VirtualBox requires its qualified Linux provider version and separately installed runtime packages.
+Hyper-V requires the registered Windows transport and fixed JEA endpoint.
+See [Windows endpoints](docs/windows-endpoints.md) for the qualified environment and setup.
 
 See [provider support](docs/testing.md#runtime-modules-and-providers) for requirements and limits.
 

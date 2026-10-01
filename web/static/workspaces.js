@@ -16,8 +16,7 @@ import { windowsEndpoints } from './windows-endpoints.js';
 
 export function workspaces() {
   const query = new URLSearchParams(location.search), valid = value => /^[a-f0-9]{32}$/.test(value || '');
-  const surfaceId = valid(query.get('surface')) ? query.get('surface') : identity();
-  query.set('surface', surfaceId); history.replaceState(null, '', `/?${query}`);
+  let surfaceId = valid(query.get('surface')) ? query.get('surface') : null;
   const element = el('section', { class: 'workspaces' }), message = el('div', { role: 'status' });
   const canvas = el('div', { class: 'workspace-surface' }), workspaceSelect = el('select', { 'aria-label': 'Saved workspace' });
   const moduleSelect = el('select', { 'aria-label': 'Installed module' });
@@ -32,6 +31,11 @@ export function workspaces() {
   };
   window.addEventListener('beforeunload', unload);
   function fail(error) { if (!disposed) message.replaceChildren(notice(error.message, 'error')); }
+  function ensureSurface() {
+    if (surfaceId) return;
+    surfaceId = identity(); query.set('surface', surfaceId); history.replaceState(null, '', `/?${query}`);
+    message.replaceChildren();
+  }
   const audio = getAudioManager({ authority: {
     loadPreferences: () => request('/audio/preferences'),
     savePreferences: body => request('/audio/preferences', { method: 'PUT', body }),
@@ -76,7 +80,7 @@ export function workspaces() {
   }
   function saveSurface() {
       clearTimeout(saveTimer); saveTimer = null;
-      if (!ready || disposed) return saveWork;
+      if (!ready || disposed || !surfaceId) return saveWork;
       const layout = api.toJSON(), visible = tiles.filter(tile => api.getPanel(tile.id)); tiles = visible;
       pending++;
       saveWork = saveWork.catch(() => {}).then(async () => {
@@ -87,10 +91,11 @@ export function workspaces() {
   }
   const subscription = api.onDidLayoutChange(saveSoon);
   function open(workspaceId = workspaceSelect.value, direction = 'right') {
-    if (!spaces.some(item => item.id === workspaceId)) return;
+    if (!ready || !spaces.some(item => item.id === workspaceId)) return;
     const existing = tiles.find(item => item.workspace_id === workspaceId && api.getPanel(item.id));
     if (existing) { api.getPanel(existing.id).api.setActive(); return; }
     if (api.panels.length >= 4) { fail(Error('Close a workspace tile before opening another. The limit is four.')); return; }
+    ensureSurface();
     const tile = { id: identity(), workspace_id: workspaceId, view_id: identity() }; tiles.push(tile);
     api.addPanel({ id: tile.id, component: 'workspace', title: spaces.find(item => item.id === workspaceId).name,
       minimumWidth: 260, minimumHeight: 220, position: { direction } }); saveSoon();
@@ -101,6 +106,16 @@ export function workspaces() {
     expand.textContent = state.expanded ? 'Restore workspace area' : 'Expand workspace area';
     full.textContent = state.fullscreen ? 'Exit fullscreen' : 'Fullscreen';
   });
+  async function flush() {
+    if (dirty()) throw Error('Save or discard unsaved text before leaving Workspace. Open their workspace and select Show hidden panels if needed.');
+    await Promise.all([...layouts.values()].map(layout => layout.flush())); await Promise.all(closing); await saveSurface();
+  }
+  function manageLayouts() {
+    manager?.dispose(); manager = savedLayouts(spaces, surfaceId, new Set([...layouts.values()].map(layout => layout.viewId)), async id => {
+      await flush();
+      location.assign(`/?surface=${id}${query.get('window') === '1' ? '&window=1' : ''}`);
+    });
+  }
   const actions = el('div', { class: 'workspace-toolbar' }, workspaceSelect,
     button('Open', () => open()), button('Split right', () => open(workspaceSelect.value, 'right')),
     button('Split below', () => open(workspaceSelect.value, 'below')),
@@ -113,7 +128,7 @@ export function workspaces() {
     }), expand, full,
     button('Recover panels', () => selected()?.recover()), button('Show hidden panels', () => selected()?.showAll()),
     button('Reload saved workspace', () => { void selected()?.reload().catch(fail); }),
-    button('Saved layouts', () => { manager?.dispose(); manager = savedLayouts(spaces, surfaceId, new Set([...layouts.values()].map(layout => layout.viewId))); }),
+    button('Saved layouts', manageLayouts),
     button('Discard unsaved text', () => confirmation('Discard unsaved text?', 'Unsaved text in this window is removed. Saved notes are retained.',
       'Discard unsaved text', () => { for (const layout of layouts.values()) layout.discard();
         for (const items of drafts.values()) for (const draft of items.values()) for (const key of Object.keys(draft)) delete draft[key]; })));
@@ -130,7 +145,7 @@ export function workspaces() {
         await request(`/workspaces/${current.id}?revision=${current.revision}`, { method: 'DELETE' });
         for (const tile of tiles.filter(item => item.workspace_id === current.id)) { const panel = api.getPanel(tile.id); if (panel) api.removePanel(panel); }
         spaces = spaces.filter(item => item.id !== current.id); drafts.delete(current.id); updateSelects();
-        const surface = await request(`/workspace-surfaces/${surfaceId}`); revision = surface.revision; saveSoon();
+        if (surfaceId) { const surface = await request(`/workspace-surfaces/${surfaceId}`); revision = surface.revision; saveSoon(); }
       });
     }), moduleSelect, button('Add module', () => {
       const module = modules.find(item => item.digest === moduleSelect.value);
@@ -144,8 +159,9 @@ export function workspaces() {
     button('Provider adapters', () => { manager?.dispose(); manager = adapterProfiles(); }),
     button('Windows endpoints', () => { manager?.dispose(); manager = windowsEndpoints(); }));
   element.append(heading('PERSISTENT / LOCAL', 'Workspace', 'Arrange module panels and open separate workspace windows.'), actions, edit, sound.element, message, canvas);
-  void Promise.all([request('/workspaces'), request('/modules'), request(`/workspace-surfaces/${surfaceId}`)]).then(([saved, packages, surface]) => {
+  void Promise.all([request('/workspaces'), request('/modules'), surfaceId ? request(`/workspace-surfaces/${surfaceId}`) : request('/workspace-layouts')]).then(([saved, packages, restored]) => {
     if (disposed) return;
+    const surface = surfaceId ? restored : { revision: 0, tiles: [], layout: {} };
     spaces = saved.workspaces; modules.push(...packages.modules); updateSelects(); revision = surface.revision;
     tiles = surface.tiles.filter(tile => spaces.some(space => space.id === tile.workspace_id));
     if (surface.layout?.grid && tiles.length === surface.tiles.length) {
@@ -153,12 +169,14 @@ export function workspaces() {
     }
     ready = true;
     const initial = valid(query.get('workspace')) ? query.get('workspace') : spaces[0]?.id;
-    if (!api.panels.length && initial) open(initial);
+    if (!surfaceId && !valid(query.get('workspace')) && restored.surfaces?.length) {
+      message.replaceChildren(notice('Saved window layouts are available. Resume one, or select a workspace and choose Open for a new arrangement.'),
+        button('Resume saved window', manageLayouts));
+    } else if (!api.panels.length && initial) open(initial);
     if (!spaces.length) message.replaceChildren(notice('Create a workspace, then install and enable modules with Manage modules.'));
   }).catch(fail);
   return { element, async prepareLeave() {
-    if (dirty()) { fail(Error('Save or discard unsaved text before leaving Workspace. Open their workspace and select Show hidden panels if needed.')); return false; }
-    try { await Promise.all([...layouts.values()].map(layout => layout.flush())); await Promise.all(closing); await saveSurface(); return true; }
+    try { await flush(); return true; }
     catch (error) { fail(error); return false; }
   }, dispose() { if (disposed) return; disposed = true; clearTimeout(saveTimer); window.removeEventListener('beforeunload', unload);
     manager?.dispose(); screen.dispose(); subscription.dispose(); api.dispose(); sound.dispose(); audio.dispose(); } };

@@ -9,10 +9,10 @@ Select **Capture input** to send keyboard and pointer input to the VM. Select
 and buttons. Input also releases when focus changes, the page hides, or the display
 changes fullscreen mode. FICC does not use keyboard lock or pointer lock.
 
-**Expand display** fills the browser area. **Fullscreen display** requests browser
+**Expand display** fills the workspace display area. **Fullscreen display** requests browser
 fullscreen. A display can enter fullscreen while its workspace is fullscreen.
-Exiting the display returns to the workspace. Restoring a display scrolls its
-controls into view. Resizing fits the image within the available area.
+Exiting the display returns to the workspace. Restoring a display brings its controls into view.
+The module tab and window controls remain available. Resizing fits the image within the available area.
 
 **Disconnect display** closes the display transport. It does not stop the VM.
 Open another console explicitly to reconnect. Input is never replayed after a
@@ -21,8 +21,8 @@ removal close the affected connection.
 
 ## Runtime and limits
 
-The current console transport is VNC through an enrolled libvirt graphics
-descriptor. The host does not give modules a provider address, password or file
+The viewer uses the display transport declared by the selected provider.
+The host does not give modules a provider address, password or file
 descriptor. A reference lasts 60 seconds. Its attachment ticket lasts 15 seconds
 and permits one connection. Tickets travel in the first WebSocket message, never
 in URLs or saved layouts. Exact origin and host checks apply.
@@ -39,7 +39,10 @@ a working systemd user manager and enforced resource limits. Missing requirement
 refuse the display; no unrestricted mode is available.
 
 Each display runs in private network, process and file namespaces. It receives no
-home directory, controller database or provider credentials. Its limits are
+home directory, controller database or management credentials. When required,
+the host supplies only the selected display credential through a private channel.
+
+Its limits are
 512 MiB memory, no swap, 64 tasks, one assigned CPU and a 100 percent CPU quota.
 At most four displays can be active. A connection closes after one hour, or after
 30 minutes without user input. Unacknowledged output closes after 15 seconds.

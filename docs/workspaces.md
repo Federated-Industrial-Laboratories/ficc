@@ -42,8 +42,19 @@ previous fullscreen state. See [input release](viewer.md) before using a VM.
 
 Floating panels remain within the current viewport after resizing. Use **Recover
 panels** if a restored arrangement is unusable. Use **Saved layouts** to inspect
-or remove unused window and view records. Removing a layout does not delete
+or resume window arrangements, or remove unused window and view records. Removing a layout does not delete
 workspace data.
+
+After a fresh application launch, select **Workspace**. If saved layouts exist,
+select **Resume saved window**.
+Choose **Resume window layout** beside the required workspace names in the table.
+This restores its tiles, panel positions and saved view identities in the current window.
+Close the original window first to avoid concurrent layout edits.
+
+When saved layouts exist, entering Workspace does not create another saved window record.
+Select a workspace and choose **Open** for a new arrangement.
+**Open in window** still creates a separate layout for another monitor.
+Save or discard unsaved text before resuming another window layout.
 
 ## Saving and concurrent changes
 

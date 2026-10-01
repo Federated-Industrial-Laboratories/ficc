@@ -45,9 +45,14 @@ unknown even if the desired state appears. A positive method acknowledgement and
 the same VM birth in the desired state can establish completion. Repeated reads
 never dispatch the action again.
 
-The package supports one to64 selected VMs and at most256 inventory rows per
-request. The host grants ordinary reads10 seconds and commits20 seconds. Large
+The package supports one to 64 selected VMs and at most 256 inventory rows per
+request. The host grants reads and commits 30 seconds. Large
 or slow providers can exceed these limits. No request silently extends them.
+Inventory uses realized CIM configurations, with validated, unique VM GUIDs and
+a limit of 4352 configurations. Memory and processor metadata use bounded CIM
+batches. A snapshot refuses more than 8704 records of either metadata class.
+Each selected VM must match one
+current configuration and one memory and processor record with known units.
 
 VMConnect selects one canonical VM GUID. The host uses the registered display
 port, a separate display account and an exact certificate fingerprint. Clipboard,
@@ -57,6 +62,10 @@ Build both `hyperv-adapter` and the ordinary `hyperv` workspace package with the
 module builder. Provider packages require the current `ficc_adapter.py` and
 `ficc_module.py` SDK files. Supplied builds insert them from `sdk/python`.
 
-Actual Windows endpoint, VM identity and display qualification are required
-before deployment. Local schema and synthetic transport tests do not establish
-compatibility with a production Hyper-V host.
+This version passed actual Windows Server 2025 evaluation checks through the
+installed runtime adapter: inventory and start/history at N=1 and N=64, and
+a bootable Linux guest's start, graceful shutdown and VMConnect display/input.
+Fullscreen, resize, keyboard release and grant revocation passed. The 64-VM
+batch used diskless fixtures with CPU limits. It does not establish capacity
+for 64 guest operating systems. Verify other host versions and production
+workloads before deployment. See [Windows endpoints](../../docs/windows-endpoints.md).

@@ -59,6 +59,16 @@ async def test_helper_current_authority_cancels_waiting_process(helper):
     assert not runner.active
 
 
+async def test_helper_identity_refusal_has_a_fixed_error_and_no_secret(helper):
+    runner, script = helper
+    script.write_text('import sys;sys.stderr.write("private-test-marker");sys.exit(2)')
+    with pytest.raises(Failure) as caught:
+        await runner.run({}, check=lambda: None, timeout=2)
+    assert caught.value.code == 'windows_identity_changed'
+    assert 'private-test-marker' not in str(caught.value)
+    assert not runner.active
+
+
 async def test_helper_refuses_ninth_concurrent_child_and_close_reaps_all(helper):
     runner, script = helper
     script.write_text('import time;time.sleep(30)')

@@ -179,17 +179,11 @@ class WindowsEndpoints:
                     or now['machine_identity'] != machine_identity or now != value):
                 raise Failure('windows_endpoint_changed', 'The Windows endpoint is disabled or changed.', 409)
         current()
-        if not 0 < timeout <= 20:
+        if not 0 < timeout <= 30:
             raise ValueError('The Windows request deadline is invalid.')
-        deadline = time.monotonic() + timeout
-        actual = await self.probe(value, current, timeout)
-        if actual != machine_identity:
-            raise Failure('windows_identity_changed', 'The Windows machine identity changed.', 409)
-        current()
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            raise Failure('windows_timeout', 'The Windows request exceeded its time limit.', 504)
-        result = await self.runner.run(self.request(value, commands), check=current, timeout=remaining)
+        request = self.request(value, commands)
+        request['expected_machine_identity'] = spec.identity(machine_identity, 64)
+        result = await self.runner.run(request, check=current, timeout=timeout)
         current()
         spec.encode(result)
         if not isinstance(result, list) or len(result) != len(commands):

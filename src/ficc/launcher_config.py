@@ -142,11 +142,21 @@ def desktop_quote(value: str) -> str:
 
 
 def unit_text(config: LaunchConfig, path: Path) -> str:
+    runtime = Path(config.unit_path).stem
     return (MARKER + "# Configuration: " + clean_text(str(path)) + "\n"
             "[Unit]\nDescription=Federated Industrial Cluster Commander\nAfter=network.target\n\n"
             "[Service]\nType=exec\nExecStart=/usr/bin/env -- " + " ".join(map(unit_quote, config.command())) + "\n"
             "Restart=on-failure\nRestartSec=5\nTimeoutStopSec=20\nUMask=0077\n"
-            "NoNewPrivileges=true\nPrivateTmp=true\n\n[Install]\nWantedBy=default.target\n")
+            "NoNewPrivileges=true\nRuntimeDirectory=" + runtime + "\n"
+            "RuntimeDirectoryMode=0700\nEnvironment=TMPDIR=%t/" + runtime + "\n\n"
+            "[Install]\nWantedBy=default.target\n")
+
+
+def legacy_unit_text(config: LaunchConfig, path: Path) -> str:
+    runtime = Path(config.unit_path).stem
+    current = ("RuntimeDirectory=" + runtime + "\nRuntimeDirectoryMode=0700\n"
+               "Environment=TMPDIR=%t/" + runtime + "\n")
+    return unit_text(config, path).replace(current, "PrivateTmp=true\n")
 
 
 def desktop_text(config: LaunchConfig, path: Path) -> str:

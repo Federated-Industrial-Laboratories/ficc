@@ -13,10 +13,11 @@ controller adapters. See the [extension boundary](../sdk/README.md#extension-bou
 
 ## VM provider support
 
-Hyper-V and VirtualBox are not supported for operational use in version 0.2.0.
-Hyper-V includes experimental package sources; real Windows lifecycle and VMConnect remain unqualified.
-VirtualBox has no complete provider package, and its local IPC transport remains disabled.
-Use KVM/libvirt or Proxmox VE for verified VM inventory, power actions and display.
+KVM/libvirt, Proxmox VE, Hyper-V and VirtualBox provide verified VM inventory, power actions and display.
+VirtualBox uses separate native adapter and workspace packages with registered account transport.
+See [VirtualBox](providers/virtualbox.md) for the exact supported environment and setup.
+Hyper-V requires the registered Windows transport and fixed JEA endpoint.
+See [Windows endpoints](windows-endpoints.md) for the qualified environment and setup.
 
 See [provider qualification](testing.md#runtime-modules-and-providers).
 
@@ -26,7 +27,7 @@ See [provider qualification](testing.md#runtime-modules-and-providers).
 2. Select **Manage modules**.
 3. Select a supplied package, choose a local file, or enter a package URL.
 4. Select the corresponding **Inspect** control.
-5. Check the package identity, version, category, digest, runtime and permissions.
+5. Check the package identity, digest, platform, architecture, host API and permissions.
 6. Accept the source only if it is trusted.
 7. Select **Install disabled**.
 8. Select **Enable** and choose exact targets for the required permissions.
@@ -46,6 +47,11 @@ See [the adapter protocol](../sdk/ADAPTERS.md) and [Windows endpoints](windows-e
 Installation does not execute package code. The current publisher field remains
 **Unverified**, including supplied packages. A SHA-256 digest identifies bytes;
 it does not authenticate a publisher. There is no automatic trust-key import.
+
+The installed table shows package IDs and digest prefixes. Select **Details**
+to read the full identity and runtime requirements. Grant and removal controls
+show the full digest, version, role and publisher status. Equal display names
+do not identify equal packages.
 
 Workspace permissions select workspaces. System permissions select enrolled
 machines. File permissions select registered folders. A panel also has its own
@@ -116,6 +122,13 @@ Every command accepts `--state-dir` for a separate controller.
 Install a new version disabled and review its grants before enabling it. Only
 one digest of a package ID can be enabled. Enabling another version disables
 the previous version. Grants are not copied to the new digest.
+The grant screen identifies the enabled version that will be disabled.
+
+Activation checks the platform, architecture, interpreter and native ELF loader
+before changing the active version. A refused replacement retains the previous
+version and its grants. Native packages require a Linux ELF64 executable and
+a loader available inside the sandbox. These checks do not prove compatibility
+with every shared library or required symbol. Build for the target distribution.
 
 Saved panels remain bound to their exact package digest. An unavailable digest
 shows a placeholder and retains its saved state. Re-enable the original digest
@@ -130,9 +143,16 @@ resolution. Disabling a package remains available while history is retained.
 ## Execution requirements
 
 Program modules require Bubblewrap, a systemd user manager and working namespace,
-syscall and cgroup controls. Check **module-sandbox** before enabling them.
+syscall and cgroup controls. Select **Check module sandbox** in Module manager
+before enabling them. The result gives the current status or refusal reason.
+The same check is available through `ficc module-sandbox`.
 An unavailable sandbox refuses execution. Declarative clock, notes and audio
 panels use host components and start no module process.
+
+If AppArmor blocks user namespaces, an administrator must review the
+[scoped policy instructions](../tools/module-sandbox-policy/README.md).
+The check does not install a policy or change host security settings.
+Keep isolation enabled; do not run the controller as root to bypass a refusal.
 
 Each program receives private process, network and file namespaces. It receives
 no home directory, SSH keys, controller database, display socket or container
@@ -140,8 +160,13 @@ socket. The host broker supplies only declared, currently granted operations.
 The broker does not accept arbitrary shell commands or provider addresses.
 
 Each process has 128 MiB memory, no swap, 32 tasks and a 50 percent CPU quota.
-The service has a 12-second lifetime bound. At most four module actions run at
-once. These limits are separate from the [native viewer limits](viewer.md).
+Plain programs have a 10-second request deadline and a 12-second service bound.
+Supervised broker conversations have a 30-second deadline and a 32-second service
+bound. Provider commit sandboxes have the same 30/32-second limits. The separate
+outer SSH deadline for Linux-node commits remains 20 seconds.
+These longer waits do not change memory, task, CPU or capability limits. At most
+four module actions run at once. These limits are separate from the
+[native viewer limits](viewer.md).
 
 See the [security model](../SECURITY.md), [supplied packages](../modules/README.md)
 and [SDK](../sdk/README.md). A sandbox limits authority; it does not establish

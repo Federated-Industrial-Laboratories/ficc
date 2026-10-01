@@ -9,7 +9,9 @@ Restart=on-failure
 RestartSec=5
 UMask=0077
 NoNewPrivileges=true
-PrivateTmp=true
+RuntimeDirectory=ficc
+RuntimeDirectoryMode=0700
+Environment=TMPDIR=%t/ficc
 
 [Install]
 WantedBy=default.target

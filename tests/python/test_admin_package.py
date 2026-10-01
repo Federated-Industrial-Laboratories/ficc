@@ -34,6 +34,23 @@ def test_supplied_admin_archive_is_deterministic_and_optional():
     assert {item["id"] for item in checked.manifest["actions"]} == {"load", "logs", "preview-start", "preview-stop", "preview-restart", "preview-reboot", "preview-poweroff"}
 
 
+def test_system_table_explains_interactive_power_permission():
+    module = load("admin_payload", ROOT / "modules/system-admin/payload/main.py")
+    pointer = {"kind": "system", "id": "a" * 64, "name": "system"}
+    data = {"resource": pointer, "state": "running", "power": {"reboot": "yes", "poweroff": "challenge"}}
+
+    def broker(*args):
+        return [{"target": "node", "data": {"profiles": [{"provider": "systemd", "data": {
+            "truncated": False, "results": [{"resource_id": "system-1", "resource": pointer, "data": data}]}}]}}]
+
+    result = module.handle({"action": "load", "targets": ["node"], "parameters": {}}, broker)
+    rows = result[0]["data"]["rows"]
+    assert rows[0]["values"]["power"] == "Reboot: Allowed; Power off: Authentication required"
+    manifest = json.loads((ROOT / "modules/system-admin/manifest.json").read_text())
+    component = next(item for item in manifest["ui"]["children"] if item["type"] == "table")
+    table({**component, "rows": rows})
+
+
 @pytest.mark.parametrize("count", [1, 64])
 def test_supplied_module_preserves_targets_selection_and_bounded_logs(count):
     module = load("admin_payload", ROOT / "modules/system-admin/payload/main.py")

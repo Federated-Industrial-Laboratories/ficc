@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-// Remove unused saved layouts while retaining workspaces and module data.
+// Resume saved window layouts and remove unused records without changing module data.
 import { request } from './api.js';
 import { button, confirmation, el, notice, table } from './components.js';
 
-export function savedLayouts(spaces, activeSurface, activeViews) {
+export function savedLayouts(spaces, activeSurface, activeViews, openSurface) {
   const dialog = el('dialog', { class: 'module-manager', 'aria-label': 'Saved layouts' });
   const content = el('div'), status = el('div', { role: 'status' });
   const name = id => spaces.find(space => space.id === id)?.name || id;
@@ -22,7 +22,12 @@ export function savedLayouts(spaces, activeSurface, activeViews) {
         table(['Window', 'Workspaces', 'Action'], value.surfaces.map(surface => el('tr', {},
           el('td', {}, surface.id === activeSurface ? 'Current window' : surface.id.slice(0, 12)),
           el('td', {}, surface.tiles.map(tile => name(tile.workspace_id)).join(', ') || 'Empty'),
-          el('td', {}, button('Remove window layout', () => remove(`/workspace-surfaces/${surface.id}?revision=${surface.revision}`,
+          el('td', {}, button('Resume window layout', async event => {
+            const control = event.currentTarget; control.disabled = true;
+            try { await openSurface(surface.id); }
+            catch (error) { fail(error); control.disabled = false; }
+          }, { disabled: surface.id === activeSurface }),
+          button('Remove window layout', () => remove(`/workspace-surfaces/${surface.id}?revision=${surface.revision}`,
             'The selected window arrangement is removed'), { disabled: surface.id === activeSurface })))), 'Saved window layouts'),
         el('h3', {}, `Unreferenced views (${value.unused_views.length})`),
         table(['Workspace', 'View', 'Action'], value.unused_views.map(view => el('tr', {},
@@ -32,6 +37,7 @@ export function savedLayouts(spaces, activeSurface, activeViews) {
     } catch (error) { fail(error); }
   }
   dialog.append(el('h2', {}, 'Saved layouts'), el('p', {}, 'Workspaces and module data are stored separately from window and panel arrangements.'),
+    el('p', {}, 'Resume a saved layout in this window. Close its original window first. Open in window creates an independent arrangement.'),
     status, content, button('Refresh', () => { void refresh(); }), button('Close', () => dialog.close()));
   dialog.addEventListener('close', () => { disposed = true; dialog.remove(); });
   document.body.append(dialog); dialog.showModal(); void refresh();

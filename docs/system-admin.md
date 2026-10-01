@@ -5,15 +5,32 @@ Register a systemd profile for an enrolled SSH account. Select its user or syste
 The system needs systemd 248 or newer, busctl, journalctl and the current FICC node helper.
 A user manager must already be active. The profile does not change system policy.
 
+Power actions also require systemd-logind and current noninteractive account permission.
+
 Grant `admin:read` to selected systems and `workspace:read` to the workspace.
 Add `admin:logs`, `admin:services` or `admin:power` only when required.
 The caller also needs the matching scopes. Each request checks current grants and system identity.
 
 The table shows system uptime and available memory, or installed service states.
+System rows also show current reboot and poweroff permission for the SSH account.
+Allowed means no interactive authentication is currently required.
+Authentication required, Denied, Not available and Unknown block the power preview.
+FICC checks permission again before dispatch. Existing state and inhibitor checks still apply.
+
+A power dry run checks inhibitors and other sessions before dispatch. If it fails,
+the result is Refused. Check inhibitors, close other sessions and refresh before a new preview.
+The actual power request checks inhibitors again. A failure after dispatch starts remains Unknown.
+
 Select service rows to read logs or preview start, stop and restart actions.
 Select system rows from system-manager profiles to preview reboot or poweroff.
 Power actions use existing account policy and check inhibitors. The module cannot confirm an action.
 The host shows the exact action, resources and effects before confirmation.
+
+Module grants do not replace operating system permission. FICC never requests a sudo password.
+An administrator can configure the [optional power policy](../tools/power-policy/README.md)
+on the managed system. It grants normal power operations to an explicit account group,
+including outside FICC. It does not grant inhibitor bypass or arbitrary commands.
+Use the current node helper and refresh inventory after system policy changes.
 
 Service actions use the saved unit configuration. Dependencies and configured stop timeouts apply.
 Systemd can terminate processes when those timeouts expire. The host adds no force option.

@@ -224,6 +224,8 @@ class Adapters:
             value = {"id": selected["id"], "endpoint_id": selected["endpoint_id"],
                 "endpoint_revision": selected["endpoint_revision"], "machine_identity": selected["machine_identity"],
                 "consistency": selected["consistency"], "resources": resources, "parameters": parameters}
+            if selected["endpoint_kind"] == "linux-ssh":
+                value["transport_binding_id"] = selected["transport_binding_id"]
             if intent is not None:
                 value["intent"] = intent
             if receipt is not None:

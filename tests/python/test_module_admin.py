@@ -226,6 +226,7 @@ async def test_power_acknowledgement_never_proves_completion(tmp_path, monkeypat
     row = next(iter(provider.rows.values()))
     row["resource"].update(kind="system", name="system")
     row["state"] = "running"
+    row["power"] = dict.fromkeys(spec.POWER, "yes")
     provider.ignore = True
     await inventory(host, nodes)
     identities = [spec.resource(profile["id"], row["resource"]) for profile in reversed(profiles)]

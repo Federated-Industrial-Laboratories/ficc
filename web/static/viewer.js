@@ -45,8 +45,20 @@ export function viewer(reference) {
     full.textContent = value.fullscreen ? 'Exit display fullscreen' : 'Fullscreen display'; scheduleResize();
     const restored = previousMode.expanded && !value.expanded || previousMode.fullscreen && !value.fullscreen;
     previousMode = value;
-    if (restored) requestAnimationFrame(() => { if (!disposed) element.scrollIntoView({ block: 'start' }); });
+    if (restored) requestAnimationFrame(() => requestAnimationFrame(reveal));
   });
+
+  function reveal() {
+    if (disposed) return;
+    // Scroll content without moving Dockview's internal panel containers.
+    const content = element.closest('.module-view');
+    if (content) content.scrollTop += element.getBoundingClientRect().top - content.getBoundingClientRect().top;
+    const anchor = element.closest('.workspace-surface') || element;
+    const expanded = element.closest('.workspaces.workspace-expanded, .workspaces:fullscreen');
+    const top = anchor.getBoundingClientRect().top - (expanded?.getBoundingClientRect().top || 0) - 12;
+    if (expanded) expanded.scrollBy(0, top);
+    else window.scrollBy(0, top);
+  }
 
   function updateStatus() {
     capture.disabled = ended || !connected || captured;

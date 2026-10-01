@@ -50,7 +50,7 @@ system prerequisites if they are absent:
 
 ```sh
 sudo apt update
-sudo apt install python3 openssh-client coreutils systemd xdg-utils ca-certificates build-essential libssl-dev
+sudo apt install python3 openssh-client coreutils systemd xdg-utils ca-certificates bubblewrap build-essential libssl-dev
 ```
 
 From the clone, run:

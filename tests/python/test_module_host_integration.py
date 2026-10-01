@@ -403,9 +403,26 @@ for _ in range(192):
     with pytest.raises(Failure) as error:
         await task
     assert error.value.code == "module_failed"
-    assert peak >= 100 * 1024 * 1024 and events.get("oom_kill", 0) > 0, (peak, events)
+    # Systemd can remove the cgroup before the final counter read.
+    journal_kill = False
+    if not events.get("oom_kill", 0):
+        for _ in range(10):
+            result = subprocess.run(
+                ["/usr/bin/journalctl", "--user", "--boot", "--unit=" + unit,
+                 "--output=json", "--output-fields=USER_UNIT,UNIT_RESULT,SYSLOG_IDENTIFIER",
+                 "--lines=20", "--no-pager", "--quiet"],
+                capture_output=True, env=environment(), timeout=3, check=True)
+            journal_kill = any(
+                entry.get("USER_UNIT") == unit and entry.get("UNIT_RESULT") == "oom-kill"
+                and entry.get("SYSLOG_IDENTIFIER") == "systemd"
+                for entry in (json.loads(line) for line in result.stdout.splitlines()))
+            if journal_kill:
+                break
+            await asyncio.sleep(0.05)
+    assert peak >= 100 * 1024 * 1024 and (events.get("oom_kill", 0) > 0 or journal_kill), (peak, events)
     await empty(group)
-    record("memory_limit", result="passed", unit=unit, peak=peak, events=events)
+    record("memory_limit", result="passed", unit=unit, peak=peak, events=events,
+           journal_oom_kill=journal_kill)
 
 
 async def test_controller_death_kills_owned_service_and_children(host, tmp_path):

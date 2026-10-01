@@ -53,8 +53,34 @@ def test_apply_uses_only_the_fixed_extended_service_limit(tmp_path):
     ordinary = command(tmp_path, ["/usr/bin/true"], "ficc-module-test")
     extended = command(tmp_path, ["/usr/bin/true"], "ficc-module-test", adapter_apply=True)
     assert "--property=RuntimeMaxSec=12" in ordinary
-    assert "--property=RuntimeMaxSec=22" in extended
-    assert [arg.replace("RuntimeMaxSec=22", "RuntimeMaxSec=12") for arg in extended] == ordinary
+    assert "--property=RuntimeMaxSec=32" in extended
+    assert [arg.replace("RuntimeMaxSec=32", "RuntimeMaxSec=12") for arg in extended] == ordinary
+    broker = command(tmp_path, ["/usr/bin/true"], "ficc-module-test", broker_request=True)
+    assert "--property=RuntimeMaxSec=32" in broker
+    assert [arg.replace("RuntimeMaxSec=32", "RuntimeMaxSec=12") for arg in broker] == ordinary
+
+
+@REAL
+@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("phase", ["status", "apply"])
+async def test_real_broker_wait_uses_its_bounded_transport_deadline(tmp_path, monkeypatch, count, phase):
+    from ficc.modules import sandbox
+    monkeypatch.setattr(sandbox, "MAX_SECONDS", 1)
+    monkeypatch.setattr(sandbox, "BROKER_SECONDS", 3)
+    monkeypatch.setattr(sandbox, "ADAPTER_APPLY_SECONDS", 3)
+    path, manifest, digest = package(tmp_path)
+    value = bindings()[0]
+    value["resources"] = [{"id": f"{index + 1:032x}", "key": f"guest-{index}", "birth": "a" * 64,
+                           "revision": "b" * 64, "state": "off"} for index in range(count)]
+    async def transport(call):
+        await asyncio.sleep(1.2)
+        call.check()
+        return [{"value": item["parameters"]["index"]} for item in call.commands]
+    if phase == "apply":
+        value["intent"] = {"selected": [item["key"] for item in value["resources"]]}
+    conversation = Conversation(digest, phase, "start" if phase == "apply" else "status", [value], lambda: None, transport)
+    result = await ControllerRuntime().execute(path, manifest, conversation)
+    assert len(result["results"][0]["data"]["rows"]) == count
 
 
 @REAL

@@ -4,6 +4,9 @@
 import runpy
 from pathlib import Path
 
+POWER_LABELS = {"yes": "Allowed", "no": "Denied", "challenge": "Authentication required",
+                "na": "Not available", "unavailable": "Unknown"}
+
 
 def handle(request, broker):
     action, params, targets = request["action"], request["parameters"], request["targets"]
@@ -60,6 +63,9 @@ def handle(request, broker):
                 rows.append({"id": row["resource_id"], "values": {"name": pointer["name"], "kind": pointer["kind"],
                     "system": result["target"],
                     "state": item.get("state", "unavailable"), "detail": item.get("detail", ""),
+                    "power": "; ".join(label + ": " + POWER_LABELS.get(item.get("power", {}).get(action), "Unknown")
+                                       for action, label in (("reboot", "Reboot"), ("poweroff", "Power off")))
+                             if pointer["kind"] == "system" else "",
                     "uptime": (item.get("metrics") or {}).get("uptime_seconds"),
                     "memory": (item.get("metrics") or {}).get("memory_available"),
                     "error": row.get("error", {}).get("message", "")}})
