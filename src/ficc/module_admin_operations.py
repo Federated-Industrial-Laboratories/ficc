@@ -74,6 +74,11 @@ class Operations(ABC):
                              or (action in {"stop", "restart"} and data["resource"]["kind"] == "service" and data["state"] == "active"))
                     if not valid:
                         raise Failure("admin_state", "A selected resource cannot perform this action in its current state.", 409)
+                    if action in spec.POWER and data.get("power", {}).get(action) != "yes":
+                        access = data.get("power", {}).get(action, "unavailable")
+                        message = ("This account requires interactive authentication for " + action + ". Configure noninteractive system policy and refresh."
+                                   if access == "challenge" else "Power permission is unavailable. Check account policy, the login service and the current node helper.")
+                        raise Failure("admin_power_denied", message, 403)
                     targets.append({"node_id": node["id"], "profile": copy.deepcopy(profile), "resource_id": spec.resource(profile["id"], data["resource"]),
                                     "expected": {key: data[key] for key in spec.EXPECTED}, "state": "queued"})
                 return targets

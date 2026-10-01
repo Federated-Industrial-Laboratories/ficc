@@ -42,7 +42,7 @@ INSTALL = "exec python3 -c " + shlex.quote(INSTALL_SCRIPT)
 NODE_SUPPORT_FILES = (
     "errors.py", "pipe_ready.py", "modules/validation.py", "modules/manifest.py",
     "modules/ui.py", "modules/adapter_manifest.py", "modules/adapter_protocol.py",
-    "modules/adapter_vm_protocol.py", "modules/protocol.py", "modules/sandbox.py",
+    "modules/adapter_vm_protocol.py", "modules/protocol.py", "modules/sandbox.py", "modules/native.py",
     "modules/sandbox_io.py", "modules/watcher.py",
 )
 

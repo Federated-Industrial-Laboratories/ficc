@@ -106,7 +106,9 @@ The returned host result has `version: 2` and preserves invocation target order.
 The maximum aggregate module stdout is 2,097,160 bytes across all frames. Host
 input has the same aggregate bound, including the initial request and broker
 responses. Stderr remains limited to 65,536 bytes. All exchanges share the
-existing 10-second process deadline; a broker call does not restart it. Frame
+30-second process deadline, with a 32-second service backstop. A broker call
+does not restart the deadline. Plain protocol 1 processes retain their
+10-second deadline and 12-second service backstop. Frame
 bytes are sent only after the host verifies the kernel cgroup limits.
 
 On cancellation, revocation, timeout or malformed traffic, the host tries one

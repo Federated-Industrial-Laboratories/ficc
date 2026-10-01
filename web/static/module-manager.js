@@ -13,7 +13,23 @@ export function moduleManager(workspaces, changed) {
   const url = el('input', { type: 'url', placeholder: 'https://packages.example/module.ficc-module', 'aria-label': 'Package URL' });
   const digest = el('input', { type: 'text', maxlength: '64', 'aria-label': 'Expected SHA-256', placeholder: 'Optional for HTTPS' });
   const privateNetwork = el('input', { type: 'checkbox' }), insecure = el('input', { type: 'checkbox' });
-  let disposed = false, previewId = null, inspecting = false, adapterManager, catalogue = { capabilities: {}, targets: {} };
+  const sandboxStatus = el('div', { role: 'status' }, 'The module sandbox has not been checked.');
+  let disposed = false, previewId = null, inspecting = false, adapterManager, packages = [], catalogue = { capabilities: {}, targets: {} };
+  function packageFields(module) {
+    const manifest = module.manifest, runtime = manifest.runtime || {};
+    return [['Package', manifest.id], ['Version', manifest.version], ['Category', manifest.category],
+      ['Publisher', 'Unverified'], ['SHA-256', module.digest],
+      ['Role', manifest.role === 'provider-adapter' ? 'Provider account adapter' : 'Workspace module'],
+      ['Runtime', `${runtime.kind} / ${runtime.language}`],
+      ['Platform', runtime.platform || 'Host components'], ['Architecture', runtime.architecture || 'Host components'],
+      ['Process protocol', runtime.kind === 'declarative' ? 'Not applicable' : String(runtime.protocol || 1)],
+      ['Host API', String(manifest.host_api)], ['Category contract', String(manifest.contract_version)],
+      ['Required permissions', requiredCapabilities(manifest).join(', ') || 'None'],
+      ['Optional permissions', (manifest.optional_capabilities || []).join(', ') || 'None']];
+  }
+  const packageTable = (module, label, extra = []) => table(['Field', 'Value'], [...packageFields(module), ...extra]
+    .map(([name, value]) => el('tr', {}, el('th', { scope: 'row' }, name), el('td', {}, value))), label);
+  const identityText = module => `${module.manifest.id} / ${module.manifest.version}\nSHA-256: ${module.digest}\nPublisher: Unverified\nRole: ${module.manifest.role === 'provider-adapter' ? 'Provider account adapter' : 'Workspace module'}`;
   async function releasePreview() {
     const id = previewId; previewId = null;
     if (id) await request(`/module-install-previews/${id}`, { method: 'DELETE' }).catch(() => {});
@@ -40,17 +56,11 @@ export function moduleManager(workspaces, changed) {
       previewId = result.preview_id;
       if (disposed) { await releasePreview(); return; }
       const manifest = result.manifest, accept = el('input', { type: 'checkbox' });
-      inspection.append(el('h3', {}, 'Package inspection'), table(['Field', 'Value'], [
-        ['Package', manifest.id], ['Version', manifest.version], ['Category', manifest.category],
-        ['Source', result.source], ['Publisher', 'Unverified'], ['SHA-256', result.digest],
-        ['Runtime', `${manifest.runtime.kind} / ${manifest.runtime.language}`],
-        ['Role', manifest.role === 'provider-adapter' ? 'Provider account adapter' : 'Workspace module'],
-        ['Required permissions', requiredCapabilities(manifest).join(', ') || 'None'],
-        ['Optional permissions', (manifest.optional_capabilities || []).join(', ') || 'None'],
-        ['Expanded size', `${result.expanded_bytes} bytes`],
-      ].map(([name, value]) => el('tr', {}, el('th', { scope: 'row' }, name), el('td', {}, value))), 'Inspected module package'),
+      inspection.append(el('h3', {}, 'Package inspection'), packageTable(result, 'Inspected module package', [
+        ['Source', result.source], ['Expanded size', `${result.expanded_bytes} bytes`],
+      ]),
       el('p', {}, 'A checksum identifies bytes. It does not establish publisher trust. Install packages only from sources you trust.'),
-      manifest.role === 'provider-adapter' ? notice('Provider adapters require a separate account grant. That grant can permit changes to all VMs accessible to the provider account.') : null,
+      ...(manifest.role === 'provider-adapter' ? [notice('Provider adapters require a separate account grant. That grant can permit changes to all VMs accessible to the provider account.')] : []),
       el('label', {}, accept, ' I accept this unverified package source.'),
       button('Install disabled', async event => {
         const control = event.currentTarget; control.disabled = true;
@@ -70,7 +80,11 @@ export function moduleManager(workspaces, changed) {
     void releasePreview();
     const panel = el('section', { class: 'module-grants' }), choices = [];
     panel.append(el('h3', {}, `Enable ${module.manifest.display_name || module.manifest.id}`),
+      packageTable(module, 'Package grant identity'),
       el('p', {}, 'Select exact targets for required permissions. Optional permissions can stay ungranted; actions that use them will remain unavailable. These grants apply to this package digest only.'));
+    const replaced = packages.filter(item => item.enabled && item.digest !== module.digest && item.manifest.id === module.manifest.id);
+    if (replaced.length) panel.append(notice('Enabling this package disables the version below. Existing panels keep their old digest and saved data. Grants are not copied.'),
+      ...replaced.map(item => packageTable(item, 'Package replaced by activation')));
     for (const capability of module.manifest.capabilities) {
       const spec = catalogue.capabilities[capability];
       const targets = (spec?.kind === 'workspace' ? workspaces : catalogue.targets[spec?.kind] || [])
@@ -102,7 +116,7 @@ export function moduleManager(workspaces, changed) {
   async function refresh() {
     try {
       const [result, targets, defaults] = await Promise.all([request('/modules'), request('/module-targets'), request('/supplied-modules')]); if (disposed) return;
-      catalogue = targets;
+      catalogue = targets; packages = result.modules;
       supplied.replaceChildren(...defaults.modules.map(item => el('option', { value: item.id }, `${item.display_name} ${item.version}`)));
       if (!defaults.modules.length) supplied.append(el('option', { value: '' }, 'No supplied archives in this installation'));
       const rows = result.modules.map(module => {
@@ -113,21 +127,39 @@ export function moduleManager(workspaces, changed) {
           catch (error) { fail(error); }
         }) : adapter ? button('Provider profiles', profiles) : button('Enable', () => grant(module));
         const remove = button('Remove', () => confirmation('Remove module?',
-          'The package is removed. Saved workspace data stays available.', 'Remove', async () => {
+          el('span', { class: 'module-identity' }, identityText(module), '\nThe package is removed. Saved workspace data stays available.'), 'Remove', async () => {
             await request(`/modules/${module.digest}`, { method: 'DELETE' }); await refresh();
           }));
-        return el('tr', {}, el('td', {}, module.manifest.display_name || module.manifest.id),
+        const details = button('Details', () => { void releasePreview(); inspection.replaceChildren(el('h3', {}, 'Installed package'),
+          packageTable(module, 'Installed package identity'), button('Close details', () => inspection.replaceChildren())); });
+        return el('tr', {}, el('td', {}, el('strong', {}, module.manifest.display_name || module.manifest.id), el('div', {}, module.manifest.id)),
           el('td', {}, module.manifest.version), el('td', {}, module.manifest.category),
-          el('td', {}, module.enabled ? 'Enabled' : 'Disabled'), el('td', {}, toggle,
+          el('td', {}, el('code', { title: module.digest }, module.digest.slice(0, 12))),
+          el('td', {}, module.enabled ? 'Enabled' : 'Disabled'), el('td', {}, details, toggle,
             ...(module.enabled ? [adapter ? button('Provider profiles', profiles) : button('Edit grants', () => grant(module))] : []), remove));
       });
-      installed.replaceChildren(table(['Package', 'Version', 'Category', 'State', 'Actions'], rows, 'Installed modules'));
+      installed.replaceChildren(table(['Package', 'Version', 'Category', 'Digest', 'State', 'Actions'], rows, 'Installed modules'));
       if (!result.modules.length) installed.append(notice('No modules installed. Select a local package or enter its URL.'));
       changed(result.modules);
     } catch (error) { fail(error); }
   }
   dialog.append(el('div', { class: 'page-heading' }, el('h2', {}, 'Module manager'), button('Close', () => dialog.close())),
     el('p', {}, 'Install modules at runtime. Each package has its own identity and permissions.'),
+    el('section', { class: 'module-sources', 'aria-label': 'Module sandbox' }, el('h3', {}, 'Program requirements'),
+      el('p', {}, 'Program modules require Bubblewrap, a working systemd user manager, and enforced namespace, syscall and resource controls.'),
+      button('Check module sandbox', async event => {
+        const control = event.currentTarget; control.disabled = true;
+        sandboxStatus.replaceChildren(notice('Checking the host sandbox. No package code is running.'));
+        try {
+          const result = await request('/modules/sandbox');
+          if (!disposed) sandboxStatus.replaceChildren(notice(result.available ? 'Module sandbox available.' : `Module sandbox unavailable: ${result.reason}`, result.available ? 'info' : 'error'));
+        } catch (error) { if (!disposed) sandboxStatus.replaceChildren(notice(error.message, 'error')); }
+        finally { control.disabled = false; }
+      }), sandboxStatus,
+      el('p', {}, 'For a terminal check, run ', el('code', {}, 'ficc module-sandbox'), '. An unavailable sandbox keeps program modules disabled. Declarative panels can still run.'),
+      el('p', {}, 'If AppArmor blocks user namespaces, ask the system administrator to review the ',
+        el('a', { href: 'https://github.com/Federated-Industrial-Laboratories/ficc/blob/master/tools/module-sandbox-policy/README.md', target: '_blank', rel: 'noopener noreferrer' }, 'scoped policy instructions'),
+        '. Keep host isolation enabled. FICC does not install a policy from this control.')),
     el('section', { class: 'module-sources' }, el('h3', {}, 'Supplied modules'), supplied, button('Inspect supplied module', () => inspect('supplied')),
       el('h3', {}, 'Install from file'), file, button('Inspect file', () => inspect('file')),
       el('h3', {}, 'Install from address'), el('label', {}, 'Package URL', url), el('label', {}, 'Expected SHA-256', digest),

@@ -16,7 +16,7 @@ from ficc.modules.sandbox import PROBE, entry_command, execute
 from ficc.modules.validation import dumps, fields, loads
 from ficc.modules.watcher import identity as process_identity
 
-from . import adapter_binding, adapter_journal
+from . import adapter_binding, adapter_display, adapter_journal
 from .adapter_store import directory, install, locked, read, verify
 
 
@@ -82,6 +82,10 @@ async def dispatch(value, stream, check):
         if action == "binding-list":
             fields(parameters, set())
             return adapter_binding.listing(base)
+        if action == "display-describe":
+            fields(parameters, {"binding_id", "parameters"})
+            with adapter_binding.selected(base, parameters["binding_id"]):
+                return adapter_display.describe(parameters["parameters"])
         if action == "forget":
             return adapter_journal.forget(base, parameters)
         if action == "qualify":

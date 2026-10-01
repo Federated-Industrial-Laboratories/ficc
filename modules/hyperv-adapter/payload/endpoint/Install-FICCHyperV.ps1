@@ -30,6 +30,7 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'FileIdentity.cs') -Destination 
 Add-Type -Path (Join-Path $base 'FileIdentity.cs') -OutputAssembly (Join-Path $base 'FileIdentity.dll') -OutputType Library
 New-ModuleManifest -Path (Join-Path $base 'FICCHyperV.psd1') -RootModule 'FICCHyperV.psm1' -ModuleVersion '1.0.0' `
     -Guid '5d39b620-a306-47ee-b7c8-4bcb599a90ca' -Author 'Federated Industrial Laboratories' `
+    -CmdletsToExport @() -VariablesToExport @() -AliasesToExport @() `
     -FunctionsToExport @('Get-FICCEndpointIdentity','Get-FICCHyperVVersion','Get-FICCHyperVSnapshot','Invoke-FICCHyperVPower','Get-FICCHyperVTasks')
 New-PSRoleCapabilityFile -Path (Join-Path $capabilities 'FICCHyperV.psrc') -ModulesToImport 'FICCHyperV' `
     -VisibleFunctions @('Get-FICCEndpointIdentity','Get-FICCHyperVVersion','Get-FICCHyperVSnapshot','Invoke-FICCHyperVPower','Get-FICCHyperVTasks')

@@ -22,8 +22,12 @@ ROOT = Path(__file__).resolve().parents[1]
 MAX_INPUT = 32 * 1024 * 1024
 
 
-def read(root, name, maximum=4 * 1024 * 1024):
-    name = package_path(name)
+def read(root, name, maximum=4 * 1024 * 1024, *, cache=False):
+    if cache:
+        if re.fullmatch(r"[0-9a-f]{64}\.zip", name) is None:
+            raise ValueError("The native dependency cache name is invalid.")
+    else:
+        name = package_path(name)
     target = root / name
     if target.resolve() != target.absolute() or root.resolve() not in target.resolve().parents:
         raise ValueError("A native build input leaves its source directory.")
@@ -95,7 +99,7 @@ def dependency(record, cache, fetch):
             raise ValueError("The downloaded native dependency does not match its checksum.")
         with target.open("xb") as stream:
             stream.write(data)
-    data = read(cache, target.name, MAX_INPUT)
+    data = read(cache, target.name, MAX_INPUT, cache=True)
     if len(data) != record["bytes"] or hashlib.sha256(data).hexdigest() != record["sha256"]:
         raise ValueError("The native dependency cache changed.")
     return data

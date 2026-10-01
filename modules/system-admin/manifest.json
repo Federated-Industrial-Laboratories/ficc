@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "id": "org.ficc.system-admin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "category": "system-administration",
   "contract_version": 1,
   "host_api": 1,
@@ -154,7 +154,7 @@
     "children": [
       {
         "type": "text",
-        "text": "Select systems with a registered user or system service manager. Service and power changes require host confirmation. A power acknowledgement means queued; inspect the system before resolving its receipt."
+        "text": "Select systems with a registered user or system service manager. Check Power permission before shutdown. Authentication required means system policy needs setup outside FICC. Service and power changes require host confirmation. A power acknowledgement means queued; inspect the system before resolving its receipt."
       },
       {
         "type": "toolbar",
@@ -241,6 +241,10 @@
           {
             "id": "detail",
             "label": "Detail"
+          },
+          {
+            "id": "power",
+            "label": "Power permission"
           },
           {
             "id": "uptime",

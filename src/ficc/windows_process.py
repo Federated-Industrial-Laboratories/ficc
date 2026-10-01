@@ -78,6 +78,8 @@ class Runner:
             incoming.close()
             output, _ = await asyncio.gather(read(outgoing, spec.MAX_JSON), read(errors, 8192))
             status = await process.wait()
+            if status == 2:
+                raise Failure('windows_identity_changed', 'The Windows machine identity changed.', 409)
             if status != 0:
                 raise Failure('windows_transport', 'The Windows transport refused or failed the request.', 502)
             result = spec.decode(output)

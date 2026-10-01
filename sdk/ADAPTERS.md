@@ -8,7 +8,8 @@ module still needs VM grants and host confirmation.
 
 The host supports enrolled SSH with registered local IPC, or a controller sandbox
 with a registered Windows command endpoint. A package cannot add a transport,
-endpoint, credential or path. Local IPC remains unavailable until qualification.
+endpoint, credential or path. Local IPC uses an explicitly registered owned Unix
+socket on the enrolled account.
 New provider parsing belongs in packages. A new transport class requires a host
 change and qualification.
 
@@ -25,6 +26,10 @@ The host sends `adapter-hello` with `version:1,host_api:1`, then `adapter-invoke
 with exact fields `version:1,type,id,digest,phase,action,bindings`. IDs have 32
 lowercase hexadecimal characters; digests have 64. Each binding has
 `id,endpoint_id,endpoint_revision,machine_identity,consistency,resources,parameters`.
+An enrolled local-IPC binding also carries `transport_binding_id`, a 32-character
+lowercase hexadecimal identity. It names an existing host registration; it is
+not a socket path or authority to open another endpoint. Controller Windows
+bindings omit this additive field. Python and C/C++ helpers accept both shapes.
 
 Each resource has `id,key,birth,revision,state`. The provider key is at most
 128 characters. Birth identifies creation, never mutable configuration. ID is
@@ -66,6 +71,12 @@ VM data has these exact forms:
 - Console: `{resource,kind,binding_id,parameters}` for the exact frozen resource.
   Windows uses kind vmconnect and `parameters:{vm_id:<canonical lowercase GUID>}`.
   The host repeats the provider check at attachment and supplies private credentials.
+  Enrolled Linux uses kind vnc and private
+  `parameters:{pid:<positive integer>,socket_path:<absolute Unix path>,password:<8 alphanumeric characters>}`.
+  Its binding ID must equal the registered transport binding. The helper requires
+  an owned mode 0600 socket without path aliases, then verifies the kernel peer
+  UID/PID, socket device/inode and process start identity. It repeats these checks
+  at attachment and during relay. A TCP destination is not accepted by this class.
 
 The host persists intent before dispatch and never repeats an uncertain apply.
 Desired state alone does not prove the action's effect. A known unfinished task
@@ -102,3 +113,25 @@ A birth digest of 64 zeroes means creation identity is unavailable. Inventory
 can display it with identity_ready false. Power and console refuse it. A provider
 can supply an explicit operator setup command to initialize durable birth markers;
 ordinary inventory and probe must not write such markers.
+
+## Enrolled IPC and display boundary
+
+The selected provider socket appears at `/provider/socket` inside the sandbox.
+Private `/tmp`, no external network namespace, read-only package/system libraries,
+no host home or devices, and the ordinary module resource limits remain in force.
+An owned temporary hard link pins the selected socket inode during sandbox mount;
+the helper removes that link after the invocation. The registration also pins
+the peer process start identity. A daemon restart requires a new registration.
+
+The display stream is a separate fixed helper operation. Private credentials
+travel only in its bounded SSH header to the host native decoder. They do not
+enter module component state, viewer references or browser tickets. A package
+proposes the VM process and listener; the helper verifies the operating-system
+identity and the host repeats profile, module and caller grants. An inode or
+process change refuses attachment and closes an active relay.
+
+The same bounded relay is used by the existing libvirt display helper. Provider
+parsing and display setup stay in each provider package; the host has no
+VirtualBox-name dispatch case. See the supplied
+[VirtualBox implementation and setup](../modules/virtualbox-adapter/payload/README.md)
+for a native C consumer of these contracts.

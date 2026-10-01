@@ -17,13 +17,23 @@ export function cli(args) {
 export async function login(page) {
   const url = new URL(cli(['open', '--print-url']));
   if (url.origin !== origin) throw new Error('The isolated service URL does not match FICC_URL.');
-  await page.goto(origin);
-  await page.evaluate(fragment => {
-    history.replaceState(null, '', `/${fragment}`);
-    location.reload();
-  }, url.hash);
-  await expect(page.getByRole('heading', { name: 'Cluster overview', exact: true })).toBeVisible();
-  await expect(page).toHaveURL(`${origin}/`);
+  let stage = 'page load';
+  try {
+    const initial = await page.goto(origin);
+    if (!initial?.ok()) throw Error('The isolated console is unavailable.');
+    stage = 'bootstrap reload';
+    await page.evaluate(fragment => {
+      history.replaceState(null, '', `/${fragment}`);
+    }, url.hash);
+    await page.reload();
+    stage = 'owner interface';
+    await expect(page.getByRole('heading', { name: 'Cluster overview', exact: true })).toBeVisible();
+    stage = 'private URL cleanup';
+    await expect(page).toHaveURL(`${origin}/`);
+  } catch {
+    await page.goto('about:blank').catch(() => {});
+    throw new Error(`The isolated console login failed during ${stage}. Check its assets and service log.`);
+  }
 }
 export async function capture(page, name) {
   if (!process.env.FICC_CAPTURE_DIR) return;

@@ -19,10 +19,14 @@
 </details>
 
 Download FICC from [GitHub Releases](https://github.com/Federated-Industrial-Laboratories/ficc/releases).
-Use a Linux x86_64 package below. The examples use version 0.2.0.
+Use a Linux x86_64 package below. The examples use version 2.0.0.
 Check the published release version before downloading. These manuals also cover the current source version.
 
-Hyper-V and VirtualBox are not supported for operational use in version 0.2.0.
+The public release is `2.0.0-stable`, with tag `v2.0.0-stable`.
+Application and package versions use `2.0.0` for Python and native package compatibility.
+Select that stable release and verify its `SHA256SUMS` file.
+
+VM providers require their documented host versions, transports and explicit grants.
 See [provider support](testing.md#runtime-modules-and-providers) before installing VM modules.
 
 Each package includes Python and
@@ -45,14 +49,14 @@ obtain the files and checksum list from the trusted project release page.
 ## Debian and Ubuntu
 
 ```sh
-sudo apt install ./ficc_0.2.0_amd64.deb
+sudo apt install ./ficc_2.0.0_amd64.deb
 ficc desktop
 ```
 
 ## Arch Linux
 
 ```sh
-sudo pacman -U ./ficc-bin-0.2.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ./ficc-bin-2.0.0-1-x86_64.pkg.tar.zst
 ficc desktop
 ```
 
@@ -64,8 +68,8 @@ Extract it and run `makepkg` as a regular user to build the package locally.
 Run the executable from a directory owned by the desktop account.
 
 ```sh
-chmod +x FICC-0.2.0-x86_64.AppImage
-./FICC-0.2.0-x86_64.AppImage
+chmod +x FICC-2.0.0-x86_64.AppImage
+./FICC-2.0.0-x86_64.AppImage
 ```
 
 On first desktop use, FICC verifies and copies the bundled runtime into
@@ -78,7 +82,7 @@ Opening the AppImage requires a working FUSE installation. Without FUSE, extract
 into the directory where FICC will remain:
 
 ```sh
-./FICC-0.2.0-x86_64.AppImage --appimage-extract
+./FICC-2.0.0-x86_64.AppImage --appimage-extract
 ./squashfs-root/AppRun desktop
 ```
 
@@ -90,8 +94,8 @@ extraction directory must remain available while its launcher is installed.
 ## Portable archive
 
 ```sh
-tar -xzf ficc-0.2.0-linux-x86_64.tar.gz
-./ficc-0.2.0-linux-x86_64/ficc desktop
+tar -xzf ficc-2.0.0-linux-x86_64.tar.gz
+./ficc-2.0.0-linux-x86_64/ficc desktop
 ```
 
 The first desktop start creates a private on-demand user service and opens the

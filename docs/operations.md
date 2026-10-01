@@ -71,6 +71,14 @@ defaults when those variables are unset. The configuration is private and holds
 paths and approved aliases, not SSH keys or browser credentials. Existing files
 from another application and systemd overrides are refused.
 
+The service uses a private temporary directory under the account's runtime directory.
+Systemd removes it when the service stops. Each launcher name has a separate directory.
+The controller retains normal file ownership checks and cannot gain new privileges.
+Program modules use separate mandatory namespace, syscall and resource limits.
+
+Startup updates an older generated service when it is not ready.
+This change preserves its executable, state, profiles and port. Custom service changes are refused.
+
 If startup fails, run `ficc status` and
 `journalctl --user -u ficc.service -n 40`. Check that the installed executable,
 state permissions and port are available. Browser opening needs xdg-utils and

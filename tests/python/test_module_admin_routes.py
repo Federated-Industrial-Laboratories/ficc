@@ -32,6 +32,7 @@ def fixture(console, tmp_path, monkeypatch, count, action="start"):
         row = next(iter(provider.rows.values()))
         row["resource"].update(kind="system", name="system")
         row["state"] = "running"
+        row["power"] = dict.fromkeys(spec.POWER, "yes")
         provider.ignore = True
     monkeypatch.setattr(admin_rpc, "Systemd", lambda *args: provider)
     receipts = tmp_path / "node-receipts"

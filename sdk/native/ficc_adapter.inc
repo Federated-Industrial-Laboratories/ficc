@@ -52,7 +52,9 @@ static int adapter_valid(const cJSON *hello, const cJSON *request) {
     if (!cJSON_IsArray(bindings) || cJSON_GetArraySize(bindings) < 1 || cJSON_GetArraySize(bindings) > 64) return 0;
     unsigned count = 0;
     for (const cJSON *binding = bindings->child; binding; binding = binding->next) {
-        if (!adapter_object(binding, 7 + intent + observe) || !adapter_hash(get(binding, "id"), 32) ||
+        const cJSON *transport = get(binding, "transport_binding_id");
+        if (!adapter_object(binding, 7 + intent + observe + (transport != NULL)) ||
+            (transport && !adapter_hash(transport, 32)) || !adapter_hash(get(binding, "id"), 32) ||
             !adapter_hash(get(binding, "endpoint_id"), 32) || !adapter_hash(get(binding, "machine_identity"), 64) ||
             !cJSON_IsNumber(get(binding, "endpoint_revision")) || get(binding, "endpoint_revision")->valuedouble < 1 ||
             floor(get(binding, "endpoint_revision")->valuedouble) != get(binding, "endpoint_revision")->valuedouble ||

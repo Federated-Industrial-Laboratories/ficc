@@ -10,7 +10,7 @@ from ficc.viewer import configuration
 from ficc.viewer_stream import ProviderStream
 
 
-@pytest.mark.parametrize("authentication", ["none", "rfb-password"])
+@pytest.mark.parametrize("authentication", ["none", "rfb", "rfb-password"])
 async def test_ready_envelope_preserves_following_rfb_and_cleans_up(authentication):
     value = {"version": 1, "ready": True}
     if authentication == "rfb-password":
@@ -28,6 +28,7 @@ async def test_ready_envelope_preserves_following_rfb_and_cleans_up(authenticati
 
 @pytest.mark.parametrize("data,authentication", [
     (b'{"version":1,"ready":true,"password":"Test1234"}', "none"),
+    (b'{"version":1,"ready":true,"password":"Test1234"}', "rfb"),
     (b'{"version":1,"ready":true}', "rfb-password"),
     (b'{"version":1,"ready":true}', "unknown"),
     (b'{"version":1,"ready":true,"ready":false}', "none"),

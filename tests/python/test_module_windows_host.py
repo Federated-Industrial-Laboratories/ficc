@@ -29,10 +29,12 @@ class Runner:
 
     async def run(self, request, *, check, timeout):
         check()
-        assert 0 < timeout <= 20
+        assert 0 < timeout <= 30
         self.calls.append(copy.deepcopy(request))
         self.before_return()
         check()
+        if request.get('expected_machine_identity', self.identity) != self.identity:
+            raise Failure('windows_identity_changed', 'The Windows machine identity changed.', 409)
         return [{'machine_identity': self.identity} if command['command'] == 'Get-FICCEndpointIdentity'
                 else {'index': command['parameters']['Index']} for command in request['commands']]
 
@@ -69,7 +71,8 @@ def host(tmp_path):
 
 
 @pytest.mark.parametrize('count', [1, 64])
-async def test_endpoint_secret_custody_and_literal_batch(host, count):
+@pytest.mark.parametrize('timeout', [10, 30])
+async def test_endpoint_secret_custody_and_literal_batch(host, count, timeout):
     manager, actor, value, runner = host
     saved = await manager.set_endpoint(actor, None, value, None)
     assert saved['credentials_ready'] and saved['helper_ready'] and saved['display_credentials_ready']
@@ -79,9 +82,11 @@ async def test_endpoint_secret_custody_and_literal_batch(host, count):
     assert saved['credential_ref'] != saved['vmconnect']['credential_ref']
     result = await manager.execute(saved['id'], 1, saved['machine_identity'],
         [{'command': 'Get-FICCFixture', 'parameters': {'Index': index}} for index in range(count)],
-        check=lambda: manager.authorize(actor, 'nodes:read', saved['id']), timeout=10)
+        check=lambda: manager.authorize(actor, 'nodes:read', saved['id']), timeout=timeout)
     assert result == [{'index': index} for index in range(count)]
     assert len(runner.calls[-1]['commands']) == count
+    assert len(runner.calls) == 2
+    assert runner.calls[-1]['expected_machine_identity'] == saved['machine_identity']
     validate_records(manager.service.store.db)
 
 
@@ -124,7 +129,7 @@ async def test_revoked_actor_cannot_complete_probe_or_dispatch(host):
         await manager.execute(saved['id'], 1, saved['machine_identity'],
             [{'command': 'Get-FICCFixture', 'parameters': {'Index': 1}}],
             check=lambda: manager.authorize(actor, 'nodes:read', saved['id']), timeout=10)
-    assert runner.calls[-1]['commands'][0]['command'] == 'Get-FICCEndpointIdentity'
+    assert runner.calls[-1]['expected_machine_identity'] == saved['machine_identity']
 
 
 async def test_endpoint_remove_and_private_files_require_current_revision(host):

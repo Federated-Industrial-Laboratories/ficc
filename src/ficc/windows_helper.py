@@ -10,6 +10,10 @@ from . import module_windows_spec as spec
 from .module_windows_private import credentials, trust
 
 
+class IdentityChanged(ValueError):
+    """Refuse commands when the authenticated endpoint has a different identity."""
+
+
 def execute(value):
     from pypsrp.negotiate import NoCertificateRetrievedWarning  # type: ignore[import-not-found]
     from pypsrp.powershell import PowerShell, RunspacePool  # type: ignore[import-not-found]
@@ -18,7 +22,7 @@ def execute(value):
     from .windows_http import session
     warnings.simplefilter('error', NoCertificateRetrievedWarning)
     spec.fields(value, {'version', 'host', 'port', 'configuration', 'certificate_sha256',
-                        'ca_pem', 'credentials', 'commands'})
+                        'ca_pem', 'credentials', 'commands'}, {'expected_machine_identity'})
     if value['version'] != 1:
         raise ValueError('The Windows protocol version differs.')
     spec.host(value['host'])
@@ -28,6 +32,9 @@ def execute(value):
     account = credentials(value['credentials'])
     trust(value['ca_pem'])
     commands = value['commands']
+    expected = value.get('expected_machine_identity')
+    if 'expected_machine_identity' in value:
+        spec.identity(expected, 64)
     if not isinstance(commands, list) or not 1 <= len(commands) <= 64:
         raise ValueError('Invalid Windows command count.')
     username = (account['domain'] + '\\' if account['domain'] else '') + account['username']
@@ -39,7 +46,7 @@ def execute(value):
     results = []
     try:
         with RunspacePool(client, configuration_name=value['configuration'], min_runspaces=1, max_runspaces=1) as pool:
-            for command in commands:
+            def invoke(command):
                 spec.fields(command, {'command', 'parameters'})
                 shell = PowerShell(pool)
                 shell.add_cmdlet(command['command'])
@@ -48,7 +55,14 @@ def execute(value):
                 output = shell.invoke()
                 if shell.had_errors or len(output) != 1 or not isinstance(output[0], str):
                     raise ValueError('The Windows command did not return one JSON result.')
-                results.append(spec.decode(output[0].encode('utf-8')))
+                return spec.decode(output[0].encode('utf-8'))
+            if expected is not None:
+                actual = invoke({'command': 'Get-FICCEndpointIdentity', 'parameters': {}})
+                spec.fields(actual, {'machine_identity'})
+                if spec.identity(actual['machine_identity'], 64) != expected:
+                    raise IdentityChanged('The Windows machine identity changed.')
+            for command in commands:
+                results.append(invoke(command))
                 spec.encode(results)
         return {'version': 1, 'results': results}
     finally:
@@ -67,6 +81,9 @@ def main():
         sys.stdout.buffer.write(spec.encode(execute(value)))
         sys.stdout.buffer.flush()
         return 0
+    except IdentityChanged:
+        sys.stderr.write('Windows endpoint identity changed.\n')
+        return 2
     except Exception:
         sys.stderr.write('Windows transport request failed.\n')
         return 1

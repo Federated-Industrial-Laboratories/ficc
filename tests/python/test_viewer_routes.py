@@ -11,6 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 from test_viewer_configuration import rdp_config
 
 from ficc.errors import Failure
+from ficc.viewer.configuration import ready
 
 
 def setup(console, tmp_path, monkeypatch):
@@ -29,13 +30,16 @@ def setup(console, tmp_path, monkeypatch):
 
     async def console_descriptor(*args):
         check()
-        return {"digest": "0" * 64, "node_id": "node-0", "profile": {}, "vm_id": "bound-vm", "graphics": {}}
+        return {"digest": "0" * 64, "node_id": "node-0", "profile": {}, "vm_id": "bound-vm",
+                "graphics": {"protocol": "vnc", "authentication": "rfb"}}
 
     async def command(*args):
         check()
         return [], b""
 
     async def bridge(socket, runtime, arguments, header, guard, *, authentication="none"):
+        assert authentication == "rfb"
+        assert ready(b'{"version":1,"ready":true}', authentication) is None
         state["attached"] += 1
         try:
             await socket.send_bytes(b"4.sync,1.1;")

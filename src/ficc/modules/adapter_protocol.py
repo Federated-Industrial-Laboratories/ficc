@@ -55,9 +55,11 @@ def resource(value) -> dict:
 
 def binding(value) -> dict:
     fields(value, {"id", "endpoint_id", "endpoint_revision", "machine_identity", "consistency",
-                   "resources", "parameters"}, {"intent", "receipt"})
+                   "resources", "parameters"}, {"intent", "receipt", "transport_binding_id"})
     identity(value["id"])
     identity(value["endpoint_id"])
+    if "transport_binding_id" in value:
+        identity(value["transport_binding_id"])
     integer(value["endpoint_revision"])
     digest(value["machine_identity"])
     if not isinstance(value["consistency"], str) or value["consistency"] not in CONSISTENCY:

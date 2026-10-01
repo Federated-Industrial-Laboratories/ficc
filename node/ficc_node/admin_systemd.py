@@ -2,6 +2,7 @@
 """Read systemd state and dispatch fixed, noninteractive administration actions."""
 
 import os
+import subprocess
 from pathlib import Path
 
 from . import admin_spec as spec
@@ -59,6 +60,23 @@ class Systemd:
             raise ValueError("Invalid service property count.")
         return blocks
 
+    def power_access(self):
+        result = {action: "na" if self.manager == "user" else "unavailable" for action in spec.POWER}
+        if self.manager == "user":
+            return result
+        for action, method in (("reboot", "CanReboot"), ("poweroff", "CanPowerOff")):
+            try:
+                code, raw, _ = run(["/usr/bin/busctl", "--system", "--json=short", "--timeout=1", "call",
+                    "org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager", method],
+                    timeout=2, maximum=4096)
+                value = spec.decode(raw)
+                if (not code and value.get("type") == "s" and isinstance(value.get("data"), list)
+                        and len(value["data"]) == 1 and value["data"][0] in spec.POWER_ACCESS):
+                    result[action] = value["data"][0]
+            except (OSError, ValueError, TypeError):
+                pass
+        return result
+
     def describe(self, pointer, values):
         if pointer["kind"] == "system":
             memory = dict(line.split(":", 1) for line in Path("/proc/meminfo").read_text().splitlines())
@@ -77,6 +95,8 @@ class Systemd:
             metrics, detail = None, values["SubState"]
         value = {"resource": pointer, "state": state, "definition": definition, "boot_id": self.boot,
                  "invocation": invocation, "detail": detail, "metrics": metrics}
+        if pointer["kind"] == "system":
+            value["power"] = self.power_access()
         value["revision"] = spec.digest({key: value[key] for key in ("resource", "state", "definition", "boot_id", "invocation")})
         return value
 
@@ -153,6 +173,8 @@ class Systemd:
             elif (action in spec.POWER and (pointer["kind"] != "system" or self.manager != "system")
                   or action not in spec.POWER and pointer["kind"] != "service"):
                 result["error"] = spec.error("admin_kind", "Select services for service actions or system rows for power actions.")
+            elif action in spec.POWER and row["data"].get("power", {}).get(action) != "yes":
+                result["error"] = spec.error("admin_power_denied", "Noninteractive power permission is unavailable. Check account policy and refresh.")
             else:
                 selected.append(result)
             results.append(result)
@@ -161,6 +183,14 @@ class Systemd:
                 if len(selected) != 1:
                     raise ValueError("Select this system once for a power action.")
                 args = [*self.command, "--check-inhibitors=yes", "--no-block", action]
+                try:
+                    code, _, _ = run([*args[:-1], "--dry-run", action], timeout=3, maximum=16384)
+                except (OSError, ValueError, subprocess.TimeoutExpired):
+                    code = 1
+                if code:
+                    selected[0]["error"] = spec.error("admin_power_blocked",
+                        "The power check failed. Check inhibitors and close other sessions, then refresh.")
+                    return results
             else:
                 args = [*self.command, "--no-block", action, "--", *[row["resource"]["name"] for row in selected]]
             code, _, _ = run(args, timeout=15, maximum=16384)

@@ -53,14 +53,15 @@ It does not restart AppArmor or change other profile files. The installed file
 loads through the normal AppArmor startup mechanism. Loading failures trigger
 removal; a failed rollback retains the file and reports the recovery requirement.
 
-Run this command as the ordinary FICC owner in the desktop session, outside
-another tool sandbox. Do not run the FICC controller as root:
+Start FICC as the ordinary desktop account, then check its actual service sandbox:
 
 ```sh
-.venv/bin/python -c 'import asyncio; from ficc.modules.sandbox import Sandbox; print(asyncio.run(Sandbox().probe()).public())'
+ficc module-sandbox
 ```
 
-Require `available: True`, then run real installed-module isolation and lifecycle
+For custom state, pass the same `--state-dir` path as the launcher.
+The Module manager also provides **Check module sandbox**. Do not run FICC as root.
+Require `available: true`, then run real installed-module isolation and lifecycle
 tests before claiming the platform is qualified. A syntax check is not a security
 qualification. Other applications using Bubblewrap need a smoke check because the
 child capability restriction can affect their existing workflows.

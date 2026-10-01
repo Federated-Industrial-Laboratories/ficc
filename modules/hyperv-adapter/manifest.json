@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "id": "org.ficc.hyperv-adapter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "category": "virtual-machines",
   "contract_version": 1,
   "host_api": 1,

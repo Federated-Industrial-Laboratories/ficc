@@ -49,7 +49,7 @@ docker run --rm --network=none \
     cp *.pkg.tar.zst /release/
   '
 python tools/finalize_release.py --output /tmp/ficc-release \
-  --arch-package /tmp/ficc-release/ficc-bin-0.2.0-1-x86_64.pkg.tar.zst
+  --arch-package /tmp/ficc-release/ficc-bin-2.0.0-1-x86_64.pkg.tar.zst
 ```
 
 ## Qualification
@@ -58,8 +58,17 @@ Add `--viewer-runtime /path/to/verified-viewer-runtime` to include the native di
 Add `--windows-runtime /path/to/verified-windows-runtime` to include the Windows transport helper.
 Both are optional, separately validated directories. Their files, notices and source records enter the payload inventory.
 The corresponding components also enter the combined SBOM. Each runtime retains its recorded platform requirements.
+Their build and extraction paths must have trusted owners and no group-writable or world-writable parent directories.
+Use a private build directory; the system temporary directory's sticky-bit exception remains permitted.
+
+The payload also includes optional sandbox and power policy instructions under `tools/`.
+Package installation does not apply these policies.
 
 See [native displays](../docs/viewer-runtime.md) and [Windows management](../docs/windows-endpoints.md) for reproducible build commands.
+
+Build the Windows transport from the same source used for the controller package.
+Release assembly and installed checks reject helper files that differ from the selected controller source.
+An older transport can have valid checksums and still lack the current command contract.
 
 `tools/qualify_package.py` checks every payload file and link, the embedded
 helper archive, a real terminal child, local HTTP authentication, one-use login,
@@ -77,11 +86,26 @@ first use, repeated startup and stop on a graphical Linux session with its
 systemd user manager. Use an isolated launcher name, configuration and state.
 The browser and SSH regression suites use synthetic agents and fixtures.
 
+Run the generated-service check on the supported desktop host:
+
+```sh
+python tools/qualify_launcher.py --command /path/to/installed/ficc \
+  --require-sandbox --report /tmp/ficc-launcher-check.json
+```
+
+This check creates a temporary named launcher with separate demonstration state.
+It checks private temporary storage, enforced module isolation, repeat startup,
+stopped reinstall and retained state. It then removes its service and desktop entry.
+It does not open the browser or contact enrolled systems. Check browser opening separately.
+
 Before publication, inspect current source, reachable history, expanded packages
 and metadata for secrets and local machine identifiers. Keep deny lists and
 qualification logs outside the repository and release directory. Check the final
 SHA256SUMS, SBOM, source correspondence and notices. Ship both source archives
 alongside the binary formats. Release checks must pass before publication.
+
+The SBOM records each supplied module archive with its exact identity and digest.
+The package check refuses changed, unlisted or missing module inventory entries.
 
 ## Publish a version
 
@@ -103,3 +127,6 @@ must resolve to the same commit. Unexpected or changed assets are refused.
 After review, repeat with `--publish` to publish the verified draft. Repository
 visibility is unchanged. Published versions cannot be replaced by this command.
 CI artifacts are temporary qualification output; they are not release downloads.
+
+For the public `2.0.0-stable` release, package metadata uses `2.0.0`.
+Pass `--tag v2.0.0-stable` to `publish_release.py`. This publishes a stable release, not a release candidate.

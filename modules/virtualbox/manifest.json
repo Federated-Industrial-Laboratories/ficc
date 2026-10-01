@@ -1,0 +1,288 @@
+{
+  "format_version": 1,
+  "id": "org.ficc.virtualbox",
+  "version": "1.0.0",
+  "category": "virtual-machines",
+  "contract_version": 1,
+  "host_api": 1,
+  "display_name": "VirtualBox virtual machines",
+  "publisher": "Federated Industrial Laboratories",
+  "description": "Read a registered VirtualBox provider profile and request host-confirmed VM actions.",
+  "runtime": {
+    "kind": "python",
+    "language": "python",
+    "protocol": 2,
+    "platform": "linux",
+    "architecture": "any",
+    "entry": "main.py"
+  },
+  "capabilities": [
+    "workspace:read",
+    "vm:read",
+    "vm:power",
+    "vm:console"
+  ],
+  "dependencies": [],
+  "optional_capabilities": [
+    "vm:power",
+    "vm:console"
+  ],
+  "actions": [
+    {
+      "id": "profiles",
+      "label": "Read provider profiles",
+      "parameters": {},
+      "capabilities": [
+        "vm:read"
+      ]
+    },
+    {
+      "id": "load",
+      "label": "Read VM inventory",
+      "parameters": {
+        "offset": {
+          "type": "integer",
+          "min": 0,
+          "max": 4096
+        },
+        "profile_id": {
+          "type": "string",
+          "required": true,
+          "max_length": 32
+        }
+      },
+      "capabilities": [
+        "vm:read"
+      ]
+    },
+    {
+      "id": "preview-start",
+      "label": "Preview start",
+      "parameters": {
+        "vm_ids": {
+          "type": "string-list",
+          "required": true,
+          "max_items": 64,
+          "max_length": 73
+        },
+        "profile_id": {
+          "type": "string",
+          "required": true,
+          "max_length": 32
+        }
+      },
+      "capabilities": [
+        "vm:read",
+        "vm:power"
+      ]
+    },
+    {
+      "id": "preview-shutdown",
+      "label": "Preview graceful shutdown",
+      "parameters": {
+        "vm_ids": {
+          "type": "string-list",
+          "required": true,
+          "max_items": 64,
+          "max_length": 73
+        },
+        "profile_id": {
+          "type": "string",
+          "required": true,
+          "max_length": 32
+        }
+      },
+      "capabilities": [
+        "vm:read",
+        "vm:power"
+      ]
+    },
+    {
+      "id": "open-console",
+      "label": "Open selected console",
+      "parameters": {
+        "vm_ids": {
+          "type": "string-list",
+          "required": true,
+          "max_items": 64,
+          "max_length": 73
+        },
+        "profile_id": {
+          "type": "string",
+          "required": true,
+          "max_length": 32
+        }
+      },
+      "capabilities": [
+        "vm:console"
+      ]
+    }
+  ],
+  "ui": {
+    "type": "column",
+    "children": [
+      {
+        "type": "text",
+        "text": "Select a registered VirtualBox provider profile. VM actions require host confirmation. Guest shutdown has no forced fallback."
+      },
+      {
+        "type": "toolbar",
+        "children": [
+          {
+            "type": "button",
+            "label": "Read provider profiles",
+            "action": "profiles",
+            "parameters": {}
+          },
+          {
+            "type": "select",
+            "name": "profile_id",
+            "label": "Provider profile",
+            "value": "",
+            "options": [],
+            "bind": {
+              "options": {
+                "action": "profiles",
+                "path": [
+                  "results",
+                  0,
+                  "data",
+                  "profiles"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "toolbar",
+        "children": [
+          {
+            "type": "field",
+            "name": "offset",
+            "label": "Inventory offset",
+            "input_type": "number",
+            "value": 0
+          },
+          {
+            "type": "button",
+            "label": "Read VM inventory",
+            "action": "load",
+            "parameters": {
+              "offset": {
+                "field": "offset"
+              },
+              "profile_id": {
+                "field": "profile_id"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "",
+        "bind": {
+          "text": {
+            "action": "load",
+            "path": [
+              "results",
+              0,
+              "data",
+              "notice"
+            ]
+          }
+        }
+      },
+      {
+        "type": "table",
+        "id": "vms",
+        "selection": "multiple",
+        "page_size": 32,
+        "columns": [
+          {
+            "id": "name",
+            "label": "VM"
+          },
+          {
+            "id": "system",
+            "label": "System"
+          },
+          {
+            "id": "state",
+            "label": "State"
+          },
+          {
+            "id": "vcpus",
+            "label": "vCPUs"
+          },
+          {
+            "id": "memory",
+            "label": "Memory (KiB)"
+          },
+          {
+            "id": "error",
+            "label": "Error"
+          }
+        ],
+        "rows": [],
+        "bind": {
+          "rows": {
+            "action": "load",
+            "path": [
+              "results",
+              0,
+              "data",
+              "rows"
+            ]
+          }
+        }
+      },
+      {
+        "type": "toolbar",
+        "children": [
+          {
+            "type": "button",
+            "label": "Preview start",
+            "action": "preview-start",
+            "parameters": {
+              "vm_ids": {
+                "selection": "vms"
+              },
+              "profile_id": {
+                "field": "profile_id"
+              }
+            }
+          },
+          {
+            "type": "button",
+            "label": "Preview graceful shutdown",
+            "action": "preview-shutdown",
+            "parameters": {
+              "vm_ids": {
+                "selection": "vms"
+              },
+              "profile_id": {
+                "field": "profile_id"
+              }
+            }
+          },
+          {
+            "type": "button",
+            "label": "Open selected console",
+            "action": "open-console",
+            "parameters": {
+              "vm_ids": {
+                "selection": "vms"
+              },
+              "profile_id": {
+                "field": "profile_id"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "files": {}
+}

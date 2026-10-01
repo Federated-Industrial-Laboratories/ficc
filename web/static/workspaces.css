@@ -28,6 +28,7 @@
 .workspace-window .workspaces { height: calc(100vh - 20px); min-height: 0; }
 .module-manager { width: min(1000px, 94vw); max-height: 92vh; padding: 20px; overflow: auto; }
 .module-manager table td { overflow-wrap: anywhere; }
+.module-identity { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
 .module-manager .page-heading { display: flex; justify-content: space-between; }
 .module-sources { display: flex; flex-direction: column; gap: 8px; border: 1px solid #9ba4ac; padding: 12px; }
 .module-sources label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

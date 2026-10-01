@@ -91,6 +91,9 @@ Build requirements: Linux x86_64 or aarch64, a C11 compiler, a C++17 compiler,
 Cargo/Rust, Python 3.12 or later, and Node.js 22 or later. Native examples need
 the `C.UTF-8` locale and the build system's C/C++ runtime ABI. Build for the target
 distribution; an architecture match alone does not establish ABI compatibility.
+Activation checks Linux ELF64 headers, the declared architecture and native
+loader availability inside the sandbox before replacing an active package.
+It does not execute native package code to discover dependencies.
 Use `--node /path/to/node` on both commands when required.
 Build one example with `--language python` or another language name. Use `--cache`
 to place build files outside the default `sdk/build` directory.

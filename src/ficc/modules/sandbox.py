@@ -15,6 +15,7 @@ from typing import Any
 
 from ..errors import Failure
 from ..pipe_ready import ready
+from .native import require_native
 from .protocol import MAX_OUTPUT, MAX_STDERR
 from .sandbox_io import Channel
 from .watcher import identity
@@ -22,7 +23,8 @@ from .watcher import identity
 MEMORY_BYTES = 128 * 1024 * 1024
 MAX_TASKS = 32
 MAX_SECONDS = 10
-ADAPTER_APPLY_SECONDS = 20
+BROKER_SECONDS = 30
+ADAPTER_APPLY_SECONDS = 30
 PROPERTIES = {
     "MemoryMax": str(MEMORY_BYTES), "MemorySwapMax": "0", "TasksMax": str(MAX_TASKS),
     "CPUQuota": "50%", "RuntimeMaxSec": "12", "TimeoutStopSec": "1",
@@ -61,21 +63,39 @@ def environment() -> dict[str, str]:
             "DBUS_SESSION_BUS_ADDRESS": f"unix:path=/run/user/{os.getuid()}/bus"}
 
 
-def entry_command(manifest: dict) -> list[str]:
+def require_runtime(manifest: dict, package: Path | None = None) -> None:
+    """Check the platform and available loaders without running package code."""
     runtime = manifest["runtime"]
+    if runtime["kind"] == "declarative":
+        return
+    if runtime.get("platform") != platform.system().lower():
+        raise Failure("module_runtime_unavailable", "This module targets a different operating system.", 409)
     if runtime.get("architecture") not in ("any", platform.machine()):
         raise Failure("module_runtime_unavailable", "This module targets a different architecture.", 409)
+    if runtime["kind"] == "native":
+        if package is not None:
+            require_native(package, runtime)
+        return
+    binary = {"python": "/usr/bin/python3", "javascript": "/usr/bin/node"}.get(runtime["kind"])
+    if binary is None:
+        raise Failure("module_runtime_unavailable", "The requested module runtime is unavailable.", 503)
+    if not os.access(binary, os.X_OK):
+        raise Failure("module_runtime_unavailable", f"The module requires an executable {binary}.", 503)
+
+
+def entry_command(manifest: dict) -> list[str]:
+    require_runtime(manifest)
+    runtime = manifest["runtime"]
     path = "/module/" + runtime["entry"]
     if runtime["kind"] == "native":
         return [path]
-    binary = {"python": "/usr/bin/python3", "javascript": "/usr/bin/node"}.get(runtime["kind"])
-    if binary is None or not os.access(binary, os.X_OK):
-        raise Failure("module_runtime_unavailable", "The requested module runtime is unavailable.", 503)
+    binary = {"python": "/usr/bin/python3", "javascript": "/usr/bin/node"}[runtime["kind"]]
     return [binary, "-I", path] if runtime["kind"] == "python" else [binary, "--no-addons", path]
 
 
 def command(package: Path, executable: list[str], unit: str, *, adapter_apply: bool = False,
-            provider_socket: Path | None = None, watcher: Path | None = None) -> list[str]:
+            provider_socket: Path | None = None, watcher: Path | None = None,
+            broker_request: bool = False) -> list[str]:
     for binary in ("/usr/bin/bwrap", "/usr/bin/systemd-run", "/usr/bin/systemctl", "/usr/bin/python3"):
         if not os.access(binary, os.X_OK):
             raise Failure("module_sandbox_unavailable", "The required sandbox tools are unavailable.", 503)
@@ -94,7 +114,10 @@ def command(package: Path, executable: list[str], unit: str, *, adapter_apply: b
     isolated += ["--", *executable]
     launch = ["/usr/bin/systemd-run", "--user", "--quiet", "--pipe", "--wait", "--collect",
               "--service-type=exec", "--unit=" + unit]
-    properties = {**PROPERTIES, "RuntimeMaxSec": "22"} if adapter_apply else PROPERTIES
+    properties = PROPERTIES
+    if adapter_apply or broker_request:
+        seconds = ADAPTER_APPLY_SECONDS if adapter_apply else BROKER_SECONDS
+        properties = {**PROPERTIES, "RuntimeMaxSec": str(seconds + 2)}
     launch += [f"--property={key}={value}" for key, value in properties.items()]
     return launch + ["--", "/usr/bin/python3", "-I", str(watcher or Path(__file__).with_name("watcher.py")),
                      str(os.getpid()), identity(os.getpid()), "--", *isolated]
@@ -204,6 +227,8 @@ async def execute(package: Path, executable: list[str], payload: bytes, check, *
     options: dict[str, Any] = {}
     if adapter_apply:
         options["adapter_apply"] = True
+    elif conversation is not None:
+        options["broker_request"] = True
     if provider_socket is not None:
         options["provider_socket"] = provider_socket
     if watcher is not None:
@@ -289,7 +314,8 @@ async def execute(package: Path, executable: list[str], payload: bytes, check, *
         stdout = asyncio.create_task(exchange() if channel else read(pipes[1].fileno(), MAX_OUTPUT))
         tasks = [stdout, asyncio.create_task(read(pipes[2].fileno(), MAX_STDERR)),
                  asyncio.create_task(write()), asyncio.create_task(watch()), asyncio.create_task(guard())]
-        async with asyncio.timeout(ADAPTER_APPLY_SECONDS if adapter_apply else MAX_SECONDS):
+        seconds = ADAPTER_APPLY_SECONDS if adapter_apply else BROKER_SECONDS if conversation is not None else MAX_SECONDS
+        async with asyncio.timeout(seconds):
             await asyncio.gather(*tasks)
         output = stdout.result()
         completed = True

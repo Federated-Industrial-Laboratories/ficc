@@ -22,12 +22,13 @@ other module. These sources do not register modules during the application build
 | org.ficc.proxmox | Proxmox VM inventory and qualified provider actions | workspace:read, vm:read; optional vm:power, vm:console |
 | org.ficc.containers | Docker, Podman and Kubernetes table | workspace:read, container:read; optional container:logs, container:power |
 | org.ficc.system-admin | Systemd status, services, logs and power controls | workspace:read, admin:read; optional admin:logs, admin:services, admin:power |
-| org.ficc.hyperv-adapter | Packaged Windows provider adapter; not qualified for operational use | provider:admin |
-| org.ficc.hyperv | Hyper-V table and console controls; not qualified for operational use | workspace:read, vm:read; optional vm:power, vm:console |
+| org.ficc.hyperv-adapter | Packaged Windows provider adapter through registered JEA transport | provider:admin |
+| org.ficc.hyperv | Hyper-V table, power confirmation and VMConnect controls | workspace:read, vm:read; optional vm:power, vm:console |
+| org.ficc.virtualbox-adapter | Native VirtualBox provider adapter through registered private IPC | provider:admin |
+| org.ficc.virtualbox | VirtualBox table, power confirmation and private console controls | workspace:read, vm:read; optional vm:power, vm:console |
 
-The Hyper-V sources have package and component tests. Real Windows lifecycle and
-VMConnect qualification remain incomplete. VirtualBox has no complete package;
-its local IPC transport remains disabled. See [provider qualification](../docs/testing.md#runtime-modules-and-providers).
+Hyper-V and VirtualBox require their qualified provider versions and explicit
+account setup. Both use separately installed adapter and workspace packages. See [provider qualification](../docs/testing.md#runtime-modules-and-providers).
 
 Clock, notes and audio use declarative host components. System status runs a Python
 module in the required sandbox. It reads saved measurements through the constrained

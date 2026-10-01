@@ -30,15 +30,18 @@ async function setup(page, count) {
     const ids = Array.from({ length: count }, (_, index) => `system-${index}`);
     const state = window.optional = { calls: [], ids, module: { digest: 'a'.repeat(64), enabled: true,
       manifest: { id: 'org.example.vm', display_name: 'VM inventory', version: '1.0.0', category: 'virtual-machines',
+        host_api: 1, contract_version: 1, runtime: { kind: 'python', language: 'python', platform: 'linux', architecture: 'any', protocol: 2 },
         capabilities: ['vm:read', 'vm:power', 'vm:console'], optional_capabilities: ['vm:power', 'vm:console'] },
       grants: [{ capability: 'vm:read', target_ids: ids }] },
       catalogue: { capabilities: { 'vm:read': { kind: 'system', label: 'Read inventory' },
         'vm:power': { kind: 'system', label: 'Change VM power' }, 'vm:console': { kind: 'system', label: 'Open console' } },
       targets: { system: ids.map(id => ({ id, name: id })) } } };
+    state.modules = [state.module];
+    state.sandbox = { available: false, reason: 'User namespaces are unavailable.' };
     window.fetch = async (path, options) => {
       state.calls.push({ path, body: options?.body && JSON.parse(options.body) });
       const data = path.endsWith('/module-targets') ? state.catalogue : path.endsWith('/supplied-modules') ?
-        { modules: [] } : { modules: [state.module] };
+        { modules: [] } : path.endsWith('/sandbox') ? state.sandbox : { modules: state.modules };
       return { ok: true, status: 200, json: async () => data };
     };
   }, count);
@@ -90,5 +93,53 @@ test('legacy requirements and optional-only targets remain explicit', async ({ p
   expect(result.selected.required).toBe(false);
   expect(result.selected.targets).toHaveLength(1);
   expect(result.ungranted.targets).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('equal names and versions retain exact package identity through grants and removal', async ({ page }) => {
+  const errors = await setup(page, 1);
+  await page.evaluate(async () => {
+    const second = structuredClone(window.optional.module);
+    second.digest = 'b'.repeat(64); second.enabled = false;
+    window.optional.modules.push(second);
+    const { moduleManager } = await import('/module-manager.js');
+    moduleManager([], () => {});
+  });
+  const manager = page.getByRole('dialog', { name: 'Module manager', exact: true });
+  const table = manager.getByRole('table', { name: 'Installed modules', exact: true });
+  await expect(table.getByRole('row')).toHaveCount(3);
+  await expect(table).toContainText('org.example.vm');
+  const second = table.getByRole('row').filter({ hasText: 'bbbbbbbbbbbb' });
+  await second.getByRole('button', { name: 'Details', exact: true }).click();
+  const identity = manager.getByRole('table', { name: 'Installed package identity', exact: true });
+  for (const text of ['org.example.vm', 'b'.repeat(64), '1.0.0', 'Unverified', 'Workspace module']) await expect(identity).toContainText(text);
+  await expect(identity.getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Process protocol', exact: true }) })).toContainText('2');
+  await second.getByRole('button', { name: 'Enable', exact: true }).click();
+  await expect(manager.getByRole('table', { name: 'Package grant identity', exact: true })).toContainText('b'.repeat(64));
+  await expect(manager.getByRole('table', { name: 'Package replaced by activation', exact: true })).toContainText('a'.repeat(64));
+  await expect(manager).toContainText('Existing panels keep their old digest and saved data.');
+  await manager.getByRole('button', { name: 'Enable with selected grants', exact: true }).click();
+  expect(await page.evaluate(() => window.optional.calls.filter(call => call.path.endsWith('/activation')).map(call => call.path)))
+    .toEqual([`/api/v1/modules/${'b'.repeat(64)}/activation`]);
+  await second.getByRole('button', { name: 'Remove', exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: 'Remove module?', exact: true });
+  for (const text of ['org.example.vm', 'b'.repeat(64), '1.0.0', 'Unverified', 'Workspace module']) await expect(confirmation).toContainText(text);
+  await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect(await page.evaluate(() => window.optional.calls.filter(call => call.path.endsWith('b'.repeat(64))))).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('sandbox diagnostics show refusal and retry without installing or enabling a package', async ({ page }) => {
+  const errors = await setup(page, 1);
+  await page.evaluate(async () => { const { moduleManager } = await import('/module-manager.js'); moduleManager([], () => {}); });
+  const manager = page.getByRole('dialog', { name: 'Module manager', exact: true });
+  await manager.getByRole('button', { name: 'Check module sandbox', exact: true }).click();
+  await expect(manager.getByRole('alert')).toHaveText('Module sandbox unavailable: User namespaces are unavailable.');
+  await expect(manager).toContainText('ficc module-sandbox');
+  await expect(manager.getByRole('link', { name: 'scoped policy instructions' })).toHaveAttribute('rel', 'noopener noreferrer');
+  await page.evaluate(() => { window.optional.sandbox = { available: true, reason: '' }; });
+  await manager.getByRole('button', { name: 'Check module sandbox', exact: true }).click();
+  await expect(manager.getByText('Module sandbox available.', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => window.optional.calls.filter(call => call.body !== undefined))).toEqual([]);
   expect(errors).toEqual([]);
 });

@@ -33,7 +33,8 @@ def password(value):
 
 def ready(data, authentication="none"):
     value = document(data, 1024)
-    if authentication not in {"none", "rfb-password"}:
+    # RFB negotiation does not put credentials in the helper envelope.
+    if authentication not in {"none", "rfb", "rfb-password"}:
         raise ValueError("Unsupported display authentication.")
     required = {"version", "ready"} | ({"password"} if authentication == "rfb-password" else set())
     if set(value) != required or value["ready"] is not True:

@@ -17,6 +17,7 @@ from pathlib import Path
 from viewer_runtime import install as install_viewer
 
 from .common import digest, normalize_sdist, normalize_tree, run, unpack, write_json
+from .modules import components as module_components
 from .notices import install as install_notices
 
 CLI = '''#!/bin/sh
@@ -88,6 +89,9 @@ def build(source: Path, work: Path, inputs: dict[str, Path], provenance: dict, l
           *, viewer_runtime: Path | None = None, windows_runtime: Path | None = None,
           module_cache: Path | None = None) -> tuple[Path, str]:
     version = tomllib.loads((source / "pyproject.toml").read_text())["project"]["version"]
+    if windows_runtime is not None:
+        from .runtimes import verify_windows_sources
+        verify_windows_sources(windows_runtime, provenance['files'])
     payload = work / f"ficc-{version}-linux-x86_64"
     unpack(inputs["python"], payload)
     python = payload / "python/bin/python3"
@@ -141,6 +145,8 @@ def build(source: Path, work: Path, inputs: dict[str, Path], provenance: dict, l
     for name in ("README.md", "LICENSE", "NOTICE"):
         shutil.copy2(source / name, payload / name)
     shutil.copytree(source / "docs", payload / "docs")
+    for name in ("module-sandbox-policy", "power-policy"):
+        shutil.copytree(source / "tools" / name, payload / "tools" / name)
     shutil.copytree(source / ".github/assets", payload / ".github/assets")
     shutil.copy2(source / "packaging/ficc.desktop", payload / "ficc.desktop")
     shutil.copy2(source / "web/static/mark.svg", payload / "ficc.svg")
@@ -160,6 +166,11 @@ print(json.dumps([{'name':d.metadata['Name'],'version':d.version,'license':d.met
                       ("guacamole-common-js", "1.6.0"), ("Michroma", "1.100"),
                       ("Barlow Semi Condensed", "1.408"), ("JetBrains Mono", "2.304")):
         components.append({"type": "library", "name": name, "version": ver})
+    components.append({"type": "file", "name": "AppArmor Bubblewrap profile", "version": "4.0-derived",
+                       "licenses": [{"license": {"id": "GPL-2.0-only"}}],
+                       "hashes": [{"alg": "SHA-256", "content": digest(payload / "tools/module-sandbox-policy/ficc-module-bwrap")}],
+                       "properties": [{"name": "ficc:scope", "value": "Optional administrator-installed policy"}]})
+    components.extend(module_components(site / "ficc/module_packages"))
     components.extend(install_notices(payload, inputs, lock))
     if viewer_runtime is not None:
         runtime = install_viewer(viewer_runtime, payload / 'viewer-runtime')

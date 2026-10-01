@@ -2,6 +2,7 @@
 """Check fixed administration commands, state identity and bounded protocol input."""
 
 import copy
+import subprocess
 
 import pytest
 from ficc_node import admin_spec as spec
@@ -34,21 +35,58 @@ def test_only_fixed_noninteractive_program_arguments(monkeypatch, action):
     pointer = value.pointer("system", "system") if action in spec.POWER else value.pointer("service", "fixture.service")
     frozen = {"resource": pointer, "state": "active", "revision": "d" * 64, "definition": "e" * 64,
               "boot_id": "f" * 32, "invocation": ""}
-    monkeypatch.setattr(value, "status_batch", lambda _: {"results": [{"resource": pointer, "data": copy.deepcopy(frozen)}]})
+    monkeypatch.setattr(value, "status_batch", lambda _: {"results": [{"resource": pointer,
+        "data": {**copy.deepcopy(frozen), "power": dict.fromkeys(spec.POWER, "yes")}}]})
     calls = []
     monkeypatch.setattr(admin_systemd, "run", lambda args, **kw: calls.append(args) or (0, b"", False))
     assert value.apply_batch(action, [frozen]) == [{"resource": pointer, "state": "accepted"}]
-    args = calls[0]
+    args = calls[-1]
     assert args[:4] == value.command and "--no-block" in args
     assert not any(item in {"--force", "sudo", "--ignore-inhibitors"} for item in args)
     if action in spec.POWER:
         assert "--check-inhibitors=yes" in args and args[-1] == action
+        assert calls == [[*args[:-1], "--dry-run", action], args]
     else:
         assert args[-3:] == [action, "--", "fixture.service"]
     frozen["boot_id"] = "a" * 32
     monkeypatch.setattr(value, "status_batch", lambda _: {"results": [{"resource": pointer, "data": {**frozen, "boot_id": "f" * 32}}]})
     assert value.apply_batch(action, [frozen])[0]["error"]["code"] == "admin_stale"
-    assert len(calls) == 1
+    assert len(calls) == (2 if action in spec.POWER else 1)
+
+
+@pytest.mark.parametrize("action", ["reboot", "poweroff"])
+@pytest.mark.parametrize("outcome", ["blocked", "timeout", "wait-timeout", "missing", "dispatch-failure"])
+def test_power_preflight_refusal_is_distinct_from_uncertain_dispatch(monkeypatch, action, outcome):
+    value = provider()
+    pointer = value.pointer("system", "system")
+    frozen = {"resource": pointer, "state": "running", "revision": "d" * 64, "definition": "e" * 64,
+              "boot_id": "f" * 32, "invocation": ""}
+    monkeypatch.setattr(value, "status_batch", lambda _: {"results": [{"resource": pointer,
+        "data": {**frozen, "power": dict.fromkeys(spec.POWER, "yes")}}]})
+    calls = []
+
+    def run(args, **options):
+        calls.append(args)
+        assert "--check-inhibitors=yes" in args and "--no-ask-password" in args
+        if "--dry-run" in args:
+            assert options == {"timeout": 3, "maximum": 16384}
+            if outcome == "timeout":
+                raise spec.ProviderError("admin_timeout", "The service manager request exceeded its time limit.")
+            if outcome == "missing":
+                raise FileNotFoundError("systemctl")
+            if outcome == "wait-timeout":
+                raise subprocess.TimeoutExpired(args, 3)
+            return (1 if outcome == "blocked" else 0), b"", False
+        return 1, b"", False
+
+    monkeypatch.setattr(admin_systemd, "run", run)
+    result = value.apply_batch(action, [frozen])[0]
+    if outcome == "dispatch-failure":
+        assert result["state"] == "unknown" and result["error"]["code"] == "admin_outcome_unknown"
+        assert len(calls) == 2 and "--dry-run" not in calls[-1]
+    else:
+        assert result["state"] == "refused" and result["error"]["code"] == "admin_power_blocked"
+        assert len(calls) == 1 and "--dry-run" in calls[0]
 
 
 @pytest.mark.parametrize("bad", ["--force", "../a.service", "a@.service", "a.service\n", "x" * 300 + ".service"])

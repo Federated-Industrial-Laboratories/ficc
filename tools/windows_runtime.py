@@ -15,15 +15,13 @@ from pathlib import Path
 
 from release_lib.notices import member
 from release_lib.payload import python_notices, repair_records
+from release_lib.runtimes import WINDOWS_HELPERS
 from source_runtime import download, secure_dir, unpack
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 from ficc.native_runtime import checksum, host_platform  # noqa: E402
 from ficc.windows_runtime import MANIFEST, validate  # noqa: E402
-
-HELPERS = ('windows_helper.py', 'windows_http.py', 'module_windows_spec.py',
-           'module_windows_private.py', 'native_runtime.py', 'settings.py', 'windows_runtime.py')
 
 
 def write(path, value):
@@ -85,7 +83,7 @@ def build(args):
     helper = runtime / 'helper/ficc'
     helper.mkdir(parents=True)
     (helper / '__init__.py').write_text('# SPDX-License-Identifier: Apache-2.0\n')
-    for name in HELPERS:
+    for name in WINDOWS_HELPERS:
         shutil.copyfile(ROOT / 'src/ficc' / name, helper / name)
     (runtime / 'helper/entry.py').write_text(
         '# SPDX-License-Identifier: Apache-2.0\nimport sys\nfrom pathlib import Path\n'

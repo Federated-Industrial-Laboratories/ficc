@@ -85,3 +85,28 @@ def test_repeated_native_timestamps_have_distinct_browser_receipts():
     for value in [100, 101, 102]:
         assert output.acknowledge(instruction("sync", value)) == instruction("sync", 100)
     assert not output.syncs
+
+
+@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("with_state", [False, True])
+def test_remote_cursor_position_preserves_bounded_display_metadata(count, with_state):
+    output = Output()
+    for index in range(count):
+        values = ["mouse", index * 37, index * 29]
+        if with_state:
+            values.extend([index % 32, 1000 + index])
+        packet = instruction(*values)
+        assert output.feed(packet) == [packet]
+    assert output.layers == {0: (0, 0)}
+    assert not output.streams and not output.syncs
+
+
+@pytest.mark.parametrize("values", [
+    ("mouse", -1, 0), ("mouse", 4096, 0), ("mouse", 0, 2160),
+    ("mouse", "NaN", 0), ("mouse", 0, 0, 0), ("mouse", 0, 0, 32, 0),
+    ("mouse", 0, 0, -1, 0), ("mouse", 0, 0, 0, -1),
+    ("mouse", 0, 0, 0, 2**53), ("mouse", 0, 0, 0, 0, 0),
+])
+def test_remote_cursor_cannot_expand_geometry_or_input_fields(values):
+    with pytest.raises(ValueError):
+        Output().feed(instruction(*values))

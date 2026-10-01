@@ -51,6 +51,9 @@ page contents, command copying and a search index that runs in your browser.
 | 24 | [Proxmox provider](providers/proxmox.md) | Pinned provider builds, VM tasks and recovery. |
 | 25 | [Windows endpoints](windows-endpoints.md) | Registered JEA commands, private credentials and separate display connections. |
 | 26 | [Provider adapter SDK](../sdk/ADAPTERS.md) | Runtime provider packages, account grants and operation receipts. |
+| 27 | [VirtualBox provider](providers/virtualbox.md) | Account-bound native adapter, local IPC and display setup. |
+| 28 | [Module sandbox setup](../tools/module-sandbox-policy/README.md) | Optional AppArmor policy, installation checks and removal. |
+| 29 | [System power policy](../tools/power-policy/README.md) | Optional group-scoped shutdown and restart permissions. |
 
 ## Terms used in the manuals
 

@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
+// Permit normal power operations for an explicitly assigned account group.
+polkit.addRule(function(action, subject) {
+    var allowed = [
+        "org.freedesktop.login1.power-off",
+        "org.freedesktop.login1.power-off-multiple-sessions",
+        "org.freedesktop.login1.reboot",
+        "org.freedesktop.login1.reboot-multiple-sessions"
+    ];
+    if (subject.isInGroup("ficc-power") && allowed.indexOf(action.id) !== -1) {
+        return polkit.Result.YES;
+    }
+});

@@ -10,6 +10,7 @@ PROVIDERS = {"systemd"}
 KINDS = {"system", "service"}
 ACTIONS = {"start", "stop", "restart", "reboot", "poweroff"}
 POWER = {"reboot", "poweroff"}
+POWER_ACCESS = {"yes", "no", "challenge", "na", "unavailable"}
 EXPECTED = ("resource", "state", "revision", "definition", "boot_id", "invocation")
 TERMINAL = {"refused", "observed", "resolved"}
 HEX = re.compile(r"[a-f0-9]{32}\Z")

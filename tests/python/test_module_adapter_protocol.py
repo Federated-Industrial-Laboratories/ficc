@@ -115,3 +115,22 @@ def test_unknown_private_binding_fields_and_duplicate_resources_refuse():
     value["resources"] = [selected, copy.deepcopy(selected)]
     with pytest.raises(Failure):
         binding(value)
+
+
+@pytest.mark.parametrize("count", [1, 64])
+def test_optional_registered_transport_identity_is_frozen_without_a_path(count):
+    values = bindings(count)
+    for index, value in enumerate(values):
+        value["transport_binding_id"] = f"{index + 1024:032x}"
+    conversation = Conversation("a" * 64, "inventory", "inventory", values, lambda: None)
+    expected = conversation.request["bindings"][0]["transport_binding_id"]
+    values[0]["transport_binding_id"] = "f" * 32
+    assert conversation.request["bindings"][0]["transport_binding_id"] == expected
+
+
+@pytest.mark.parametrize("value", [None, "", "A" * 32, "/tmp/provider.sock", "a" * 31])
+def test_registered_transport_identity_refuses_nonidentities(value):
+    item = bindings()[0]
+    item["transport_binding_id"] = value
+    with pytest.raises(Failure):
+        binding(item)

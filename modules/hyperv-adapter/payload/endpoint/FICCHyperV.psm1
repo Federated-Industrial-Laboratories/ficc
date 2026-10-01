@@ -3,6 +3,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $script:Namespace = 'root/virtualization/v2'
+Import-Module CimCmdlets,Hyper-V,Microsoft.PowerShell.Management,Microsoft.PowerShell.Utility -Scope Local
 Add-Type -Path (Join-Path $PSScriptRoot 'FileIdentity.dll')
 
 function Get-FICCHash([string]$Value) {
@@ -24,7 +25,7 @@ function Assert-FICCGuid([string]$Value) {
 function Assert-FICCIds($Ids, [int]$Maximum = 64) {
     if ($Ids -isnot [Array] -or $Ids.Count -gt $Maximum) { throw 'VM batch refused.' }
     foreach ($id in $Ids) { Assert-FICCGuid $id }
-    if (@($Ids | Select-Object -Unique).Count -ne $Ids.Count) { throw 'Repeated VM identity.' }
+    if (@($Ids | Microsoft.PowerShell.Utility\Select-Object -Unique).Count -ne $Ids.Count) { throw 'Repeated VM identity.' }
 }
 function Get-FICCEndpointIdentity {
     if ((Get-CimInstance Win32_ComputerSystem).DomainRole -ge 4) { throw 'Domain controller endpoints are not supported.' }
@@ -49,21 +50,58 @@ function Get-FICCRow($Computer, $Settings, $VM) {
         name = [string]$Computer.ElementName; state = [int]$Computer.EnabledState;
         memory_bytes = [long]$VM.MemoryStartup; vcpus = [int]$VM.ProcessorCount; console = $true }
 }
-function Get-FICCSelected([string[]]$Ids) {
+function New-FICCIndex($Items, [string]$Property, [switch]$Prefix) {
+    $index = @{}
+    foreach ($item in $Items) {
+        $key = ([string]$item.$Property).ToLowerInvariant()
+        if ($Prefix) { $key = $key.Split('\')[0] }
+        if ($index.ContainsKey($key)) { $index[$key] = $null }
+        else { $index[$key] = $item }
+    }
+    return $index
+}
+function Get-FICCSelected([string[]]$Ids, [switch]$IdentityOnly) {
     if ($Ids.Count -eq 0) { return }
-    $filter = ($Ids | ForEach-Object { "Name='$_'" }) -join ' OR '
-    $computers = @(Get-CimInstance -Namespace $script:Namespace -ClassName Msvm_ComputerSystem -Filter $filter)
-    $filter = ($Ids | ForEach-Object { "VirtualSystemIdentifier='$_'" }) -join ' OR '
-    $settings = @(Get-CimInstance -Namespace $script:Namespace -ClassName Msvm_VirtualSystemSettingData -Filter ("VirtualSystemType='Microsoft:Hyper-V:System:Realized' AND (" + $filter + ')'))
-    $vms = @(Get-VM -Id $Ids -ErrorAction SilentlyContinue)
+    $computerOptions = @{Namespace=$script:Namespace;ClassName='Msvm_ComputerSystem'}
+    $filter = "VirtualSystemType='Microsoft:Hyper-V:System:Realized'"
+    if ($Ids.Count -eq 1) {
+        $computerOptions.Filter = "Name='$($Ids[0])'"
+        $filter += " AND VirtualSystemIdentifier='$($Ids[0])'"
+    }
+    $computers = @(Get-CimInstance @computerOptions | Microsoft.PowerShell.Utility\Select-Object -First 4354)
+    $settings = @(Get-CimInstance -Namespace $script:Namespace -ClassName Msvm_VirtualSystemSettingData -Filter $filter |
+        Microsoft.PowerShell.Utility\Select-Object -First 4353)
+    if ($computers.Count -gt 4353 -or $settings.Count -gt 4352) { throw 'Provider inventory exceeds its bound.' }
+    $memory = @(); $processors = @()
+    if (-not $IdentityOnly) {
+        $memory = @(Get-CimInstance -Namespace $script:Namespace -ClassName Msvm_MemorySettingData |
+            Microsoft.PowerShell.Utility\Select-Object -First 8705)
+        $processors = @(Get-CimInstance -Namespace $script:Namespace -ClassName Msvm_ProcessorSettingData |
+            Microsoft.PowerShell.Utility\Select-Object -First 8705)
+        if ($memory.Count -gt 8704 -or $processors.Count -gt 8704) { throw 'Provider metadata exceeds its bound.' }
+    }
+    $computerIndex = New-FICCIndex $computers Name
+    $settingIndex = New-FICCIndex $settings VirtualSystemIdentifier
+    $memoryIndex = New-FICCIndex $memory InstanceID -Prefix
+    $processorIndex = New-FICCIndex $processors InstanceID -Prefix
     $output = @()
     foreach ($key in $Ids) {
-        $computer = @($computers | Where-Object Name -eq $key)
-        $setting = @($settings | Where-Object VirtualSystemIdentifier -eq $key)
-        $vm = @($vms | Where-Object { $_.Id.ToString() -eq $key })
-        if ($computer.Count -eq 1 -and $setting.Count -eq 1 -and $vm.Count -eq 1) {
-            $output += Get-FICCRow $computer[0] $setting[0] $vm[0]
+        $computer = $computerIndex[$key]
+        $setting = $settingIndex[$key]
+        if ($null -eq $computer -or $null -eq $setting) { continue }
+        $metadata = @{MemoryStartup=0;ProcessorCount=1}
+        if (-not $IdentityOnly) {
+            $prefix = $setting.InstanceID.ToLowerInvariant()
+            $ram = $memoryIndex[$prefix]
+            $cpu = $processorIndex[$prefix]
+            if ($null -eq $ram -or $null -eq $cpu -or
+                $ram.VirtualQuantityUnits -cne 'byte * 2^20' -or $cpu.VirtualQuantityUnits -cne 'count') {
+                throw 'Provider metadata identity or units differ.'
+            }
+            $metadata.MemoryStartup = [long]$ram.VirtualQuantity * 1048576
+            $metadata.ProcessorCount = [int]$cpu.VirtualQuantity
         }
+        $output += Get-FICCRow $computer $setting $metadata
     }
     return $output
 }
@@ -77,9 +115,13 @@ function Get-FICCHyperVSnapshot {
     $next = $null
     $ids = @($value.ids)
     if ($ids.Count -eq 0) {
-        $all = @(Get-VM | Sort-Object Id | Select-Object -First 4353)
+        $settings = @(Get-CimInstance -Namespace $script:Namespace -ClassName Msvm_VirtualSystemSettingData -Filter "VirtualSystemType='Microsoft:Hyper-V:System:Realized'" |
+            Microsoft.PowerShell.Utility\Select-Object -First 4353)
+        $all = @($settings | ForEach-Object { ([string]$_.VirtualSystemIdentifier).ToLowerInvariant() })
         if ($all.Count -gt 4352) { throw 'Provider inventory exceeds its bound.' }
-        $ids = @($all | Select-Object -Skip $value.offset -First $value.limit | ForEach-Object { $_.Id.ToString().ToLowerInvariant() })
+        Assert-FICCIds $all -Maximum 4352
+        $all = @($all | Sort-Object)
+        $ids = @($all | Microsoft.PowerShell.Utility\Select-Object -Skip $value.offset -First $value.limit)
         if (($value.offset + $value.limit) -lt $all.Count) {
             $next = $value.offset + $value.limit
             if ($next -gt 4096) { throw 'Provider continuation exceeds its bound.' }
@@ -103,7 +145,7 @@ function Invoke-FICCHyperVPower {
         $ids += $target.resource.key
     }
     Assert-FICCIds $ids
-    $rows = @(Get-FICCSelected $ids)
+    $rows = @(Get-FICCSelected $ids -IdentityOnly)
     $results = @()
     foreach ($target in $value.targets) {
         $resource = $target.resource
@@ -114,7 +156,7 @@ function Invoke-FICCHyperVPower {
             $results += $result; continue
         }
         # Recheck this VM immediately before dispatch. The CIM calls are not atomic.
-        $fresh = @(Get-FICCSelected @($resource.key))
+        $fresh = @(Get-FICCSelected @($resource.key) -IdentityOnly)
         if ($fresh.Count -ne 1 -or $fresh[0].birth -cne $resource.birth -or $fresh[0].revision -cne $resource.revision -or $fresh[0].state -ne $expected) {
             $results += $result; continue
         }

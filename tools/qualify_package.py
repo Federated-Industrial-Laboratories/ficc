@@ -13,12 +13,17 @@ import shutil
 import signal
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from release_lib.modules import components as module_components  # noqa: E402
+from release_lib.runtimes import verify_windows_sources  # noqa: E402
 
 PROBE = '''import asyncio,io,json,pathlib,zipfile
 import ficc_node
@@ -52,6 +57,16 @@ def qualify(command: Path, payload: Path, service_log: Path | None = None) -> di
     actual_links = {str(p.relative_to(payload)) for p in payload.rglob("*") if p.is_symlink()}
     check("exact payload files", actual_files == set(manifest["files"]) | {"bundle.json"})
     check("exact payload links", actual_links == set(manifest["links"]))
+    policy_files = {"tools/power-policy/README.md", "tools/power-policy/ficc-power.rules",
+                    "tools/module-sandbox-policy/README.md"}
+    check("optional policy instructions", policy_files <= actual_files)
+    expected_modules = module_components(payload / "python/lib/python3.12/site-packages/ficc/module_packages")
+    sbom = json.loads((payload / "sbom.cdx.json").read_text())
+    actual_modules = [item for item in sbom["components"] if item.get("bom-ref", "").startswith("urn:ficc:module:")]
+    check("supplied module inventory", sorted(actual_modules, key=lambda item: item["bom-ref"])
+          == sorted(expected_modules, key=lambda item: item["bom-ref"]))
+    if (payload / 'windows-runtime').exists():
+        check("Windows helper source", verify_windows_sources(payload / 'windows-runtime', manifest['source']['files']) > 0)
     for name, checksum in manifest["files"].items():
         target = (payload / name).resolve()
         check("file: " + name, target.is_relative_to(payload.resolve()) and target.is_file()
@@ -134,6 +149,8 @@ def qualify(command: Path, payload: Path, service_log: Path | None = None) -> di
                     except subprocess.TimeoutExpired:
                         os.killpg(process.pid, signal.SIGKILL)
                         process.wait(timeout=5)
+                if service_log:
+                    shutil.copy2(Path(temporary) / "service.log", service_log)
         check("service exit", process.returncode in {0, -signal.SIGTERM, 128 + signal.SIGTERM})
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
@@ -141,8 +158,6 @@ def qualify(command: Path, payload: Path, service_log: Path | None = None) -> di
                     and "Application shutdown complete." in (Path(temporary) / "service.log").read_text()):
                 break
             time.sleep(0.05)
-        if service_log:
-            shutil.copy2(Path(temporary) / "service.log", service_log)
         check("control socket closed", not (state / "control.sock").exists())
         check("graceful shutdown", "Application shutdown complete." in (Path(temporary) / "service.log").read_text())
     return {"version": manifest["version"], "passed": len(checks), "failed": 0,

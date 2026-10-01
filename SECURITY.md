@@ -1,6 +1,6 @@
 # Security
 
-FICC is in development. No stable release is supported yet.
+The supported stable release is 2.0.0, published as 2.0.0-stable.
 Report a security issue privately to contact@federatedindustrial.com.
 Do not include credentials, private keys or confidential logs in a public issue.
 

@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "language": "c",
+  "sources": [
+    "native/main.c",
+    "native/core.c",
+    "native/lifecycle.c",
+    "native/setup.c",
+    "native/glue.c"
+  ],
+  "libraries": [
+    "dl",
+    "pthread",
+    "crypto"
+  ],
+  "dependencies": [
+    {
+      "id": "virtualbox-sdk",
+      "url": "https://download.virtualbox.org/virtualbox/7.2.20/VirtualBoxSDK-7.2.20-175154.zip",
+      "sha256": "d94e4dddd5b99c84b2e328e8a19faff906168ad1d51e9545376f638108c0edc8",
+      "bytes": 14889127,
+      "members": {
+        "sdk/bindings/c/glue/VBoxCAPIGlue.c": "VBoxCAPIGlue.c",
+        "sdk/bindings/c/glue/VBoxCAPIGlue.h": "VBoxCAPIGlue.h",
+        "sdk/bindings/c/include/VBoxCAPI_v7_2.h": "VBoxCAPI_v7_2.h",
+        "sdk/bindings/webservice/java/jax-ws/COPYING.LIB": "COPYING.LIB"
+      },
+      "sources": [],
+      "licenses": [
+        "COPYING.LIB",
+        "VBoxCAPIGlue.c",
+        "VBoxCAPIGlue.h",
+        "VBoxCAPI_v7_2.h"
+      ]
+    }
+  ]
+}
