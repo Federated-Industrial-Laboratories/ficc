@@ -1,6 +1,6 @@
 # Security
 
-The supported stable release is 2.0.0, published as 2.0.0-stable.
+The supported stable release is 0.2.0, published as 0.2.0-stable.
 Report a security issue privately to contact@federatedindustrial.com.
 Do not include credentials, private keys or confidential logs in a public issue.
 

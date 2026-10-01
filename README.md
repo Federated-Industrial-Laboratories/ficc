@@ -5,7 +5,7 @@
 <p align="center">A local console for Linux clusters, connected through OpenSSH.</p>
 
 <p align="center">
-  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 2.0.0-stable | Python 3.12 or later | OpenSSH">
+  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.2.0-stable | Python 3.12 or later | OpenSSH">
 </p>
 
 <p align="center">
