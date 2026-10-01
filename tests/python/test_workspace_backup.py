@@ -4,7 +4,9 @@
 import hashlib
 import json
 import os
+import platform
 import sqlite3
+from pathlib import Path
 
 import pytest
 from test_modules_packages import bundle, package
@@ -79,9 +81,9 @@ def test_stage_recovery_never_follows_links(tmp_path, kind):
 
 def populate(path, count=1):
     service = Service(Settings(state_dir=path, control=False))
-    inspection = inspect_archive(bundle(*package({"bin/player": b"native fixture"},
+    inspection = inspect_archive(bundle(*package({"bin/player": Path("/usr/bin/true").read_bytes()},
         runtime={"kind": "native", "language": "c", "entry": "bin/player",
-                 "platform": "linux", "architecture": "x86_64"}, capabilities=["workspace:read"])))
+                 "platform": "linux", "architecture": platform.machine()}, capabilities=["workspace:read"])))
     installed = service.modules.install(inspection, inspection.digest)
     spaces = []
     for index in range(count):
