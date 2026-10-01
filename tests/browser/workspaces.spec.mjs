@@ -163,6 +163,7 @@ test('a fresh launch resumes saved tiles and floating geometry without allocatin
   await page.getByLabel('Saved workspace').selectOption({ label: name });
   await page.getByRole('button', { name: 'Open', exact: true }).click();
   await page.locator('[data-view=overview]').click();
+  await expect(page.getByRole('heading', { name: 'Cluster overview', exact: true })).toBeVisible();
   const savedUrl = page.url(), surfaceId = new URL(savedUrl).searchParams.get('surface');
   const readLayouts = () => page.evaluate(async id => {
     const all = await (await fetch('/api/v1/workspace-layouts')).json();
