@@ -1,6 +1,6 @@
 # Changes
 
-## 2.0.0-stable
+## 0.2.0-stable
 
 - Add installable runtime modules with archive inspection, sandboxing and explicit capability grants.
 - Add C, C++, Rust, Python and JavaScript SDK helpers, plus TypeScript authoring.
