@@ -25,7 +25,9 @@ jobs:
       - name: Install declared runtime providers after the host
         run: python tools/runtime_packages.py --output "$RUNNER_TEMP/ficc-runtime-wheels" --install
       - name: Check policy and identity provider contracts
-        run: python -m pytest policy-providers/opa/tests identity-providers/oidc/tests
+        run: |
+          python -m pytest policy-providers/opa/tests
+          python -m pytest identity-providers/oidc/tests
       - run: bash tools/check.sh
       - run: FICC_REQUIRE_SSH=1 python -m pytest tests/integration
       - run: python -m pip_audit -r requirements.lock --disable-pip --no-deps
