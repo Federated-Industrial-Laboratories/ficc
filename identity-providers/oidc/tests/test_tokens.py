@@ -10,7 +10,7 @@ from support import admit, assert_active, assert_last_denied
 from ficc_identity_oidc import create
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("claims", [
     {"iss": "https://other.example"}, {"sub": ""}, {"aud": "different"},
     {"aud": ["ficc", "other"], "azp": "other"}, {"aud": ["ficc", "ficc"]},
@@ -29,7 +29,7 @@ def test_invalid_signed_claims_never_admit(issuer, provider, claims, count):
     assert provider.complete(*issuer.code(count))["subject"] == f"person-{count}"
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("header", [{"jku": "https://other.example/keys"},
                                    {"x5u": "https://other.example/cert"},
                                    {"jwk": {"kty": "oct", "k": "AAAA"}},
@@ -49,7 +49,7 @@ def test_token_cannot_select_remote_or_embedded_keys(issuer, provider, header, c
     assert_active(provider, rows)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_wrong_signing_key_and_algorithm(issuer, provider, count):
     rows = admit(issuer, provider, count)
     before = dict(provider._sessions)
@@ -81,7 +81,7 @@ def test_ec_signature_and_key_rotation(issuer):
         provider.close()
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("changed", ["sub", "auth_time", "acr", "nonce"])
 def test_refresh_preserves_identity_and_original_authentication(issuer, provider, count, changed):
     rows = [provider.complete(*issuer.code(index)) for index in range(count)]
@@ -95,7 +95,7 @@ def test_refresh_preserves_identity_and_original_authentication(issuer, provider
     assert last.handle not in provider._sessions
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("failure", ["consume-drop", "reuse"])
 def test_refresh_uncertainty_is_never_replayed(issuer, provider, count, failure):
     rows = [provider.complete(*issuer.code(index)) for index in range(count)]
@@ -110,7 +110,7 @@ def test_refresh_uncertainty_is_never_replayed(issuer, provider, count, failure)
     assert issuer.counts["refresh_token"] == 1
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_expired_session_cannot_be_extended(issuer, provider, count):
     rows = admit(issuer, provider, count)
     row = rows[-1]
@@ -122,7 +122,7 @@ def test_expired_session_cannot_be_extended(issuer, provider, count):
     assert_last_denied(provider, rows, results, session)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_refresh_cannot_change_assurance_within_allowed_set(issuer, count):
     config = {**issuer.configuration(), "required_acr": ["2", "3"]}
     provider = create(config, "https://controller.example/auth/callback")
@@ -138,7 +138,7 @@ def test_refresh_cannot_change_assurance_within_allowed_set(issuer, count):
         provider.close()
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_pkce_verifier_is_required_by_actual_token_endpoint(issuer, provider, count):
     contexts = [issuer.code(index) for index in range(count)]
     assert len({value[1] for value in contexts}) == count

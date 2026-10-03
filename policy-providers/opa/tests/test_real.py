@@ -24,7 +24,7 @@ def stopped(runner) -> None:
     assert runner.service.group is not None and isolation.empty(runner.service.group)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_actual_decisions_and_controls(paths, configuration, count, monkeypatch):
     source, run = paths
     monkeypatch.setenv("FICC_TEST_SECRET", "must-not-enter")

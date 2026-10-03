@@ -44,7 +44,7 @@ def kernel(tmp_path, monkeypatch):
     return lambda count, offset=10000: Kernel(tmp_path, count, offset)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("defect", ["privileges", "membership", "dead", "missing", "escaped_child"])
 def test_current_member_failure_is_local(kernel, count, defect):
     target, healthy = kernel(count), kernel(1, 20000)

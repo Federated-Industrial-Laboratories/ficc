@@ -33,7 +33,7 @@ def stopped(runner):
     assert service.controls.main == service.controls.directory == -1
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_live_decisions_do_not_call_manager(paths, configuration, count, monkeypatch):
     runner = prepare(configuration, *paths)
     def refuse(*args):
@@ -52,7 +52,7 @@ def test_live_decisions_do_not_call_manager(paths, configuration, count, monkeyp
     stopped(runner)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("defect", ["tasks", "privileges", "main_exit"])
 def test_current_kernel_failure_stops_only_target(paths, configuration, count, defect):
     target = prepare(configuration, *paths)

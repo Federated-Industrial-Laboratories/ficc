@@ -49,7 +49,7 @@ def test_discovery_rejects_weaker_or_redirected_protocol(issuer, change):
     assert issuer.counts.get("/keys", 0) == 0
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("mode", ["unavailable", "redirect", "oversized", "duplicate",
                                  "nonfinite", "compressed", "html", "private-error", "disconnect"])
 def test_failed_renewal_drops_handle_and_never_leaks_response(issuer, provider, mode, caplog, count):
@@ -65,7 +65,7 @@ def test_failed_renewal_drops_handle_and_never_leaks_response(issuer, provider, 
     assert "PRIVATE_RESPONSE" not in caplog.text
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_renewal_deadline_denies_slow_response(issuer, provider, count):
     rows = admit(issuer, provider, count)
     last = provider._sessions[rows[-1]["handle"]]
@@ -76,7 +76,7 @@ def test_renewal_deadline_denies_slow_response(issuer, provider, count):
     assert_last_denied(provider, rows, results, last)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_drip_response_cannot_extend_elapsed_request_budget(issuer, provider, monkeypatch, count):
     import ficc_identity_oidc.transport as transport
     rows = admit(issuer, provider, count)
@@ -89,7 +89,7 @@ def test_drip_response_cannot_extend_elapsed_request_budget(issuer, provider, mo
     assert_last_denied(provider, rows, results, last)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_valid_signed_token_cannot_exceed_token_bound(issuer, provider, count):
     rows = admit(issuer, provider, count)
     before = dict(provider._sessions)
@@ -99,7 +99,7 @@ def test_valid_signed_token_cannot_exceed_token_bound(issuer, provider, count):
     assert_active(provider, rows)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_failed_complete_has_fixed_error_without_server_body(issuer, provider, caplog, count):
     rows = admit(issuer, provider, count)
     before = dict(provider._sessions)
@@ -131,7 +131,7 @@ def test_trusted_ca_does_not_disable_hostname_verification(tmp_path):
         issuer.close()
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_batch_deadline_bounds_queued_network_work(issuer, provider, monkeypatch, count):
     import ficc_identity_oidc.provider as implementation
     rows = [provider.complete(*issuer.code(index)) for index in range(count)]

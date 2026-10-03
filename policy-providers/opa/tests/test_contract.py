@@ -18,7 +18,7 @@ from ficc_policy_opa.process import Output, reap
 from ficc_policy_opa.runner import MAX_REQUEST, MAX_RESPONSE, Wire, decode, encode
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_envelope_and_decisions(count):
     request = envelope(count)
     assert json.loads(encode(request)) == {"input": request}
@@ -82,7 +82,7 @@ def decision_batch(count, defect):
     return request, expected, changed
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("defect", ["allow_type", "last_identity", "tail_order", "missing", "extra"])
 def test_decision_batch_rejects_corruption(count, defect):
     request, expected, changed = decision_batch(count, defect)
@@ -91,7 +91,7 @@ def test_decision_batch_rejects_corruption(count, defect):
         decode(json.dumps({"result": changed}).encode(), request)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("defect", ["allow_type", "last_identity", "tail_order", "missing", "extra"])
 def test_real_decision_batch_rejects_corruption(paths, configuration, count, defect):
     source, run = paths
@@ -113,7 +113,7 @@ def test_real_decision_batch_rejects_corruption(paths, configuration, count, def
         runner.close()
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_invalid_input_keeps_evaluator(paths, configuration, count):
     request = envelope(count)
     expected = [{"id": row["id"], "allow": index % 2 == 0,

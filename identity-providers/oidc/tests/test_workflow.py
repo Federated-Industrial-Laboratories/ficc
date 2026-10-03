@@ -16,7 +16,7 @@ from ficc_identity_oidc import API_VERSION
 FIELDS = {"handle", "issuer", "subject", "auth_time", "expires_at", "valid_until"}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_complete_renew_rotate_and_forget(issuer, provider, count):
     admitted = [provider.complete(*issuer.code(index)) for index in range(count)]
     assert API_VERSION == 1
@@ -64,7 +64,7 @@ def test_authorization_binds_code_flow_nonce_pkce_and_assurance(provider):
     assert "secret" not in query and "access_token" not in query
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("change", [{"active": False}, {"sub": "different"},
                                     {"client_id": "different"}, {"exp": 1}, {"active": 1}])
 def test_final_identity_denied_without_affecting_other_members(issuer, provider, count, change):
@@ -81,7 +81,7 @@ def test_final_identity_denied_without_affecting_other_members(issuer, provider,
     assert issuer.counts["/introspect"] == before
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_close_clears_every_identity_and_refuses_late_admission(issuer, provider, count):
     rows = [provider.complete(*issuer.code(index)) for index in range(count)]
     sessions = list(provider._sessions.values())
@@ -98,7 +98,7 @@ def test_close_clears_every_identity_and_refuses_late_admission(issuer, provider
         provider.authorization("s" * 43, "n" * 43, "c" * 43)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_local_forget_precedes_slow_external_revocation(issuer, provider, count):
     rows = admit(issuer, provider, count)
     row = rows[-1]
@@ -115,7 +115,7 @@ def test_local_forget_precedes_slow_external_revocation(issuer, provider, count)
     assert issuer.counts["/revoke"] == 1
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_forget_racing_renewal_cannot_restore_identity(issuer, provider, count):
     rows = admit(issuer, provider, count)
     row = rows[-1]
@@ -136,7 +136,7 @@ def test_forget_racing_renewal_cannot_restore_identity(issuer, provider, count):
     assert issuer.counts["/revoke"] == 1
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_delayed_assertion_cannot_extend_external_verification(issuer, provider, monkeypatch, count):
     import ficc_identity_oidc.provider as implementation
     rows = [provider.complete(*issuer.code(index)) for index in range(count)]

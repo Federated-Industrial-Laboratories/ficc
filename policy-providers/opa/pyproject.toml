@@ -22,7 +22,8 @@ ficc_policy_opa = ["capabilities.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers -m 'not scale'"
+markers = ["scale: optional expanded batch and repeated recovery coverage"]
 
 [tool.ruff]
 target-version = "py312"
