@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# Restrict the private management interface to hub SSH and diagnostic traffic.
+table inet ficc_mgmt {
+    chain input {
+        type filter hook input priority -5; policy accept;
+        iifname "ficc-mgmt" ip saddr HUB_PRIVATE_IP ip daddr NODE_A_PRIVATE_IP ct state established,related accept
+        iifname "ficc-mgmt" ip saddr HUB_PRIVATE_IP ip daddr NODE_A_PRIVATE_IP tcp dport 22 accept
+        iifname "ficc-mgmt" ip saddr HUB_PRIVATE_IP ip daddr NODE_A_PRIVATE_IP icmp type echo-request accept
+        iifname "ficc-mgmt" counter drop
+    }
+    chain forward {
+        type filter hook forward priority -5; policy accept;
+        iifname "ficc-mgmt" counter drop
+        oifname "ficc-mgmt" counter drop
+    }
+}

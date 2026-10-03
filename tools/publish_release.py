@@ -11,6 +11,8 @@ from pathlib import Path
 
 from finalize_release import required_artifacts, verify_original
 from release_lib.common import digest
+from release_signatures import FILES as SIGNATURE_FILES
+from release_signatures import verify as verify_signature
 
 
 def gh(*arguments: str, missing_ok: bool = False):
@@ -42,6 +44,8 @@ def validate(output: Path) -> tuple[dict, dict]:
         raise ValueError('Release requires every package and source format')
     verify_original(output, build, arch)
     names = set(build['artifacts']) | {'build.json', 'SHA256SUMS'}
+    if any((output / name).exists() or (output / name).is_symlink() for name in SIGNATURE_FILES):
+        names |= SIGNATURE_FILES
     for name in names:
         if (output / name).is_symlink():
             raise ValueError('Release assets must not be links')
@@ -70,7 +74,8 @@ def find_release(endpoint: str, tag: str):
     return matches[0] if matches else None
 
 
-def publish(output: Path, repo: str, notes: Path, publish_now: bool, tag: str | None = None) -> str:
+def publish(output: Path, repo: str, notes: Path, publish_now: bool, tag: str | None = None,
+            *, trusted_key: Path) -> str:
     build, assets = validate(output)
     version, commit = build['version'], build['source']['commit']
     default_tag = 'v' + version
@@ -80,6 +85,7 @@ def publish(output: Path, repo: str, notes: Path, publish_now: bool, tag: str | 
     tag = default_tag if tag is None else tag
     if tag not in allowed_tags:
         raise ValueError('Release tag must match the package version and release status')
+    verify_signature(output, trusted_key)
     endpoint = 'repos/' + repo
     default = gh('api', endpoint)['default_branch']
     if gh('api', endpoint + '/commits/' + default)['sha'] != commit:
@@ -129,9 +135,10 @@ def main() -> None:
     parser.add_argument('--repo', default='Federated-Industrial-Laboratories/ficc')
     parser.add_argument('--notes', type=Path, required=True)
     parser.add_argument('--tag', help='Version tag, with an optional -stable suffix for stable packages')
+    parser.add_argument('--trusted-key', type=Path, required=True, help='Independently trusted publisher public key')
     parser.add_argument('--publish', action='store_true', help='Publish after verifying every uploaded asset')
     args = parser.parse_args()
-    print(publish(args.output, args.repo, args.notes, args.publish, args.tag))
+    print(publish(args.output, args.repo, args.notes, args.publish, args.tag, trusted_key=args.trusted_key))
 
 
 if __name__ == '__main__':

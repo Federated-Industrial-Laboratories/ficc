@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+# Private, single-host identity backend. Replace ADDRESS before installation.
+# Keep passwords in the root-owned identity.env file, outside this configuration.
+db=postgres
+db-username=ficc_identity
+db-url=jdbc:postgresql://127.0.0.1:5432/ficc_identity?sslmode=verify-full&sslrootcert=/etc/ficc-identity/tls/ca.pem
+db-pool-initial-size=1
+db-pool-min-size=1
+db-pool-max-size=8
+
+http-enabled=false
+http-host=127.0.0.1
+https-port=8543
+http-relative-path=/auth
+https-certificate-file=/etc/ficc-identity/tls/server.pem
+https-certificate-key-file=/etc/ficc-identity/tls/server.key
+https-protocols=TLSv1.3
+https-certificates-reload-period=60s
+
+hostname=https://ADDRESS/auth
+hostname-admin=https://127.0.0.1:8543/auth
+hostname-strict=true
+proxy-headers=xforwarded
+proxy-trusted-addresses=127.0.0.1/32
+
+# Management inherits HTTPS, the certificate and its reload period.
+http-management-host=127.0.0.1
+http-management-port=9001
+http-management-relative-path=/auth
+http-management-scheme=inherited
+health-enabled=true
+metrics-enabled=true
+
+# This profile keeps embedded cache traffic on this host.
+cache-embedded-network-bind-address=127.0.0.1
+cache-embedded-network-external-address=127.0.0.1
+log-level=info
+log-console-output=default

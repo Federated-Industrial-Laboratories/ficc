@@ -84,17 +84,48 @@ test('browser upload hashes bounded chunks and finishes only after the final byt
   await expect.poll(() => state.finishes.length).toBe(1);
   expect(state.chunks.map(chunk => [chunk.offset, chunk.bytes.length])).toEqual([[0, 262144], [262144, 7]]);
   for (const chunk of state.chunks) expect(chunk.hash).toBe(createHash('sha256').update(chunk.bytes).digest('hex'));
+  let source = createHash('sha256').update(`ficc-upload-v1:${bytes.length}:262144`).digest();
+  for (const chunk of state.chunks) source = createHash('sha256').update(Buffer.concat([source, Buffer.from(chunk.hash, 'hex')])).digest();
+  expect(state.previews[0].sources[0].source_manifest).toEqual({ algorithm: 'sha256-chain-v1', digest: source.toString('hex') });
   expect(Buffer.concat(state.chunks.map(chunk => chunk.bytes))).toEqual(bytes);
   await expect(page.getByText('Verified SHA-256', { exact: false })).toBeVisible();
 });
 
-test('upload resume replays its accepted prefix and rejects a changed file', async ({ page }) => {
-  const state = await setupFiles(page, { transfers: [transferRecord('upload')], badPrefix: true });
+test('upload resume checks the whole original source before sending any bytes', async ({ page }) => {
+  const record = transferRecord('upload');
+  record.items[0].source_manifest = { algorithm: 'sha256-chain-v1', digest: '0'.repeat(64) };
+  const state = await setupFiles(page, { transfers: [record] });
   await page.getByRole('button', { name: 'Resume', exact: true }).click();
   await page.getByLabel('Original upload files', { exact: true }).setInputFiles({ name: 'sample-1.txt', mimeType: 'text/plain', buffer: Buffer.from('changed-data') });
   await page.getByRole('button', { name: 'Verify prefix and resume' }).click();
-  await expect(page.getByText('Accepted prefix does not match.')).toBeVisible();
-  expect(state.resumes).toHaveLength(1); expect(state.chunks[0].offset).toBe(0); expect(state.finishes).toHaveLength(0);
+  await expect(page.getByText('The selected source for sample-1.txt changed. Start a new transfer.')).toBeVisible();
+  expect(state.resumes).toHaveLength(0); expect(state.chunks).toHaveLength(0); expect(state.finishes).toHaveLength(0);
+});
+
+test('dataset registration preserves explicit schema and shows its manifest', async ({ page }) => {
+  await setupFiles(page); let saved;
+  const identity = '9'.repeat(32);
+  await page.route('**/api/v1/datasets', route => {
+    if (route.request().method() === 'POST') {
+      saved = route.request().postDataJSON();
+      return route.fulfill({ status: 201, json: { id: identity, name: saved.name } });
+    }
+    return route.fulfill({ json: { provider_available: true, next_cursor: null, datasets: saved ? [{ id: identity,
+      name: saved.name, format: saved.format, file_count: 1, total_bytes: 12 }] : [] } });
+  });
+  await page.route(`**/api/v1/datasets/${identity}`, route => route.fulfill({ json: { ...saved, id: identity,
+    project_id: '1'.repeat(32), created_at: 1, manifest_digest: 'a'.repeat(64),
+    files: [{ name: 'sample-1.txt', size: 12, sha256: 'b'.repeat(64) }] } }));
+  await selectFirst(page); await page.getByRole('button', { name: 'Register left selection' }).click();
+  await page.getByLabel('Dataset name', { exact: true }).fill('Measurements');
+  await page.getByLabel('Format', { exact: true }).selectOption('csv');
+  await page.getByLabel('Explicit schema JSON').fill('{"fields":[{"name":"count","type":"int64","nullable":false}]}');
+  await page.getByRole('button', { name: 'Verify sources and register' }).click();
+  await expect(page.getByText(`Dataset Measurements registered. ID: ${identity}`)).toBeVisible();
+  expect(saved.sources).toEqual([{ root_id: 'root-local', entry_id: 'opaque-file-1' }]);
+  await page.getByRole('button', { name: 'Inspect dataset Measurements' }).click();
+  await expect(page.getByRole('table', { name: 'Explicit dataset schema' })).toContainText('int64');
+  await expect(page.getByRole('table', { name: 'Dataset files' })).toContainText('b'.repeat(64));
 });
 
 test('zero-byte upload uses explicit finish without an empty data chunk', async ({ page }) => {
@@ -183,7 +214,7 @@ for (const [roots, label] of [[null, 'All registered roots'], [[], 'No file root
     await page.route('**/api/v1/tokens', route => route.fulfill({ json: { tokens: [{ id: 'token-id', label: 'Scoped files', scopes: ['files:read'], node_ids: null,
       root_ids: roots, expires_at: Date.now() / 1000 + 3600 }] } }));
     await page.locator('[data-view=access]').click();
-    await expect(page.getByRole('heading', { name: 'Effective permissions' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Host permission grants' })).toBeVisible();
     await expect(page.getByText(label, { exact: true })).toHaveCount(2);
     await expect(page.getByRole('columnheader', { name: 'File roots', exact: true })).toBeVisible();
   });

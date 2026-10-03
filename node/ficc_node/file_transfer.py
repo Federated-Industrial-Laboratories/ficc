@@ -4,7 +4,6 @@
 import hashlib
 import os
 import stat
-import time
 from contextlib import contextmanager
 
 from .file_access import (
@@ -22,6 +21,7 @@ from .file_access import (
     same,
     transfer_name,
 )
+from .file_manifest import chain_next, chain_seed, journal_bytes, manifest, reserve
 from .file_state import load, locked, save
 from .job_state import digest, read
 
@@ -42,7 +42,7 @@ def stage(root, record):
 
 
 def summary(record):
-    return {key: record.get(key) for key in ("id", "state", "size", "offset", "sha256", "prefix_sha256", "cleanup_pending")}
+    return {key: record.get(key) for key in ("id", "state", "size", "offset", "sha256", "prefix_sha256", "cleanup_pending", "published_identity", "reserved_bytes")}
 
 
 def prepare(root, record, base):
@@ -65,11 +65,16 @@ def prepare(root, record, base):
                 regular(info)
                 if info.st_size or info.st_uid != os.getuid() or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600:
                     raise FileError("invalid_partial", "The unprepared partial file changed.")
+                required = record["size"] if name == b"data" else journal_bytes(record["size"])
+                available = os.fstatvfs(fd)
+                if available.f_bavail * available.f_frsize < max(0, required - info.st_blocks * 512) + record.get("free_bytes", 256 * 1024**2):
+                    raise FileError("disk_capacity", "The destination lacks reserved free space.")
+                reserve(fd, required)
                 os.fsync(fd)
             finally:
                 os.close(fd)
         os.fsync(folder)
-    record.update(state="running", prepared=True)
+    record.update(state="running", prepared=True, reserved_bytes=record["size"] + journal_bytes(record["size"]))
     save(base, record)
     return record
 
@@ -101,7 +106,9 @@ def begin(request, base):
     spec = request["spec"]
     size = spec["size"]
     if type(size) is not int or not 0 <= size <= MAX_FILE:
-        raise FileError("file_limit", "The file exceeds 16 GiB.")
+        raise FileError("file_limit", "The file size is outside the filesystem offset range.")
+    if spec.get("source_manifest") is not None:
+        manifest(spec["source_manifest"])
     signature = digest({"root": request["root"], "spec": spec})
     previous = load(base, request["transfer_id"])
     if previous:
@@ -115,14 +122,20 @@ def begin(request, base):
                 item.get("export") and item["state"] == "succeeded")):
             count += 1
             reserved += item["size"] + (item.get("expected") or {}).get("size", 0)
-    if count >= 64 or reserved + size + (spec.get("expected") or {}).get("size", 0) > 64 * 1024**3:
+    limits = request.get("limits", {})
+    quota = limits.get("retained_bytes", 64 * 1024**3)
+    margin = limits.get("free_bytes", 256 * 1024**2)
+    if ((quota is not None and (type(quota) is not int or quota < 0))
+            or type(margin) is not int or margin < 0):
+        raise FileError("invalid_limits", "The transfer capacity settings are invalid.")
+    if count >= 64 or (quota is not None and reserved + size + (spec.get("expected") or {}).get("size", 0) > quota):
         raise FileError("capacity", "The retained partial-file quota is full.")
     root = request["root"]
     if root.get("read_only"):
         raise FileError("read_only", "This root is read-only.")
     with entry_fd(root, spec["parent"], os.O_RDONLY | os.O_DIRECTORY) as parent:
         available = os.fstatvfs(parent)
-        if available.f_bavail * available.f_frsize < size + 256 * 1024**2:
+        if available.f_bavail * available.f_frsize < size + journal_bytes(size) + margin:
             raise FileError("disk_capacity", "The destination lacks reserved free space.")
         name = transfer_name(spec)
         try:
@@ -135,6 +148,8 @@ def begin(request, base):
                   "root_id": root["id"], "parent": spec["parent"], "name": spec["name"], "name_b64": spec.get("name_b64"),
                   "export": root.get("export", False), "cleanup_pending": False, "prepared": False,
                   "expected": destination, "size": size, "offset": 0, "sha256": None,
+                  "source_manifest": spec.get("source_manifest"), "source_identity": spec.get("source_identity"),
+                  "free_bytes": margin,
                   "state": "preparing", "stage": ".ficc-transfer-" + request["transfer_id"]}
         save(base, record)
     return prepare(root, record, base) if request.get("prepare", True) else record
@@ -159,8 +174,9 @@ def write_chunk(request, data, record, base):
                 if os.pread(fd, len(data), offset) != data or os.pread(journal, 32, offset // CHUNK * 32) != hashed:
                     raise FileError("source_changed", "The selected source does not match the accepted prefix.")
                 return record
-            os.ftruncate(fd, offset)
-            os.ftruncate(journal, offset // CHUNK * 32)
+            if not record.get("reserved_bytes"):
+                os.ftruncate(fd, offset)
+                os.ftruncate(journal, offset // CHUNK * 32)
             written = 0
             while written < len(data):
                 written += os.pwrite(fd, data[written:], offset + written)
@@ -177,24 +193,28 @@ def write_chunk(request, data, record, base):
 
 
 def verify_prefix(root, record, cancel=None):
-    deadline = time.monotonic() + 300
     check_cancel(cancel)
     with stage(root, record) as (_, folder):
         fd = opened(folder, b"data", os.O_RDWR)
         journal = opened(folder, b"chunks", os.O_RDWR)
         try:
             expected = record["offset"]
-            hashed = hashlib.sha256()
+            hashed, chained = hashlib.sha256(), chain_seed(record["size"])
             for offset in range(0, expected, CHUNK):
                 check_cancel(cancel)
-                if time.monotonic() > deadline:
-                    raise FileError("verification_timeout", "Partial verification exceeded its deadline.")
                 data = os.pread(fd, min(CHUNK, expected-offset), offset)
-                if len(data) != min(CHUNK, expected-offset) or hashlib.sha256(data).digest() != os.pread(journal, 32, offset // CHUNK * 32):
+                chunk_digest = hashlib.sha256(data).digest()
+                if len(data) != min(CHUNK, expected-offset) or chunk_digest != os.pread(journal, 32, offset // CHUNK * 32):
                     raise FileError("partial_changed", "The retained partial file failed verification.")
                 hashed.update(data)
-            os.ftruncate(fd, expected)
-            os.ftruncate(journal, ((expected + CHUNK - 1) // CHUNK) * 32)
+                chained = chain_next(chained, chunk_digest)
+            if expected == record["size"]:
+                source = record.get("source_manifest")
+                if source and source["digest"] != (hashed.hexdigest() if source["algorithm"] == "sha256" else chained.hex()):
+                    raise FileError("source_changed", "The received file differs from the original source digest.")
+            if not record.get("reserved_bytes") or expected == record["size"]:
+                os.ftruncate(fd, expected)
+                os.ftruncate(journal, journal_bytes(expected))
             os.fsync(fd)
             os.fsync(journal)
             return hashed.hexdigest()
@@ -242,6 +262,7 @@ def commit(request, record, base, cancel=None):
         try:
             if not same(identity(os.fstat(fd)), record["committed_identity"], True) or file_hash(fd, cancel=cancel) != record["sha256"]:
                 raise FileError("outcome_unknown", "The committed destination requires manual recovery.")
+            record["published_identity"] = identity(os.fstat(fd))
         finally:
             os.close(fd)
         if record["expected"]:

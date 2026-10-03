@@ -21,7 +21,7 @@ for (const width of [390, 768, 1280, 1920]) {
     await expect(page.getByText('Stale sample.', { exact: false })).toBeVisible();
     await capture(page, `overview-${width}`);
     await page.getByRole('button', { name: 'Access', exact: false }).click();
-    await expect(page.getByRole('heading', { name: 'Effective permissions' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Host permission grants' })).toBeVisible();
     await page.getByRole('button', { name: 'Activity', exact: false }).click();
     await expect(page.getByRole('heading', { name: 'Audit record' })).toBeVisible();
     expect(faults).toEqual([]);
@@ -48,7 +48,7 @@ test('two hundred percent layout remains readable and operable', async ({ page }
   await expect(page.getByRole('heading', { name: 'Cluster overview', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Access', exact: false }).click();
-  await expect(page.getByRole('heading', { name: 'Effective permissions' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Host permission grants' })).toBeVisible();
   await capture(page, 'access-200-percent');
 });
 

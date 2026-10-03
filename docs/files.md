@@ -86,8 +86,13 @@ verified, synced and published atomically. A failed transfer does not advertise
 success. An uncertain publish remains visible for recovery.
 
 Upload selects browser files and uses bounded, SHA-256 checked chunks. Resume
-requires the original file again and verifies its accepted prefix; matching
-name and size alone do not prove identity. Source changes require a new transfer.
+requires the original file again. Before admission, the browser computes a
+constant-size digest of the complete file with bounded memory. Resume checks
+that digest and verifies the accepted prefix; matching name and size alone do
+not prove identity. Publication checks the complete source digest. Source
+changes require a new transfer. Legacy API uploads without a source manifest
+remain supported for uninterrupted uploads; accepted legacy partials require a
+new digest-bound transfer.
 Cancel and cleanup are separate from deleting a completed destination.
 
 Download first prepares a verified private controller spool, then offers an
@@ -95,10 +100,37 @@ attachment to the browser. The displayed hash verifies the server's preparation;
 FICC cannot confirm that the browser saved the file successfully. Ordinary
 controller-root copies remain the durable option for controller storage.
 
-Limits are 16 GiB per file, 64 GiB reserved partial/spool storage, 64 pending
-items and four active file channels. Interrupted partials retain their storage
-reservation until explicit cleanup. No automatic eviction removes recovery data.
-Completed download spools retain their reservation until Discard download.
+There is no 16 GiB file ceiling. Filesystem capability, free space and the
+administrator's quota determine admission. The shipped retained-transfer quota
+is 64 GiB, with a 256 MiB free-space margin, 64 pending items and four active file
+channels. The unrestricted local owner can read or change the byte quota with
+`GET` or `PUT /api/v1/transfer-limits`. For example, a body of
+`{"retained_bytes":null,"free_bytes":268435456}` removes the policy byte quota
+while retaining the free-space margin. Changing it does not remove retained data.
+
+The destination reserves actual filesystem blocks for the file and chunk digest
+journal before accepting bytes. A filesystem without supported block reservation
+refuses the transfer. Interruption retains allocated capacity until explicit
+cleanup. Completed download spools retain their capacity until Discard download.
+Quota exhaustion and physical-space exhaustion are separate failures. Copies
+also reserve space while replacing an existing destination; the old file remains
+available until the verified atomic replacement.
+
+Chunks remain at most 256 KiB, including when verification reads a very large
+file. Hashing and verified publication have no fixed five-minute deadline and
+remain cancellable through the transfer lifecycle. Remote-to-remote copies relay
+through the controller and show that path in their preview. Transfers keep
+per-file progress and verified SHA-256 artifact receipts after publication.
+
+Durable chunk and offset journals synchronize each accepted chunk. This bounds
+recovery ambiguity but can limit relay throughput on seek-heavy disks, especially
+when payloads, journals and controller state share one device. Choose storage
+placement for the deployment; the interface does not promise a fixed transfer rate.
+
+JSON byte counts remain numeric when exactly representable in JavaScript and
+use decimal strings above 2^53-1. SDK clients can send decimal size strings.
+Browsers refuse local files they cannot address exactly and can still browse
+and copy larger registered filesystem objects.
 
 If a verified destination retains staging files, Clean retained partial removes only
 those staging files. The committed destination remains intact. Retained artifacts
@@ -126,6 +158,15 @@ external rename, hard link or privileged mount operation can change its pathname
 or aliases. Detected changes are refused, but continuous pathname confinement
 against such writers is not promised. Keep registered namespaces operator-managed.
 Shell and managed-job execution have the full authority of the remote account.
+
+## Dataset versions
+
+Install the filesystem artifact provider and use Register left selection or
+Register right selection to record selected files as a dataset. Each version
+contains explicit schema, source digests and provenance and belongs to the
+current project. Inspect the manifest and verify its current sources in the
+Datasets panel. See [datasets](datasets.md) and the [artifact SDK](../sdk/artifacts.md)
+for installation, API and job input contracts.
 
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>

@@ -69,6 +69,10 @@ class Files:
 
     def check(self, actor, scope, root):
         principal = self.service.auth.current(actor)
+        self.check_principal(principal, scope, root)
+
+    def check_principal(self, principal, scope, root):
+        """Enforce file access for a freshly checked credential or durable job delegation."""
         principal.require(scope, root.get("node_id"), root["id"])
         if root.get("node_id") is None and principal.node_ids is not None:
             raise Failure("denied", "This credential does not permit controller file access.", 403)
@@ -103,8 +107,26 @@ class Files:
                                           check=lambda: self.check(actor, "files:" + actions[0], root))
             except Failure as exc:
                 value.update(available=False, error={"code": exc.code, "message": exc.message})
-            result.append(value)
-        return {"roots": result}
+            result.append((root, value))
+        visible = []
+        with self.service.store.lock:
+            current = self.service.auth.current(actor)
+            for root, value in result:
+                try:
+                    if self.store.root(root["id"])["revision"] != root["revision"]:
+                        continue
+                except Failure:
+                    continue
+                actions = []
+                for action in value["actions"]:
+                    try:
+                        current.require("files:" + action, root.get("node_id"), root["id"])
+                        actions.append(action)
+                    except Failure:
+                        pass
+                if actions:
+                    visible.append({**value, "actions": actions})
+        return {"roots": visible}
 
     def resolve(self, root_id, entry_id, actor, scope="files:read"):
         root = self.store.root(root_id)
@@ -193,6 +215,7 @@ class Files:
         async with self.admission:
             previous = self.store.existing(actor, key)
             if previous:
+                self.service.auth.record(actor, previous)
                 if previous["preview_id"] != preview_id:
                     raise Failure("idempotency_conflict", "This key belongs to another file request.", 409)
                 self.check(actor, ACTION_SCOPE[previous["action"]], previous["root"])
@@ -207,7 +230,10 @@ class Files:
                      "created_at": time.time(), "updated_at": time.time()}
             for item in value["items"]:
                 item.update(state="queued", result=None, error=None)
-            self.store.insert(value)
+            with self.service.store.lock, self.service.store.db:
+                self.check(actor, ACTION_SCOPE[body["action"]], root)
+                value.update(self.service.auth.ownership(actor))
+                self.store.insert(value)
             self.service.store.audit("file." + body["action"], value["id"], "queued", actor)
             task = asyncio.create_task(self.execute(value["id"]))
             self.tasks.add(task)
@@ -222,6 +248,7 @@ class Files:
                 if item["state"] == "succeeded":
                     continue
                 try:
+                    self.service.auth.record(value["actor"], value)
                     self.check(value["actor"], ACTION_SCOPE[value["action"]], value["root"])
                     item["state"] = "dispatching"
                     self.store.save(value)
@@ -237,11 +264,13 @@ class Files:
             value["state"] = "succeeded" if all(item["state"] == "succeeded" for item in value["items"]) else "unknown" if any(
                 item["state"] == "unknown" for item in value["items"]) else "failed"
             self.store.save(value)
-            self.service.store.audit("file." + value["action"], value["id"], value["state"], value["actor"])
+            self.service.store.audit("file." + value["action"], value["id"], value["state"], value["actor"],
+                                     subject_id=value["subject_id"], project_id=value["project_id"])
 
     def view(self, value, actor):
+        self.service.auth.record(actor, value)
         self.check(actor, ACTION_SCOPE[value["action"]] if value["actor"] == actor else "files:read", value["root"])
-        return {**{key: value[key] for key in ("id", "state", "action", "created_at", "updated_at")},
+        return {**{key: value[key] for key in ("id", "state", "action", "subject_id", "project_id", "created_at", "updated_at")},
                 "items": [{key: item[key] for key in ("id", "entry_id", "name", "state", "result", "error")}
                           for item in value["items"]]}
 
@@ -258,6 +287,7 @@ class Files:
 
     async def reconcile(self, operation_id, actor):
         value = self.store.get(operation_id)
+        self.service.auth.record(actor, value)
         self.check(actor, ACTION_SCOPE[value["action"]], value["root"])
         value["actor"] = actor
         self.store.save(value)

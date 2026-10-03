@@ -46,7 +46,7 @@ def test_csrf_guard_detects_missing_or_wrong_secret(console):
     assert client.get("/api/v1/nodes").status_code == 401
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_scoped_tokens_select_distinct_nodes_and_revoke(console, count):
     client, service = console
     for index in range(count):

@@ -4,6 +4,7 @@ import { test, expect } from '../../web/node_modules/@playwright/test/index.mjs'
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { capture, login } from './support.mjs';
+import { fixture } from './workload-support.mjs';
 
 function archive(title, kind = 'notes') {
   const ui = kind === 'audio' ? { type: 'audio-player', id: 'audio' } :
@@ -42,6 +43,64 @@ async function install(page, name, workspaces, kind = 'notes') {
   await page.getByLabel('Installed module', { exact: true }).selectOption({ label: name });
   await page.getByRole('button', { name: 'Add module', exact: true }).click();
 }
+
+test('operational status and shared recipes work through the actual API', async ({ page }) => {
+  test.setTimeout(120000);
+  const local = await fixture(page);
+  try {
+    await page.locator('[data-view=operations]').click();
+    await expect(page.getByRole('table', { name: 'Observed installation health' })).toContainText('Metadata backup');
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('link', { name: 'Download redacted diagnostics' }).click();
+    const download = await downloadPromise;
+    const stream = await download.createReadStream();
+    let raw = ''; for await (const chunk of stream) raw += chunk;
+    expect(JSON.parse(raw).external_data_backup).toBe('not_observed');
+    await page.locator('[data-view=workloads]').click();
+    await page.getByRole('button', { name: 'New workload', exact: true }).click();
+    let form = page.getByRole('dialog', { name: 'New workload', exact: true });
+    await form.getByLabel('Workload name', { exact: true }).fill('Shared batch recipe');
+    await form.getByRole('button', { name: 'Select all candidates', exact: true }).click();
+    await form.getByText('Project workload templates and runbooks', { exact: true }).click();
+    await form.getByLabel('Workload template name', { exact: true }).fill('Team conversion');
+    await form.getByLabel('Runbook instructions', { exact: true }).fill('Review the dataset before submission.');
+    await form.getByRole('button', { name: 'Share current workload template', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Share workload template with this project?' })
+      .getByRole('button', { name: 'Share template', exact: true }).click();
+    await expect(form.getByText('A new immutable template version is shared.', { exact: true })).toBeVisible();
+    await form.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.getByRole('button', { name: 'New workload', exact: true }).click();
+    form = page.getByRole('dialog', { name: 'New workload', exact: true });
+    await form.getByText('Project workload templates and runbooks', { exact: true }).click();
+    await form.getByLabel('Shared workload template', { exact: true }).selectOption({ label: 'Team conversion / version 1' });
+    await form.getByRole('button', { name: 'Use template', exact: true }).click();
+    await expect(form.getByLabel('Workload name', { exact: true })).toHaveValue('Shared batch recipe');
+    await form.getByRole('button', { name: 'Select all candidates', exact: true }).click();
+    await form.getByRole('button', { name: 'Submit workload', exact: true }).click();
+    await expect(form).toHaveCount(0);
+    await expect(page.getByRole('table', { name: 'Project workloads', exact: true })).toContainText('Shared batch recipe');
+    await page.locator('[data-view=workspaces]').click();
+    const name = 'Shared operations workspace', title = 'Shared notes module';
+    await create(page, name); await install(page, title, [name]);
+    const panel = page.getByRole('tabpanel', { name: title, exact: true });
+    await panel.getByLabel('Workspace notes', { exact: true }).fill('Private scratch notes');
+    await panel.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(panel.locator('.module-editor-panel [role=status]')).toHaveText('Saved');
+    await page.getByRole('button', { name: 'Project templates', exact: true }).click();
+    const templates = page.getByRole('dialog', { name: 'Project templates', exact: true });
+    await templates.getByLabel('Template name', { exact: true }).fill('Team workspace');
+    await templates.getByRole('button', { name: 'Share current panel template', exact: true }).click();
+    await expect(templates.getByRole('table', { name: 'Shared project templates' })).toContainText('Team workspace');
+    await templates.getByRole('button', { name: 'Add panels to open workspace', exact: true }).click();
+    await expect(templates).toHaveCount(0);
+    await expect(page.getByRole('tab', { name: title, exact: true })).toHaveCount(2);
+    await expect(page.getByLabel('Workspace notes', { exact: true })).toHaveCount(2);
+    expect(await page.getByLabel('Workspace notes', { exact: true }).evaluateAll(elements =>
+      elements.map(element => element.value).sort())).toEqual(['', 'Private scratch notes']);
+    await capture(page, 'operations-shared-workspace');
+    expect(local.faults).toEqual([]);
+  } finally { await local.close(); }
+});
 
 test('installed notes survive hiding, docking, reload and independent windows', async ({ page, context }) => {
   const faults = []; page.on('pageerror', error => faults.push(error.message));
@@ -205,4 +264,62 @@ test('a fresh launch resumes saved tiles and floating geometry without allocatin
   const ids = saved.surface.tiles.map(tile => tile.view_id);
   expect(ids).not.toContain(popupSurface.tiles[0].view_id);
   await popup.close();
+});
+
+test('project changes block editing before layout writes and preserve refused drafts', async ({ page }) => {
+  const faults = []; page.on('pageerror', error => faults.push(error.message));
+  await login(page);
+  const projects = await page.evaluate(async () => {
+    const { request } = await import('/static/api.js');
+    const current = (await request('/session')).project.id;
+    const next = await request('/projects', { method: 'POST', body: { label: 'Layout switch project' } });
+    window.dispatchEvent(new Event('ficc-projects-changed'));
+    return { current, next: next.id };
+  });
+  await expect(page.getByLabel('Current project').locator(`option[value="${projects.next}"]`)).toHaveCount(1);
+  await page.locator('[data-view=workspaces]').click();
+  const name = `Switch ${randomUUID().slice(0, 8)}`, title = `${name} notes`;
+  await create(page, name); await install(page, title, [name]);
+  const panel = page.getByRole('tabpanel', { name: title, exact: true });
+  const notes = panel.getByLabel('Workspace notes', { exact: true });
+  await notes.fill('Saved before switching');
+  await panel.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(panel.locator('.module-editor-panel [role=status]')).toHaveText('Saved');
+  await notes.fill('Draft that must remain');
+  await page.getByLabel('Current project').selectOption(projects.next);
+  await expect(page.getByRole('alert').filter({ hasText: 'Save or discard unsaved text' })).toBeVisible();
+  await expect(page.getByLabel('Current project')).toHaveValue(projects.current);
+  await expect(page.locator('#main')).toHaveJSProperty('inert', false);
+  await expect(notes).toHaveValue('Draft that must remain');
+  await panel.getByRole('button', { name: 'Discard changes', exact: true }).click();
+
+  let release, observed, heldOnce = false;
+  const pending = new Promise(resolve => { release = resolve; });
+  const held = new Promise(resolve => { observed = resolve; });
+  await page.route('**/api/v1/workspaces/*/views/*', async route => {
+    if (route.request().method() === 'PUT' && !heldOnce) {
+      heldOnce = true; observed(); await pending;
+    }
+    await route.continue();
+  });
+  try {
+    await page.getByLabel('Current project').selectOption(projects.next);
+    await held;
+    await expect(page.locator('#main')).toHaveJSProperty('inert', true);
+    await expect(page.getByLabel('Current project')).toBeDisabled();
+    await expect(notes.click({ timeout: 350 })).rejects.toThrow();
+    await page.keyboard.type('Late input');
+    await expect(notes).toHaveValue('Saved before switching');
+    await capture(page, 'project-layout-flush-locked');
+  } finally { release(); }
+  await expect(page.getByLabel('Current project')).toBeEnabled();
+  await expect(page.getByLabel('Current project')).toHaveValue(projects.next);
+  await page.unroute('**/api/v1/workspaces/*/views/*');
+  await page.getByLabel('Current project').selectOption(projects.current);
+  await expect(page.getByLabel('Current project')).toBeEnabled();
+  await page.locator('[data-view=workspaces]').click();
+  await page.getByLabel('Saved workspace').selectOption({ label: name });
+  await page.getByRole('button', { name: 'Open', exact: true }).click();
+  await expect(notes).toHaveValue('Saved before switching');
+  expect(faults).toEqual([]);
 });

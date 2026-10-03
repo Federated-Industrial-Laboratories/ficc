@@ -6,6 +6,7 @@ import secrets
 import time
 
 from .errors import Failure
+from .identity_store import LOCAL_OWNER
 from .workspace_store import WorkspaceStore
 
 
@@ -20,7 +21,7 @@ class AudioSessions:
         principal.require("workspaces:read")
         if principal.node_ids is not None or principal.root_ids is not None:
             raise Failure("denied", "Workspace audio requires an unrestricted workspace credential.", 403)
-        for workspace in self.service.workspaces.all():
+        for workspace in self.service.workspaces.scoped(principal).all():
             for item in workspace["instances"]:
                 if item["id"] == instance_id:
                     self.service.modules.require(item["digest"], "audio:playback", [workspace["id"]])
@@ -65,13 +66,17 @@ class AudioSessions:
         self.current(identity, actor, surface)
         self.leases.pop(identity, None)
 
-    def preferences(self) -> dict:
-        return self.service.store.get_setting("audio.preferences", {"revision": 0, "volume": 0.7, "muted": False})
+    def preferences(self, subject: str = LOCAL_OWNER) -> dict:
+        return self.service.store.get_setting(self.preference_key(subject), {"revision": 0, "volume": 0.7, "muted": False})
 
-    def save_preferences(self, body) -> dict:
+    def save_preferences(self, body, subject: str = LOCAL_OWNER) -> dict:
         with self.service.store.lock, self.service.store.db:
-            WorkspaceStore.revision(self.preferences(), body.revision)
+            WorkspaceStore.revision(self.preferences(subject), body.revision)
             value = {**body.model_dump(), "revision": body.revision + 1}
-            self.service.store.db.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", (
-                "audio.preferences", json.dumps(value)))
+            self.service.store.db.execute("INSERT INTO settings VALUES (:p0,:p1) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (
+                self.preference_key(subject), json.dumps(value)))
         return value
+
+    @staticmethod
+    def preference_key(subject: str) -> str:
+        return "audio.preferences" if subject == LOCAL_OWNER else "audio.preferences." + subject

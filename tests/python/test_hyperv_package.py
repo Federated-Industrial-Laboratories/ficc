@@ -86,7 +86,7 @@ def prepared(endpoint, action='start'):
     return value
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_inventory_status_prepare_acknowledgement_and_observation(count):
     endpoint = Endpoint(count)
     assert len(run(endpoint, request(endpoint, 'inventory'))['resources']) == count
@@ -103,7 +103,7 @@ def test_inventory_status_prepare_acknowledgement_and_observation(count):
     assert sum(call[0]['command'] == 'Invoke-FICCHyperVPower' for call in endpoint.calls) == 1
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_lost_acknowledgement_stays_unknown_despite_desired_state(count):
     endpoint = Endpoint(count)
     value = prepared(endpoint)
@@ -117,7 +117,7 @@ def test_lost_acknowledgement_stays_unknown_despite_desired_state(count):
     assert sum(call[0]['command'] == 'Invoke-FICCHyperVPower' for call in endpoint.calls) == 1
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_async_job_retained_until_exact_successful_completion(count):
     endpoint = Endpoint(count)
     value = prepared(endpoint)
@@ -135,7 +135,7 @@ def test_async_job_retained_until_exact_successful_completion(count):
     assert all(row['receipt']['state'] == 'failed' for row in run(endpoint, value)['results'])
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_shutdown_acknowledgement_needs_same_birth_off_state(count):
     endpoint = Endpoint(count)
     for item in endpoint.rows:
@@ -187,7 +187,7 @@ def test_malformed_or_duplicate_inventory_and_foreign_receipt_are_refused():
 
 @pytest.mark.skipif(os.environ.get('FICC_REAL_MODULE_SANDBOX') != '1',
                     reason='Set FICC_REAL_MODULE_SANDBOX=1 for actual host isolation')
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_installed_hyperv_package_uses_real_sandbox_and_fixed_batch_transport(tmp_path, count):
     from test_modules_packages import bundle
 

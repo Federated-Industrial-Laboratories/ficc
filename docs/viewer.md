@@ -53,5 +53,10 @@ apply to canvas storage, image streams, frame count and input/output rates. Slow
 browsers apply backpressure to a three-frame window. A limit failure closes that
 connection and leaves the workspace available.
 
+Each binary message contains complete validated instructions, with at most
+64 instructions and 64 KiB. Frame boundaries flush pending output. Current
+identity, project, policy and module grants are checked before each delivery.
+Other requests can run between deliveries, including permission revocation.
+
 Clipboard, file transfer, console audio and microphone input are disabled. The
 workspace audio service remains available to approved audio-player modules.

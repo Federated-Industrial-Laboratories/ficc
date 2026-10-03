@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+# Select private routes for two installation-approved SSH profiles.
+Host managed-a
+    HostName NODE_A_PRIVATE_IP
+    User ficc-managed
+    IdentityFile /var/lib/ficc-controller/ssh/managed-a
+    IdentitiesOnly yes
+    StrictHostKeyChecking yes
+    ForwardAgent no
+    ForwardX11 no
+
+Host managed-b
+    HostName NODE_B_PRIVATE_IP
+    User ficc-managed
+    IdentityFile /var/lib/ficc-controller/ssh/managed-b
+    IdentitiesOnly yes
+    StrictHostKeyChecking yes
+    ForwardAgent no
+    ForwardX11 no

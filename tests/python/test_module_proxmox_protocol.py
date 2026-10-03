@@ -25,7 +25,7 @@ def request(size=1):
                     {"uuid": identity(index + 100), "definition": "f" * 64, "state": "off"} for index in range(size)]}}}
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_batch_protocol_and_birth_changes(size):
     value = request(size)
     assert proxmox_spec.request(value) == value
@@ -40,7 +40,7 @@ def test_batch_protocol_and_birth_changes(size):
 
 
 @pytest.mark.parametrize("mutation", ["uri", "command", "skiplock", "version", "duplicate", "vmid", "fields"])
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_fixed_authority_rejects_request_overrides(size, mutation):
     value = request(size)
     if mutation == "uri":
@@ -66,7 +66,7 @@ def test_both_provider_birth_identifiers_required(bad):
             proxmox_spec.birth(100, first, second, "a" * 32)
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_task_identity_is_exactly_bound(size):
     for index in range(size):
         value = {"upid": f"UPID:fixture:00000001:00000002:00000003:ficcvmstart:{index + 100}:root@pam:",

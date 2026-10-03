@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: Apache-2.0
+# Run the public TLS gateway with private state and a local control socket.
+[Unit]
+Description=FICC HTTPS gateway
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=notify
+User=ficc-gateway
+Group=ficc-gateway
+EnvironmentFile=/etc/ficc-gateway/gateway.env
+Environment=XDG_DATA_HOME=/var/lib/ficc-gateway/data
+Environment=XDG_CONFIG_HOME=/var/lib/ficc-gateway/config
+ExecStart=/usr/bin/caddy run --config /etc/ficc-gateway/Caddyfile --adapter caddyfile
+ExecReload=/usr/bin/caddy reload --config /etc/ficc-gateway/Caddyfile --adapter caddyfile --address unix//run/ficc-gateway/admin.sock
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+StateDirectory=ficc-gateway
+StateDirectoryMode=0700
+RuntimeDirectory=ficc-gateway
+RuntimeDirectoryMode=0700
+UMask=0077
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RemoveIPC=true
+TasksMax=256
+MemoryHigh=192M
+MemoryMax=256M
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

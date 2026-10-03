@@ -6,6 +6,7 @@ import asyncio
 import pytest
 from conftest import node
 
+from ficc.backup_database import SCHEMA
 from ficc.errors import Failure
 
 
@@ -62,7 +63,7 @@ def message(identity, **extra):
             "idempotency_key": "message-request-00001", "confirm_delivery": True, **extra}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_launch_delivery_stop_and_retained_identity(agents, count):
     client, service, remote, calls, setup = agents
     identifiers = set()
@@ -207,7 +208,7 @@ def test_schema_three_migration_preserves_credentials_and_rows(tmp_path):
     path.chmod(0o600)
     store = Store(path)
     try:
-        assert store.db.execute("PRAGMA user_version").fetchone()[0] == 6
+        assert store.db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA
         assert Auth(store).resolve("secret").scopes == ["terminals:read"]
         with pytest.raises(Failure):
             Auth(store).resolve("secret").require("agents:execute")
@@ -215,7 +216,7 @@ def test_schema_three_migration_preserves_credentials_and_rows(tmp_path):
         store.close()
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_slow_relay_does_not_block_control_of_healthy_agent(agents, monkeypatch, count):
     _, service, _, _, setup = agents
     _, _, agent, _ = setup()

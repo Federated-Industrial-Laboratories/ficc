@@ -31,7 +31,7 @@ def test_supplied_container_archive_is_deterministic_and_optional():
     assert {item["id"] for item in checked.manifest["actions"]} == {"load", "logs", "preview-start", "preview-stop", "preview-scale"}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_supplied_module_preserves_targets_selection_and_bounded_logs(count):
     module = load("container_payload", ROOT / "modules/containers/payload/main.py")
     targets = [f"node-{index}" for index in range(count)]

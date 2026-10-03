@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools==84.0.0", "wheel==0.48.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ficc-data-csv"
+version = "0.2.5"
+readme = "README.md"
+description = "FICC csv data runtime provider."
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = []
+
+[project.entry-points."ficc.data"]
+csv = "ficc_data_csv"
+
+[project.entry-points."ficc.format"]
+csv = "ficc_data_csv"
+
+[tool.setuptools.packages.find]
+where = ["src"]

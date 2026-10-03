@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "profiles": {
+    "renderer-a": {
+      "host_ca": "/var/lib/ficc/ssh-trust/hosts-ca.pub",
+      "host_principal": "renderer-a.internal",
+      "revoked_keys": "/var/lib/ficc/ssh-trust/revoked.krl",
+      "user": {
+        "certificate": "/var/lib/ficc/ssh-trust/renderer-a-cert.pub",
+        "identity_file": "/var/lib/ficc/ssh-trust/renderer-a",
+        "principal": "ficc-operator"
+      }
+    }
+  }
+}

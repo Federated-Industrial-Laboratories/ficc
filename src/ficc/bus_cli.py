@@ -57,7 +57,7 @@ def export_run(store, run_id, output, archive=False):
     if archive:
         with store.lock, store.db:
             for table, values in (("agents", agents), ("bus_messages", messages), ("bus_deliveries", deliveries), ("bus_runs", [run])):
-                store.db.executemany(f"DELETE FROM {table} WHERE id=?", [(value["id"],) for value in values])
+                store.db.executemany(f"DELETE FROM {table} WHERE id=:p0", [(value["id"],) for value in values])
         store.audit("bus.archive", run_id)
     return {"run_id": run_id, "messages": len(messages), "archived": archive, "output": str(output)}
 
@@ -77,7 +77,7 @@ def import_run(store, source):
     run = records.new("bus_runs", "local-import", digest, intent, name=lines[0]["run"], state="closed")
     with store.lock:
         try:
-            store.db.execute("BEGIN IMMEDIATE")
+            store.begin()
             records.save("bus_runs", run, commit=False)
             for ordinal, item in enumerate(lines, 1):
                 message = records.new("bus_messages", "local-import-" + run["id"], secrets.token_hex(16), item,

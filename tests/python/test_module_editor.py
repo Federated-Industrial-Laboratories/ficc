@@ -21,6 +21,7 @@ from ficc.modules import inspect_archive
 from ficc.modules.manifest import required_capabilities, validate_manifest
 from ficc.service import Service
 from ficc.settings import Settings
+from ficc.state_provider import BoundConnection
 from ficc.workspace_schema import Instance, WorkspaceUpdate
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -86,7 +87,7 @@ def save_body(context, reads):
          "text": f"Changed {index}\n"} for index, item in enumerate(reads)]}).model_dump()
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_real_local_batch_mode_content_idempotency_and_recovery(editor_fixture, count):
     service, actor, root, path, context, *_ = editor_fixture
     reads = await read_all(editor_fixture, count)
@@ -359,7 +360,7 @@ def test_restore_validation_rejects_excessive_json_depth():
     import sqlite3
 
     from ficc.module_editor_store import initialize, validate_records
-    with sqlite3.connect(":memory:") as db:
+    with sqlite3.connect(":memory:", factory=BoundConnection) as db:
         initialize(db)
         db.execute("CREATE TABLE settings (key TEXT PRIMARY KEY,value TEXT)")
         db.execute("INSERT INTO settings VALUES ('file_reference_key',?)", (json.dumps("a" * 64),))

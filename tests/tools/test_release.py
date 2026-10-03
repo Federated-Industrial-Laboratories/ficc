@@ -39,7 +39,7 @@ def test_release_archive_refuses_external_links(tmp_path):
         archive_tree(source, tmp_path / "out.tar.gz", 1)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_source_archive_rebuild_checks_every_source_file(tmp_path, count):
     source = tmp_path / "source"
     source.mkdir()
@@ -67,7 +67,7 @@ def test_cached_download_requires_exact_digest(tmp_path):
         fetch({"inputs": [item]}, tmp_path)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("tamper", [False, True])
 def test_preserved_runtime_prefix_checks_original_bytes(tmp_path, monkeypatch, count, tamper):
     items, bodies, expected = [], {}, {}

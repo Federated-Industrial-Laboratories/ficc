@@ -70,7 +70,7 @@ def host(tmp_path):
     store.close()
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize('timeout', [10, 30])
 async def test_endpoint_secret_custody_and_literal_batch(host, count, timeout):
     manager, actor, value, runner = host

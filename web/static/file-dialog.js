@@ -5,10 +5,11 @@ import { button, bytes, details, el, errorPanel, notice, state, table, time } fr
 
 export function fileDialog(title) {
   const trigger = document.activeElement;
+  const titleId = `file-dialog-title-${crypto.randomUUID()}`;
   let active = true, busy = false, timer;
   const content = el('div'), close = button('Close', () => dialog.close(), { class: 'quiet' });
-  const dialog = el('dialog', { class: 'file-dialog', 'aria-labelledby': 'file-dialog-title' },
-    el('div', { class: 'dialog-heading' }, el('h2', { id: 'file-dialog-title' }, title), close), content);
+  const dialog = el('dialog', { class: 'file-dialog', 'aria-labelledby': titleId },
+    el('div', { class: 'dialog-heading' }, el('h2', { id: titleId }, title), close), content);
   dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
   dialog.addEventListener('close', () => { active = false; clearTimeout(timer); dialog.remove(); trigger?.focus(); });
   document.body.append(dialog); dialog.showModal();
@@ -17,7 +18,7 @@ export function fileDialog(title) {
     async preview(path, body, submitPath, received, context = []) {
       this.working(true); content.replaceChildren(state('Checking exact entries', 'Resolving identities, permissions and destination conflicts.'));
       try {
-        const preview = await request(path, { method: 'POST', body });
+        const preview = await request(path, { method: 'POST', body, timeout: path === '/transfer-previews' ? null : 35000 });
         if (!active) return;
         const key = crypto.randomUUID(), errors = el('div'), expiry = el('div');
         const consent = el('input', { id: 'file-confirm', type: 'checkbox' });

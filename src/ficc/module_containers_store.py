@@ -133,8 +133,6 @@ def retained(store, *, node_id=None, profile_id=None, digest=None, instance_id=N
 class Records:
     def __init__(self, store):
         self.store = store
-        with store.lock, store.db:
-            initialize(store.db)
 
     def profiles(self):
         with self.store.lock:
@@ -150,10 +148,10 @@ class Records:
     def save_profile(self, value):
         profile(value)
         with self.store.lock, self.store.db:
-            exists = self.store.db.execute("SELECT 1 FROM module_container_profiles WHERE id=?", (value["id"],)).fetchone()
+            exists = self.store.db.execute("SELECT 1 FROM module_container_profiles WHERE id=:p0", (value["id"],)).fetchone()
             if not exists and self.store.db.execute("SELECT count(*) FROM module_container_profiles").fetchone()[0] >= 64:
                 raise Failure("container_capacity", "The container profile limit is full.", 409)
-            self.store.db.execute("INSERT INTO module_container_profiles VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET node_id=excluded.node_id,value=excluded.value",
+            self.store.db.execute("INSERT INTO module_container_profiles VALUES (:p0,:p1,:p2) ON CONFLICT(id) DO UPDATE SET node_id=excluded.node_id,value=excluded.value",
                                   (value["id"], value["node_id"], spec.encode(value).decode()))
 
     def all(self):
@@ -163,14 +161,14 @@ class Records:
     def get(self, identity):
         spec.identity(identity)
         with self.store.lock:
-            row = self.store.db.execute("SELECT value FROM module_container_operations WHERE id=?", (identity,)).fetchone()
+            row = self.store.db.execute("SELECT value FROM module_container_operations WHERE id=:p0", (identity,)).fetchone()
         if row is None:
             raise Failure("not_found", "The container operation was not found.", 404)
         return operation(spec.decode(row[0].encode()))
 
     def existing(self, actor, key):
         with self.store.lock:
-            row = self.store.db.execute("SELECT value FROM module_container_operations WHERE actor=? AND key=?", (actor, key)).fetchone()
+            row = self.store.db.execute("SELECT value FROM module_container_operations WHERE actor=:p0 AND key=:p1", (actor, key)).fetchone()
         return operation(spec.decode(row[0].encode())) if row else None
 
     def insert(self, value):
@@ -178,18 +176,18 @@ class Records:
         with self.store.lock, self.store.db:
             if self.store.db.execute("SELECT count(*) FROM module_container_operations").fetchone()[0] >= 1024:
                 raise Failure("container_capacity", "The retained container operation limit is full.", 409)
-            self.store.db.execute("INSERT INTO module_container_operations VALUES (?,?,?,?,?)", (*[value[key] for key in ("id", "actor", "key", "digest")], spec.encode(value).decode()))
+            self.store.db.execute("INSERT INTO module_container_operations VALUES (:p0,:p1,:p2,:p3,:p4)", (*[value[key] for key in ("id", "actor", "key", "digest")], spec.encode(value).decode()))
 
     def save(self, value):
         value["updated_at"] = time.time()
         operation(value)
         with self.store.lock, self.store.db:
-            self.store.db.execute("UPDATE module_container_operations SET value=? WHERE id=?", (spec.encode(value).decode(), value["id"]))
+            self.store.db.execute("UPDATE module_container_operations SET value=:p0 WHERE id=:p1", (spec.encode(value).decode(), value["id"]))
 
     def remove(self, identity):
         with self.store.lock, self.store.db:
-            self.store.db.execute("DELETE FROM module_container_operations WHERE id=?", (identity,))
+            self.store.db.execute("DELETE FROM module_container_operations WHERE id=:p0", (identity,))
 
     def remove_profile(self, identity):
         with self.store.lock, self.store.db:
-            self.store.db.execute("DELETE FROM module_container_profiles WHERE id=?", (identity,))
+            self.store.db.execute("DELETE FROM module_container_profiles WHERE id=:p0", (identity,))

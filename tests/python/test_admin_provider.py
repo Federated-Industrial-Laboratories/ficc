@@ -149,7 +149,7 @@ def test_bounded_process_output_deadline_and_descendant_cleanup(tmp_path, monkey
             raise AssertionError("The bounded command left an active descendant.")
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_fixed_batch_keeps_order_and_excludes_stale_targets(monkeypatch, count):
     value = provider()
     expected = [{"resource": value.pointer("service", f"fixture-{i}.service"), "state": "inactive", "revision": "d" * 64,

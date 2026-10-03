@@ -3,6 +3,7 @@
 import { request } from './api.js';
 import { el, notice } from './components.js';
 import { fileDialog } from './file-dialog.js';
+import { sourceManifest } from './file-manifest.js';
 
 export function uploadSender(updated, failed) {
   let active = true;
@@ -13,11 +14,18 @@ export function uploadSender(updated, failed) {
     try {
       const items = transfer.items.filter(item => !['succeeded', 'cancelled', 'failed', 'unknown'].includes(item.state));
       const matched = items.map(item => {
-        const file = files.find(file => file.name === item.name && file.size === item.size);
+        const file = files.find(file => file.name === item.name && BigInt(file.size) === BigInt(item.size));
         if (!file) throw new Error(`Select the original file for ${item.name}. Filename and size identify a candidate; its full accepted prefix is verified before continuing.`);
         return { item, file };
       });
-      if (resume) await request(`/transfers/${transfer.id}/resume`, { method: 'POST', body: { item_ids: items.map(item => item.id) }, signal: controller.signal });
+      if (resume) {
+        for (const { item, file } of matched) {
+          if (!item.source_manifest) throw Error('Start a new upload with a whole-source digest to resume this legacy transfer.');
+          const manifest = await sourceManifest(file, () => {}, () => !active || controller.signal.aborted);
+          if (manifest.algorithm !== item.source_manifest.algorithm || manifest.digest !== item.source_manifest.digest) throw Error(`The selected source for ${item.name} changed. Start a new transfer.`);
+        }
+        await request(`/transfers/${transfer.id}/resume`, { method: 'POST', body: { item_ids: items.map(item => item.id) }, signal: controller.signal, timeout: null });
+      }
       for (const { item, file } of matched) {
         for (let offset = 0; offset < file.size; offset += 262144) {
           if (!active || controller.signal.aborted) return;
@@ -29,7 +37,7 @@ export function uploadSender(updated, failed) {
           updated();
         }
         if (!active || controller.signal.aborted) return;
-        await request(`/transfers/${transfer.id}/items/${item.id}/finish`, { method: 'POST', body: {}, signal: controller.signal });
+        await request(`/transfers/${transfer.id}/items/${item.id}/finish`, { method: 'POST', body: {}, signal: controller.signal, timeout: null });
         updated();
       }
     } catch (error) { if (active && !controller.signal.aborted) failed(error); }
@@ -40,7 +48,7 @@ export function uploadSender(updated, failed) {
     resume(transfer) {
       const view = fileDialog('Reselect original upload files');
       const input = el('input', { id: 'resume-upload-files', type: 'file', multiple: true, required: true });
-      view.content.append(notice('Select the original files. Every accepted prefix chunk is sent again and checked against the staged bytes before new data continues.'),
+      view.content.append(notice('Select the original files. The whole source digest is checked before resuming. Accepted chunks are checked again against staged bytes.'),
         el('form', { onsubmit: event => { event.preventDefault(); const files = [...input.files]; view.dialog.close(); send(transfer, files, true); } },
           el('label', { for: input.id }, 'Original upload files'), input,
           el('div', { class: 'actions' }, el('button', { type: 'submit', class: 'primary' }, 'Verify prefix and resume'))));

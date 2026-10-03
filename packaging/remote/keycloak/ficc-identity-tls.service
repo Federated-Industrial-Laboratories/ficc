@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: Apache-2.0
+# Renew private backend leaf certificates with bounded root privileges.
+[Unit]
+Description=FICC private backend TLS renewal
+After=postgresql.service ficc-identity.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+Environment=FICC_TLS_CA_CERT=/etc/ficc-identity/tls/ca.pem
+Environment=FICC_TLS_CA_KEY=/etc/ficc-identity/tls/ca.key
+Environment=FICC_TLS_IDENTITY_DIR=/etc/ficc-identity/tls
+Environment=FICC_TLS_DATABASE_DIR=/etc/postgresql/18/main/ficc-tls
+Environment=FICC_TLS_IDENTITY_USER=ficc-identity
+Environment=FICC_TLS_DATABASE_USER=postgres
+Environment=FICC_TLS_POSTGRESQL_SERVICE=postgresql@18-main.service
+EnvironmentFile=-/etc/ficc-identity/tls-renew.env
+ExecStart=/usr/bin/python3 -I /opt/ficc-identity/renew_tls.py --ca-cert ${FICC_TLS_CA_CERT} --ca-key ${FICC_TLS_CA_KEY} --identity-dir ${FICC_TLS_IDENTITY_DIR} --database-dir ${FICC_TLS_DATABASE_DIR} --identity-user ${FICC_TLS_IDENTITY_USER} --database-user ${FICC_TLS_DATABASE_USER} --postgresql-service ${FICC_TLS_POSTGRESQL_SERVICE}
+RuntimeDirectory=ficc-identity-tls
+RuntimeDirectoryMode=0700
+UMask=0077
+TimeoutStartSec=180
+TimeoutStopSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=CAP_CHOWN CAP_DAC_READ_SEARCH CAP_FOWNER
+ReadWritePaths=/etc/ficc-identity/tls /etc/postgresql/18/main/ficc-tls
+TasksMax=16
+MemoryMax=128M
+CPUQuota=50%
+LimitNOFILE=64
+LimitFSIZE=1M

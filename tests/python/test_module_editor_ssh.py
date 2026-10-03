@@ -19,7 +19,7 @@ spec.loader.exec_module(fixture_module)
 ssh_fixture = fixture_module.ssh_fixture
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_real_ssh_editor_batch_and_current_authority(ssh_fixture, count):
     transport, home, _ = ssh_fixture
     service = Service(transport.settings)

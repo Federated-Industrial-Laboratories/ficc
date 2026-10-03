@@ -2,9 +2,11 @@
 
 # Documentation
 
-Install and operate a local console for Linux clusters. FICC connects to approved
-SSH profiles and keeps inventory, operation history and message records on the
-controller. Start with the guides below, then use the task manuals as needed.
+Install and operate a console for Linux clusters. FICC connects to approved
+SSH profiles and contributors, with project access, workload queues and dataset
+pipelines. The controller retains identities, approvals and operation receipts.
+Remote browser access requires explicit HTTPS and identity-service configuration.
+Start with the guides below, then use the task manuals as needed.
 
 The [online documentation](https://ficc.federatedindustrial.com/docs/) provides
 page contents, command copying and a search index that runs in your browser.
@@ -20,6 +22,11 @@ page contents, command copying and a search index that runs in your browser.
 3. Try the [demonstration console](install.md#try-the-interface) with separate state.
 4. [Connect a machine](install.md#connect-a-machine) and inspect its pinned identity.
 5. Set up [normal startup and maintenance](operations.md).
+
+The v0.2.5 source installer and binary payload supply 17 separately built
+[provider wheels](dependencies.md#supplied-runtime-providers). Their presence
+does not configure external services, enroll contributors or grant access.
+Follow the relevant workflow guide before enabling a provider.
 
 ## Manual library
 
@@ -54,13 +61,37 @@ page contents, command copying and a search index that runs in your browser.
 | 27 | [VirtualBox provider](providers/virtualbox.md) | Account-bound native adapter, local IPC and display setup. |
 | 28 | [Module sandbox setup](../tools/module-sandbox-policy/README.md) | Optional AppArmor policy, installation checks and removal. |
 | 29 | [System power policy](../tools/power-policy/README.md) | Optional group-scoped shutdown and restart permissions. |
+| 30 | [Identities and projects](identities.md) | Local user identities, project workspace ownership, membership and recovery. |
+| 31 | [Controller state storage](state-storage.md) | SQLite, optional PostgreSQL driver, verified transport, migration and recovery. |
+| 32 | [Runtime policies](policies.md) | Signed packages, role assignments, effective access and recovery. |
+| 33 | [Remote access](remote-access.md) | HTTPS gateway, approved identities, MFA and revocation. |
+| 34 | [Contributor connections](contributors.md) | Private CA setup, invitations, independent key approval, node leases and recovery. |
+| 35 | [OpenSSH certificate trust](ssh-trust.md) | Installation-approved CAs, principals, user certificates, KRLs and live connection checks. |
+| 36 | [Certificate provider SDK](../sdk/certificates.md) | Trusted runtime authority providers, issuance contracts and credential boundaries. |
+| 37 | [Contributor workloads](workloads.md) | Project queues, placement, output, cancellation and uncertain outcome recovery. |
+| 38 | [Contributor execution](execution.md) | Local consent, enforced resources, isolated runtimes and executor installation. |
+| 39 | [Scheduler SDK](../sdk/schedulers.md) | Separately installed scheduling and project concurrency providers. |
+| 40 | [Datasets](datasets.md) | Immutable project manifests, source digests, explicit schemas and provenance. |
+| 41 | [Artifact SDK](../sdk/artifacts.md) | Runtime filesystem providers, source binding and bounded dataset consumption. |
+| 42 | [Data sources](data-sources.md) | Approved connections, registered queries, dataset exports and resumable object publication. |
+| 43 | [Data provider SDK](../sdk/data-sources.md) | Installable source/format contracts, bounded streams and customer REST extensions. |
+| 44 | [Dataset inspection](inspection.md) | Optional local scanning, recorded coverage, quarantine, sensitivity and explicit exemptions. |
+| 45 | [Inspection SDK](../sdk/inspection.md) | Separately installed local scanner packages and immutable file receipts. |
+| 46 | [Secret storage](secrets.md) | Encrypted references, private provisioning, rotation, migration and key recovery. |
+| 47 | [Secret provider SDK](../sdk/secrets.md) | Runtime secret contracts, revision checks and failure behavior. |
+| 48 | [Durable audit delivery](audit.md) | Separate destination custody, acknowledgments, retention gaps and required admission. |
+| 49 | [Audit provider SDK](../sdk/audit.md) | Bounded append batches, strict acknowledgments and recovery. |
+| 50 | [Executor SDK](../sdk/executors.md) | Contributor runtime isolation, staged inputs and retained output contracts. |
 
 ## Terms used in the manuals
 
 | Term | Meaning |
 | --- | --- |
 | Controller | The local FICC service and its canonical database. |
-| Node | An enrolled machine reached through a pinned SSH identity. |
+| Managed node | An enrolled machine reached through an approved SSH identity. |
+| Contributor | A separately approved machine with an outbound TLS connection and a current certificate lease. |
+| Dataset | An immutable project manifest binding registered file versions, complete digests, schema and provenance. |
+| Workload attempt | One fenced contributor execution with its own lease, observed outcome and retained storage. |
 | SSH profile | A locally approved SSH alias used for connection and enrollment. |
 | Agent profile | An exact installed command, adapter and working directory on one node. |
 | File root | A registered directory with explicit permitted actions. |
@@ -89,8 +120,20 @@ page contents, command copying and a search index that runs in your browser.
 | Use multiple monitors | [Workspace windows](workspaces.md#separate-windows-and-fullscreen) |
 | Edit a system file | [Registered-root editor](workspaces.md#included-productivity-panels) |
 | Release VM keyboard input | [Remote display controls](viewer.md) |
+| Invite a remote contributor | [Contributor enrollment](contributors.md#invite-a-machine) |
+| Submit compute to contributors | [Contributor workloads](workloads.md) |
+| Export a source query for a workload | [Data sources](data-sources.md) and [datasets](datasets.md) |
+| Publish a workload result | [Output publication](workloads.md#inspect-output-and-finish) |
+| Inspect dataset coverage and restrictions | [Dataset inspection](inspection.md) |
+| Provision or rotate a source credential | [Secret storage](secrets.md) |
+| Configure an independent audit destination | [Durable audit delivery](audit.md) |
+| Inspect health and download diagnostics | [Operational status](operations.md#operational-status-and-recovery) |
+| Configure SSH certificate trust | [OpenSSH certificates](ssh-trust.md) |
 
 ## Conventions
+
+[Runtime access policies](policies.md) cover publisher trust, installation,
+role assignments, effective access and recovery.
 
 Commands use generic machine aliases and opaque IDs. Replace those values with
 the identities shown by the local console. Keep credentials in protected files;

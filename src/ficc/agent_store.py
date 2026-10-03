@@ -37,7 +37,7 @@ class AgentStore:
     def get(self, table, identity):
         assert table in CAPS
         with self.store.lock:
-            row = self.store.db.execute(f"SELECT value FROM {table} WHERE id=?", (identity,)).fetchone()
+            row = self.store.db.execute(f"SELECT value FROM {table} WHERE id=:p0", (identity,)).fetchone()
         if row is None:
             raise Failure("not_found", "The agent or bus record was not found.", 404)
         return json.loads(row[0])
@@ -45,7 +45,7 @@ class AgentStore:
     def retry(self, table, actor, key, intent):
         assert table in CAPS
         with self.store.lock:
-            row = self.store.db.execute(f"SELECT digest,value FROM {table} WHERE actor=? AND key=?", (actor, key)).fetchone()
+            row = self.store.db.execute(f"SELECT digest,value FROM {table} WHERE actor=:p0 AND key=:p1", (actor, key)).fetchone()
         if row is None:
             return None
         if row[0] != fingerprint(intent):
@@ -61,10 +61,10 @@ class AgentStore:
         value["updated_at"] = time.time()
         with self.store.lock:
             db = self.store.db
-            if db.execute(f"SELECT 1 FROM {table} WHERE id=?", (value["id"],)).fetchone() is None:
+            if db.execute(f"SELECT 1 FROM {table} WHERE id=:p0", (value["id"],)).fetchone() is None:
                 if db.execute(f"SELECT count(*) FROM {table}").fetchone()[0] >= CAPS[table]:
                     raise Failure("capacity", "Archive closed bus runs or remove unused profiles to release capacity.", 409)
-            db.execute(f"INSERT INTO {table} VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value",
+            db.execute(f"INSERT INTO {table} VALUES (:p0,:p1,:p2,:p3,:p4) ON CONFLICT(id) DO UPDATE SET value=excluded.value",
                        (value["id"], value["actor"], value["key"], value["digest"], json.dumps(value, allow_nan=False)))
             if commit:
                 db.commit()
@@ -72,7 +72,7 @@ class AgentStore:
     def delete(self, table, identity):
         assert table in CAPS
         with self.store.lock, self.store.db:
-            self.store.db.execute(f"DELETE FROM {table} WHERE id=?", (identity,))
+            self.store.db.execute(f"DELETE FROM {table} WHERE id=:p0", (identity,))
 
 
 def public(value):

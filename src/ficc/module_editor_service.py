@@ -32,7 +32,7 @@ class Editor:
 
     def context(self, actor, workspace_id, instance_id):
         self.service.auth.current(actor).require("workspaces:read")
-        space = self.service.workspaces.get(workspace_id)
+        space = self.service.workspaces.scoped(self.service.auth.current(actor)).get(workspace_id)
         instance = next((item for item in space["instances"] if item["id"] == instance_id), None)
         if instance is None:
             raise Failure("editor_instance", "The editor panel was not found.", 404)

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools==84.0.0", "wheel==0.48.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ficc-state-postgresql"
+version = "0.2.5"
+description = "Trusted PostgreSQL state driver for FICC"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = ["SQLAlchemy==2.1.1", "psycopg[binary]==3.3.6"]
+
+[project.entry-points."ficc.state"]
+postgresql = "ficc_state_postgresql"
+
+[tool.setuptools.packages.find]
+where = ["src"]

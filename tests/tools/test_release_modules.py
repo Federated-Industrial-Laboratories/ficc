@@ -28,7 +28,7 @@ def fixture(packages, count):
     return rows
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_shipped_module_inventory_binds_distinct_archives(tmp_path, count):
     rows = fixture(tmp_path, count)
     result = components(tmp_path)
@@ -38,7 +38,7 @@ def test_shipped_module_inventory_binds_distinct_archives(tmp_path, count):
         (row["id"], row["digest"]) for row in rows}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("change", ["bytes", "identity", "unlisted", "duplicate", "path", "link"])
 def test_shipped_module_inventory_refuses_mismatches(tmp_path, count, change):
     rows = fixture(tmp_path, count)

@@ -14,7 +14,7 @@ def require_removable(service, *, instance_id=None, digest=None):
 def history(service, host, actor, context, capability, guard):
     service.authorize(actor, "modules:execute")
     service.authorize(actor, "workspaces:read")
-    workspace = service.workspaces.get(context.workspace_id)
+    workspace = service.workspaces.scoped(service.auth.current(actor)).get(context.workspace_id)
     instance = next((item for item in workspace["instances"] if item["id"] == context.instance_id), None)
     if instance is None:
         raise Failure("not_found", "The module panel was not found.", 404)

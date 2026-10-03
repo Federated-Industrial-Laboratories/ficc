@@ -48,7 +48,7 @@ def test_install_directory_rejects_unsafe_ancestor(tmp_path, kind):
     assert not (tmp_path / 'install').exists()
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_each_cached_download_requires_matching_bytes(tmp_path, count):
     for i in range(count):
         data = f'distinct archive {i}'.encode()
@@ -76,7 +76,7 @@ def test_bootstrap_archive_cannot_escape(tmp_path, kind):
     assert not (tmp_path / 'outside').exists()
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_reinstall_preserves_every_saved_profile_and_setting(tmp_path, monkeypatch, count):
     from ficc.launcher_config import LaunchConfig, save
 

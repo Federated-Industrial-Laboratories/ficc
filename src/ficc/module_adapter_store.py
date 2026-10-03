@@ -97,7 +97,7 @@ def retained(store, *, endpoint_id=None, digest=None, profile_id=None):
                 and (digest is None or value["digest"] == digest)
                 and (profile_id is None or value["id"] == profile_id))
     with store.lock:
-        tables = {row[0] for row in store.db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        tables = store.table_names()
         if not tables.intersection(TABLES):
             return False
         if not set(TABLES) <= tables:
@@ -157,8 +157,6 @@ def validate_records(profiles, operations, endpoint_ids, package_digests):
 class Records(common.Records):
     def __init__(self, store):
         self.store = store
-        with store.lock, store.db:
-            initialize(store.db)
 
     def profiles(self):
         with self.store.lock:
@@ -167,7 +165,7 @@ class Records(common.Records):
     def profile(self, profile_id):
         spec.identity(profile_id)
         with self.store.lock:
-            row = self.store.db.execute("SELECT value FROM module_adapter_profiles WHERE id=?", (profile_id,)).fetchone()
+            row = self.store.db.execute("SELECT value FROM module_adapter_profiles WHERE id=:p0", (profile_id,)).fetchone()
         if row is None:
             raise Failure("adapter_profile_missing", "The provider adapter profile was not found.", 404)
         return profile(loads(row[0].encode()))
@@ -175,7 +173,7 @@ class Records(common.Records):
     def save_profile(self, value):
         profile(value)
         with self.store.lock, self.store.db:
-            row = self.store.db.execute("SELECT value FROM module_adapter_profiles WHERE id=?", (value["id"],)).fetchone()
+            row = self.store.db.execute("SELECT value FROM module_adapter_profiles WHERE id=:p0", (value["id"],)).fetchone()
             if row:
                 prior = profile(loads(row[0].encode()))
                 if (any(prior[key] != value[key] for key in IMMUTABLE)
@@ -183,7 +181,7 @@ class Records(common.Records):
                     raise Failure("adapter_profile_changed", "A changed provider binding requires a new profile.", 409)
             elif self.store.db.execute("SELECT count(*) FROM module_adapter_profiles").fetchone()[0] >= 64:
                 raise Failure("capacity", "The provider adapter profile limit is full.", 409)
-            self.store.db.execute("INSERT INTO module_adapter_profiles VALUES (?,?,?,?) "
+            self.store.db.execute("INSERT INTO module_adapter_profiles VALUES (:p0,:p1,:p2,:p3) "
                 "ON CONFLICT(id) DO UPDATE SET value=excluded.value", (value["id"], value["endpoint_id"],
                 value["digest"], dumps(value).decode()))
 
@@ -195,14 +193,14 @@ class Records(common.Records):
     def get(self, operation_id):
         spec.identity(operation_id)
         with self.store.lock:
-            row = self.store.db.execute("SELECT value FROM module_adapter_operations WHERE id=?", (operation_id,)).fetchone()
+            row = self.store.db.execute("SELECT value FROM module_adapter_operations WHERE id=:p0", (operation_id,)).fetchone()
         if row is None:
             raise Failure("not_found", "The provider operation was not found.", 404)
         return operation(loads(row[0].encode()))
 
     def existing(self, actor, key):
         with self.store.lock:
-            row = self.store.db.execute("SELECT value FROM module_adapter_operations WHERE actor=? AND key=?",
+            row = self.store.db.execute("SELECT value FROM module_adapter_operations WHERE actor=:p0 AND key=:p1",
                                          (actor, key)).fetchone()
         return operation(loads(row[0].encode())) if row else None
 
@@ -214,7 +212,7 @@ class Records(common.Records):
             required = reservation(value)
             if len(prior) >= 1024 or required > MAX_JSON or sum(map(reservation, prior)) + required > MAX_HISTORY_BYTES:
                 raise Failure("capacity", "Remove completed provider receipts before creating more operations.", 409)
-            self.store.db.execute("INSERT INTO module_adapter_operations VALUES (?,?,?,?,?)",
+            self.store.db.execute("INSERT INTO module_adapter_operations VALUES (:p0,:p1,:p2,:p3,:p4)",
                 (*[value[key] for key in ("id", "actor", "key", "digest")], data))
 
     def save(self, value):
@@ -224,17 +222,17 @@ class Records(common.Records):
         if len(data) > reservation(value):
             raise ValueError("The provider receipt exceeds its reserved record space.")
         with self.store.lock, self.store.db:
-            self.store.db.execute("UPDATE module_adapter_operations SET value=? WHERE id=?", (data, value["id"]))
+            self.store.db.execute("UPDATE module_adapter_operations SET value=:p0 WHERE id=:p1", (data, value["id"]))
 
     def retained(self, node_id):
         return retained(self.store, endpoint_id=node_id)
 
     def remove(self, operation_id):
         with self.store.lock, self.store.db:
-            self.store.db.execute("DELETE FROM module_adapter_operations WHERE id=?", (operation_id,))
+            self.store.db.execute("DELETE FROM module_adapter_operations WHERE id=:p0", (operation_id,))
 
     def remove_profile(self, profile_id):
         with self.store.lock, self.store.db:
             if any(target["profile"]["id"] == profile_id for value in self.all() for target in value["targets"]):
                 raise Failure("adapter_history", "Remove this profile's operation receipts before its profile.", 409)
-            self.store.db.execute("DELETE FROM module_adapter_profiles WHERE id=?", (profile_id,))
+            self.store.db.execute("DELETE FROM module_adapter_profiles WHERE id=:p0", (profile_id,))

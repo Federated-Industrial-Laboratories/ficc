@@ -79,7 +79,7 @@ def test_console_peer_is_bound_before_config_lock_release(monkeypatch, fault):
     assert events[-1] == "released"
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("kind", ["stdout", "stderr", "timeout"])
 def test_fixed_bridge_output_deadline_and_cleanup(monkeypatch, size, kind):
     original = subprocess.Popen

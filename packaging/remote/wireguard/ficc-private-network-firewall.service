@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+# Apply the reviewed private-interface firewall before the tunnel starts.
+[Unit]
+Description=FICC private network firewall
+Before=wg-quick@ficc-mgmt.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/ficc-network/ficc-mgmt.nft
+ExecStop=/usr/sbin/nft delete table inet ficc_mgmt
+
+[Install]
+WantedBy=multi-user.target

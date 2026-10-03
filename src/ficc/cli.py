@@ -5,17 +5,17 @@ import argparse
 import json
 import os
 import socket
+import sqlite3
 import stat
 import sys
 from contextlib import suppress
 from pathlib import Path
 
 import httpx
-import uvicorn
 
 from . import __version__, launcher
-from .api import create_app
 from .launcher_config import config_path
+from .local_client import client as local_client
 from .settings import Settings, default_state_dir, private_directory
 
 
@@ -59,7 +59,11 @@ def parser() -> argparse.ArgumentParser:
             item.add_argument("--demo", action="store_true")
         elif name == "open":
             item.add_argument("--print-url", action="store_true")
+            item.add_argument("--subject")
+            item.add_argument("--project")
         elif name == "token-create":
+            item.add_argument("--subject")
+            item.add_argument("--project")
             item.add_argument("--label", required=True)
             item.add_argument("--scope", action="append", required=True)
             item.add_argument("--node", action="append")
@@ -94,6 +98,8 @@ def parser() -> argparse.ArgumentParser:
     add_commands(commands)
     from .file_cli import add_commands as add_file_commands
     add_file_commands(commands)
+    from .workloads.cli import add_commands as add_workload_commands
+    add_workload_commands(commands)
     from .backup import add_commands as add_backup_commands
     add_backup_commands(commands)
     from .history import add_commands as add_history_commands
@@ -102,14 +108,27 @@ def parser() -> argparse.ArgumentParser:
     add_agent_commands(commands)
     from .module_cli import add_commands as add_module_commands
     add_module_commands(commands)
+    from .identity_cli import add_commands as add_identity_commands
+    add_identity_commands(commands)
+    from .state_cli import add_commands as add_state_commands
+    add_state_commands(commands)
+    from .policy_cli import add_commands as add_policy_commands
+    add_policy_commands(commands)
+    from .remote_cli import add_commands as add_remote_commands
+    add_remote_commands(commands)
+    from .contributor_cli import add_commands as add_contributor_commands
+    add_contributor_commands(commands)
+    from .secret_cli import add_commands as add_secret_commands
+    add_secret_commands(commands)
+    from .audit_cli import add_commands as add_audit_commands
+    add_audit_commands(commands)
     return result
 
 
 def api_command(args) -> None:
     grant = local_request(args.state_dir, {"action": "ephemeral"})
     try:
-        with httpx.Client(base_url=grant["origin"], headers={"Authorization": "Bearer " + grant["credential"]},
-                          timeout=90, trust_env=False) as client:
+        with local_client(grant, args.state_dir) as client:
             if args.command == "nodes":
                 response = client.get("/api/v1/nodes")
             elif args.command == "refresh":
@@ -137,10 +156,26 @@ def main(argv: list[str] | None = None) -> int:
             settings = Settings(state_dir=args.state_dir, port=args.port, profiles=tuple(args.profile),
                                 ssh_config=args.ssh_config, demo=args.demo, viewer_runtime=args.viewer_runtime,
                                 windows_runtime=args.windows_runtime)
-            uvicorn.run(create_app(settings), host="127.0.0.1", port=settings.port,
-                        access_log=False, proxy_headers=False, server_header=False,
-                        limit_concurrency=64, timeout_keep_alive=5, ws="websockets",
-                        ws_max_size=16384, ws_max_queue=4, ws_per_message_deflate=False)
+            from .remote_server import serve
+            serve(settings)
+        elif args.command in {"remote-configure", "identity-provider-configure"}:
+            from .remote_cli import execute as execute_remote
+            execute_remote(args)
+        elif args.command.startswith(("contributor-", "node-")) or args.command == "contributors-configure":
+            from .contributor_cli import execute as execute_contributors
+            execute_contributors(args)
+        elif args.command.startswith("workload-") or args.command == "workloads-configure":
+            from .workloads.cli import execute as execute_workloads
+            execute_workloads(args)
+        elif args.command in {"state-configure", "state-migrate"}:
+            from .state_cli import execute as execute_state
+            execute_state(args)
+        elif args.command.startswith("secret-"):
+            from .secret_cli import execute as execute_secrets
+            execute_secrets(args)
+        elif args.command.startswith("audit-"):
+            from .audit_cli import execute as execute_audit
+            execute_audit(args)
         elif args.command == "archive-history":
             from .history import execute as execute_history
             execute_history(args)
@@ -148,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
             from .backup import execute as execute_backup
             execute_backup(args)
         elif args.command == "open":
-            launcher.open_console(args.state_dir, args.print_url)
+            launcher.open_console(args.state_dir, args.print_url, subject=args.subject, project=args.project)
         elif args.command == "install-launcher":
             print(json.dumps(launcher.install(args), indent=2))
         elif args.command == "start":
@@ -171,6 +206,12 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command.startswith("root-"):
             from .file_cli import execute as execute_files
             execute_files(args)
+        elif args.command.startswith(("identity-", "project-")):
+            from .identity_cli import execute as execute_identities
+            execute_identities(args)
+        elif args.command.startswith("policy-"):
+            from .policy_cli import execute as execute_policy
+            execute_policy(args)
         elif args.command.startswith("module-"):
             from .module_cli import execute as execute_modules
             execute_modules(args)
@@ -179,7 +220,9 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 grant = local_request(args.state_dir, {"action": "token", "label": args.label,
                                       "scopes": args.scope, "node_ids": args.node, "root_ids": args.root,
-                                      "lifetime": args.lifetime})
+                                      "lifetime": args.lifetime,
+                                      **({"subject_id": args.subject} if args.subject else {}),
+                                      **({"project_id": args.project} if args.project else {})})
                 with os.fdopen(fd, "w") as stream:
                     fd = -1
                     stream.write(grant["credential"] + "\n")
@@ -201,6 +244,12 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         if args.command in {"launch", "desktop"}:
             launcher.notify_failure(str(exc))
+        return 1
+    except sqlite3.Error:
+        message = "The state database is unavailable. Check connection settings, ownership, and pending writes."
+        print(message, file=sys.stderr)
+        if args.command in {"launch", "desktop"}:
+            launcher.notify_failure(message)
         return 1
     except (OSError, httpx.HTTPError):
         print("The request failed. Check service access, permissions, and connection settings.", file=sys.stderr)

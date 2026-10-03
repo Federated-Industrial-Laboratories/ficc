@@ -22,7 +22,7 @@ def transport_frame(conversation, index=0, request_id="f" * 32):
         "commands": [{"command": "Get-FiccVm", "parameters": {"Ids": ["machine"]}}]}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_frozen_profile_batch_and_complete_ordered_result(count):
     supplied = bindings(count)
     conversation = Conversation("a" * 64, "inventory", "inventory", supplied, lambda: None)
@@ -39,7 +39,7 @@ def test_frozen_profile_batch_and_complete_ordered_result(count):
         conversation.result(result)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_transport_call_retains_exact_profile_and_copies_commands(count):
     conversation = Conversation("a" * 64, "inventory", "inventory", bindings(count), lambda: None)
     value = transport_frame(conversation, count - 1)
@@ -87,7 +87,7 @@ def test_invalid_phase_or_identity_refuses_before_dispatch(field, value):
         request(raw)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_mutation_requires_frozen_complete_resources_and_private_intent(count):
     values = bindings(count)
     for index, value in enumerate(values):
@@ -117,7 +117,7 @@ def test_unknown_private_binding_fields_and_duplicate_resources_refuse():
         binding(value)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_optional_registered_transport_identity_is_frozen_without_a_path(count):
     values = bindings(count)
     for index, value in enumerate(values):

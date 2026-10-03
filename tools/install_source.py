@@ -15,6 +15,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import runtime_packages
 from source_runtime import download, secure_dir, unpack
 from viewer_runtime import install as install_viewer
 from windows_runtime import install as install_windows
@@ -42,7 +43,7 @@ def source_copy(destination: Path) -> None:
         shutil.copyfile(ROOT / name, destination / name)
 
     def ignored(directory, names):
-        skip = {n for n in names if n in {'__pycache__', 'node_modules', 'static', 'module_packages'}
+        skip = {n for n in names if n in {'__pycache__', 'node_modules', 'static', 'module_packages', 'build', 'dist'}
                 or n.endswith('.egg-info')}
         for name in set(names) - skip:
             if (Path(directory) / name).is_symlink():
@@ -51,8 +52,12 @@ def source_copy(destination: Path) -> None:
 
     for name in ('src', 'node', 'modules'):
         shutil.copytree(ROOT / name, destination / name, ignore=ignored)
+    for folder in sorted(ROOT.glob('*-providers')):
+        shutil.copytree(folder, destination / folder.name, ignore=ignored)
+    (destination / 'packaging').mkdir()
+    shutil.copyfile(ROOT / 'packaging/providers.json', destination / 'packaging/providers.json')
     (destination / 'tools').mkdir()
-    for name in ('build-modules.py', 'module_native_build.py', 'viewer_assets.py'):
+    for name in ('build-modules.py', 'module_native_build.py', 'viewer_assets.py', 'runtime_packages.py'):
         shutil.copyfile(ROOT / 'tools' / name, destination / 'tools' / name)
     (destination / 'sdk').mkdir()
     shutil.copytree(ROOT / 'sdk/python', destination / 'sdk/python', ignore=ignored)
@@ -106,6 +111,8 @@ def install(args) -> Path:
                 source_copy(source)
                 for filename in ('requirements-build.lock', 'requirements.lock'):
                     run([python, '-m', 'pip', 'install', '--require-hashes', '-r', source / filename], env=env)
+                provider_requirements = [argument for path in runtime_packages.locks(source) for argument in ('-r', path)]
+                run([python, '-m', 'pip', 'install', '--require-hashes', *provider_requirements], env=env)
                 run([node_bin / 'npm', 'ci', '--ignore-scripts', '--prefix', source / 'web'], env=env)
                 run([node_bin / 'npm', 'run', 'build', '--prefix', source / 'web'], env=env)
                 run([python, source / 'tools/build-modules.py', 'defaults', '--output',
@@ -115,6 +122,9 @@ def install(args) -> Path:
                 if len(wheels) != 1:
                     raise ValueError('Build must produce exactly one wheel')
                 run([python, '-m', 'pip', 'install', '--no-deps', wheels[0]], env=env)
+                provider_wheels = target / 'runtime-packages'
+                providers = runtime_packages.build(source, provider_wheels, python, env=env)
+                runtime_packages.install(python, provider_wheels, providers, env=env)
             executable = target / 'venv/bin/ficc'
             if args.viewer_runtime is not None:
                 install_viewer(args.viewer_runtime, target / 'venv/viewer-runtime')

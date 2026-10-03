@@ -12,7 +12,7 @@ from ficc_node import history, history_files, history_write, job_state
 from test_history_node import node_state, request
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("kind,boundary", [("node", name) for name in ("intent", "manifest", "published", "owner", "complete")]
                          + [("controller", name) for name in ("initial", "bound", "ack", "retirement", "complete", "cli-published")])
 def test_abrupt_exit_before_every_journal_replacement_resumes(tmp_path, kind, boundary, count):
@@ -38,7 +38,7 @@ def test_abrupt_exit_before_every_journal_replacement_resumes(tmp_path, kind, bo
             assert results[0]["archive_id"] == pending_value["archive_id"]
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_abrupt_cli_creation_resumes_with_all_sanitized_receipts(tmp_path, count):
     command = [sys.executable, str(Path(__file__).with_name("history_crash_child.py")), "controller", "cli-created", str(count), str(tmp_path)]
     crash = subprocess.run(command[:2] + ["crash"] + command[2:], capture_output=True, timeout=90)
@@ -54,7 +54,7 @@ def test_abrupt_cli_creation_resumes_with_all_sanitized_receipts(tmp_path, count
     assert results[0] == results[1]
 
 
-@pytest.mark.parametrize("count", [0, 1, 64])
+@pytest.mark.parametrize("count", [0, 1, pytest.param(64, marks=pytest.mark.scale)])
 def test_all_parent_entries_persist_before_move_and_owner_commit(tmp_path, monkeypatch, count):
     if count:
         body, _, _ = node_state(tmp_path, monkeypatch, count)

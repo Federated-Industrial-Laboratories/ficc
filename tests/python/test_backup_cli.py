@@ -33,7 +33,7 @@ def receipts(path, service, count):
     return saved
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_closed_cli_receipts_reconcile_without_exporting_credentials(tmp_path, count):
     state, bundle, target = (tmp_path / name for name in ("state", "bundle", "restored"))
     service, _, _ = populated(state, count)
@@ -49,7 +49,7 @@ def test_closed_cli_receipts_reconcile_without_exporting_credentials(tmp_path, c
     assert {file.name: file.read_bytes() for file, _ in saved} == original
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("fault", ["unresolved", "different_digest", "different_operation", "wrong_name", "link"])
 def test_last_cli_receipt_blocks_incomplete_or_mismatched_backup(tmp_path, count, fault):
     state = tmp_path / "state"

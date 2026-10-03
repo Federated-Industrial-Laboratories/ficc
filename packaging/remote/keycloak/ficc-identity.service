@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: Apache-2.0
+# Run the private identity backend with explicit resource and filesystem limits.
+[Unit]
+Description=FICC identity service
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ficc-identity
+Group=ficc-identity
+WorkingDirectory=/opt/ficc-identity/current
+EnvironmentFile=/etc/ficc-identity/identity.env
+Environment="JAVA_OPTS_APPEND=-Xms256m -Xmx1024m"
+ExecStart=/opt/ficc-identity/current/bin/kc.sh start --optimized --import-realm
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=45
+StateDirectory=ficc-identity
+StateDirectoryMode=0700
+RuntimeDirectory=ficc-identity
+RuntimeDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+ReadWritePaths=/var/lib/ficc-identity
+TasksMax=512
+MemoryHigh=1536M
+MemoryMax=2048M
+CPUQuota=200%
+LimitNOFILE=16384
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: Apache-2.0
+# Authenticate outbound node channels on a separate TLS listener.
+https://{$FICC_PUBLIC_ADDRESS}:8443 {
+	tls {
+		protocols tls1.3 tls1.3
+		issuer acme {$FICC_ACME_DIRECTORY} {
+			profile shortlived
+		}
+		client_auth {
+			mode require_and_verify
+			trust_pool file /etc/ficc-gateway/node-ca.pem
+		}
+	}
+	@node path /api/v1/node-channel/activate /api/v1/node-channel/rotate /api/v1/node-channel/poll /api/v1/node-channel/stream /api/v1/node-channel/execution
+	handle @node {
+		request_header -X-FICC-*
+		reverse_proxy unix//run/ficc-controller/gateway.sock {
+			header_up Host {$FICC_PUBLIC_ADDRESS}
+			header_up -Forwarded
+			header_up -X-Forwarded-*
+			header_up X-FICC-Node-Gateway {$FICC_NODE_GATEWAY_SECRET}
+			header_up X-FICC-Node-Fingerprint {http.request.tls.client.fingerprint}
+			header_up X-FICC-Client-IP {remote_host}
+			transport http {
+				# Retire idle connections before the controller's five-second timeout.
+				keepalive 1s
+				dial_timeout 5s
+				response_header_timeout 60s
+				max_response_header 32KB
+				max_conns_per_host 128
+			}
+		}
+	}
+	respond "Unknown node route." 404
+}
+
+# Require client authentication when SNI is absent or names another host.
+https://:8443 {
+	tls {
+		protocols tls1.3 tls1.3
+		client_auth {
+			mode require_and_verify
+			trust_pool file /etc/ficc-gateway/node-ca.pem
+		}
+	}
+	respond "Unknown node host." 421
+}

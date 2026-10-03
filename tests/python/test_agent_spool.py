@@ -39,7 +39,7 @@ def exchange(spec, deliveries=None, receipts=None, acks=None):
         "agent_id": spec["agent_id"], "deliveries": deliveries or [], "receipt_ids": receipts or [], "outbox_acks": acks or []})
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_distinct_routing_duplicate_exchange_and_tool_receipt(namespace, count):
     controller, create = namespace
     for index in range(1, count + 1):
@@ -242,7 +242,7 @@ def test_generic_read_does_not_clear_uncertain_direct_submission(namespace):
     assert exchange(spec, receipts=[delivery["id"]])["receipts"][0]["state"] == "uncertain"
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("boundary", ["before", "after"])
 def test_actual_process_exit_at_runtime_receipt_boundary(namespace, count, boundary):
     import subprocess

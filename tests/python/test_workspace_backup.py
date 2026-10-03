@@ -9,10 +9,11 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from identity_fixtures import legacy_schema
 from test_modules_packages import bundle, package
 
 from ficc.backup import export, restore
-from ficc.backup_database import LEGACY_TABLES, MODULE_TABLES, SCHEMA, TABLES
+from ficc.backup_database import SCHEMA
 from ficc.errors import Failure
 from ficc.history_state import digest
 from ficc.modules import archive, inspect_archive
@@ -21,7 +22,7 @@ from ficc.settings import Settings
 from ficc.workspace_schema import SurfaceUpdate, ViewUpdate, WorkspaceUpdate
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("restart", [False, True])
 def test_interrupted_install_recovers_before_backup(tmp_path, count, restart):
     state = tmp_path / "state"
@@ -101,7 +102,7 @@ def populate(path, count=1):
     return service, installed["digest"], spaces
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_workspace_and_native_module_roundtrip(tmp_path, count):
     state, bundle_path, target = (tmp_path / name for name in ("state", "backup", "restored"))
     service, checksum, spaces = populate(state, count)
@@ -174,9 +175,7 @@ def test_legacy_backup_restores_and_migrates_on_open(tmp_path):
     service = Service(Settings(state_dir=state, control=False))
     service.close()
     with sqlite3.connect(state / "state.sqlite3") as db:
-        for table in set(TABLES) - set(LEGACY_TABLES):
-            db.execute(f"DROP TABLE {table}")
-        db.execute("PRAGMA user_version=4")
+        legacy_schema(db, 4)
     assert export(state, archive)["schema"] == 4
     assert restore(archive, target, True)["schema"] == 4
     recovered = Service(Settings(state_dir=target, control=False))
@@ -192,9 +191,7 @@ def test_previous_module_schema_keeps_payloads_and_migrates(tmp_path):
     service, checksum, spaces = populate(state)
     service.close()
     with sqlite3.connect(state / "state.sqlite3") as db:
-        for table in set(TABLES) - set(MODULE_TABLES):
-            db.execute(f"DROP TABLE {table}")
-        db.execute("PRAGMA user_version=5")
+        legacy_schema(db, 5)
     assert export(state, archive)["schema"] == 5
     assert restore(archive, target, True)["schema"] == 5
     recovered = Service(Settings(state_dir=target, control=False))

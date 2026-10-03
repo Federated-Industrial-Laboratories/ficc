@@ -18,7 +18,7 @@ from ficc.errors import Failure
 from ficc.transfer_routes import install
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_download_disconnect_before_body_closes_spool(files_fixture, count):
     service, actor, root, path = files_fixture
     (path / "source").write_bytes(b"verified download")
@@ -103,7 +103,8 @@ async def test_preparation_failure_recovers_without_losing_destination(files_fix
 
 async def test_discard_retries_after_partial_cleanup_without_resuming(files_fixture, monkeypatch):
     service, actor, root, path = files_fixture
-    operation, _ = await admitted(service, actor, [{"name": "target", "size": 1}], root, "upload")
+    operation, _ = await admitted(service, actor, [{"name": "target", "size": 1,
+        "source_manifest": {"algorithm": "sha256", "digest": hashlib.sha256(b"x").hexdigest()}}], root, "upload")
     item = operation["items"][0]
     await service.transfers.upload(operation["id"], item["id"], actor, 0, b"x", hashlib.sha256(b"x").hexdigest())
     original = file_transfer.os.unlink
@@ -145,3 +146,26 @@ async def test_unprepared_stage_refuses_changed_bytes_and_can_be_discarded(files
     assert (stage / "data").read_bytes() == b"unexpected" and not (path / "target").exists()
     result = await service.transfers.change(operation["id"], [item["id"]], actor, discard=True)
     assert result["state"] == "cancelled" and not stage.exists()
+
+
+async def test_upload_lost_commit_response_keeps_unknown_until_reconciliation(files_fixture, monkeypatch):
+    service, actor, root, path = files_fixture
+    data = b"verified result"
+    operation, _ = await admitted(service, actor, [{"name": "result", "size": len(data),
+        "source_manifest": {"algorithm": "sha256", "digest": hashlib.sha256(data).hexdigest()}}], root, "upload")
+    item = operation["items"][0]
+    await service.transfers.upload(operation["id"], item["id"], actor, 0, data, hashlib.sha256(data).hexdigest())
+    original = service.transfers.destination
+    async def lost_reply(*args, **kwargs):
+        result = await original(*args, **kwargs)
+        if args[2] == "transfer.commit":
+            raise Failure("unreachable", "The publication response was lost.", 502)
+        return result
+    with monkeypatch.context() as patch:
+        patch.setattr(service.transfers, "destination", lost_reply)
+        with pytest.raises(Failure):
+            await service.transfers.finish(operation["id"], item["id"], actor)
+    assert (path / "result").read_bytes() == data
+    assert service.transfers.store.get(operation["id"])["items"][0]["state"] == "unknown"
+    result = await service.transfers.change(operation["id"], [item["id"]], actor, resume=True)
+    assert result["state"] == "succeeded" and result["items"][0]["artifact"]["verified"]

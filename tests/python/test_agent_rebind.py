@@ -12,7 +12,7 @@ from ficc_node import agent_spool as spool
 from ficc_node.agent_codex import observe
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_runner_uses_confirmed_thread_and_ignores_stale_observation(tmp_path, monkeypatch, count):
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(agents.terminals, "call", lambda *args: 0)

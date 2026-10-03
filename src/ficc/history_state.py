@@ -6,7 +6,7 @@ import json
 import os
 import re
 import time
-from contextlib import closing
+from contextlib import closing, contextmanager, nullcontext
 from pathlib import Path
 
 from ficc_node import history_write
@@ -14,6 +14,7 @@ from ficc_node import history_write
 from . import backup, backup_cli
 from . import backup_database as database
 from . import backup_io as files
+from .state_provider import backup_source, configuration
 
 PENDING = "archive.pending.json"
 MAX_INTENT = 1024 * 1024
@@ -69,13 +70,20 @@ def enrolled_history(db, nodes):
                 check(endpoint["root"].get("node_id"), local=True)
 
 
-def inspect(state):
-    with files.directory(state) as folder, closing(database.connect(state / "state.sqlite3", readonly=True)) as db:
+@contextmanager
+def portable(state, provider=None):
+    with backup_source(state, state / "state.sqlite3", provider) as path:
+        with closing(database.connect(path, readonly=True)) as db:
+            yield db
+
+
+def inspect(state, provider=None):
+    with files.directory(state) as folder, portable(state, provider) as db:
         controller = database.quiescent(db)
         if db.execute("SELECT count(*) FROM agents").fetchone()[0]:
             raise ValueError("Export and archive retained coding-agent runs before retiring terminal history.")
         backup_cli.reconciled(folder, db, backup.decode)
-        names = files.inventory(folder, maintenance=True)
+        names = files.inventory(folder, maintenance=True, database_required=configuration(state) is None)
         for name in names:
             backup.receipt(folder, name, controller)
         settings = dict(db.execute("SELECT key,value FROM settings"))
@@ -104,13 +112,13 @@ def verify_backup(path, expected=None):
     return value, detail
 
 
-def local_receipts(state, output, manifest):
+def local_receipts(state, output, manifest, provider=None):
     path = output / "retirement.json"
     if path.exists() or path.is_symlink():
         value = read(path, files.MAX_MANIFEST)
         return value, hashlib.sha256(files.encode(value)).hexdigest()
     value = {"format": 1, "files": {name: detail for name, detail in manifest["members"].items() if name.startswith("files/")}, "cli": {}}
-    with files.directory(state) as source, files.directory(output) as target, closing(database.connect(state / "state.sqlite3", readonly=True)) as db:
+    with files.directory(state) as source, files.directory(output) as target, portable(state, provider) as db:
         if (state / "cli-requests").exists():
             for name in sorted(os.listdir(state / "cli-requests")):
                 if name == "requests.lock":
@@ -118,7 +126,7 @@ def local_receipts(state, output, manifest):
                 source_name = "cli-requests/" + name
                 raw = files.read(source, source_name, 65536)
                 saved = backup.decode(raw)
-                operation = db.execute("SELECT id FROM operations WHERE actor=? AND key=?", (saved["grant"]["id"], saved["key"])).fetchone()
+                operation = db.execute("SELECT id FROM operations WHERE actor=:p0 AND key=:p1", (saved["grant"]["id"], saved["key"])).fetchone()
                 if operation is None:
                     raise ValueError("The CLI receipt no longer has a retained operation.")
                 sanitized = files.encode({"key": saved["key"], "digest": saved["digest"], "actor": saved["grant"]["id"], "operation_id": operation[0]})
@@ -141,37 +149,39 @@ def local_receipts(state, output, manifest):
     return value, hashlib.sha256(files.encode(value)).hexdigest()
 
 
-def committed(state, intent):
-    with closing(database.connect(state / "state.sqlite3", readonly=True)) as db:
+def committed(state, intent, provider=None):
+    with portable(state, provider) as db:
         values = dict(db.execute("SELECT key,value FROM settings"))
         return all(json.loads(values.get(key, "null")) == expected for key, expected in (
             ("controller_id", intent["next_controller_id"]), ("terminal_controller", intent["next_terminal_controller"]),
             ("last_archive_id", intent["archive_id"])))
 
 
-def commit(state, intent):
-    if committed(state, intent):
+def commit(state, intent, provider=None):
+    if committed(state, intent, provider):
         return
-    with closing(database.connect(state / "state.sqlite3")) as db:
+    with portable(state, provider) as db:
         database.quiescent(db)
         if digest(db) != intent["database_sha256"]:
             raise ValueError("Controller state changed after the history archive intent.")
+    with nullcontext(provider) if provider is not None else closing(database.connect(state / "state.sqlite3")) as db:
         with db:
             for table in ("operations", "file_operations", "transfers", "terminals", "credentials"):
                 db.execute(f"DELETE FROM {table}")
             for key, value in (("controller_id", intent["next_controller_id"]),
                                ("terminal_controller", intent["next_terminal_controller"]), ("last_archive_id", intent["archive_id"])):
-                db.execute("INSERT OR REPLACE INTO settings VALUES (?,?)", (key, json.dumps(value)))
+                db.execute("INSERT INTO settings VALUES (:p0,:p1) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, json.dumps(value)))
             for node in database.records(db, "nodes"):
                 node.update(resources=None, last_seen=None, capabilities={}, state="unconfigured",
                             error={"code": "history_archived", "message": "Refresh this machine after history archival."})
                 node.pop("observed_at", None)
                 node.pop("boot_id", None)
-                db.execute("UPDATE nodes SET value=? WHERE id=?", (json.dumps(node), node["id"]))
-            db.execute("INSERT INTO audit(at,action,target,outcome,actor) VALUES (?,?,?,?,?)",
+                db.execute("UPDATE nodes SET value=:p0 WHERE id=:p1", (json.dumps(node), node["id"]))
+            db.execute("INSERT INTO audit(at,action,target,outcome,actor) VALUES (:p0,:p1,:p2,:p3,:p4)",
                        (time.time(), "history.archive", intent["archive_id"], "success", "local-owner"))
             db.execute("DELETE FROM audit WHERE id <= (SELECT max(id)-10000 FROM audit)")
-        db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        if provider is None:
+            db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
 
 def retire(state, output, value):

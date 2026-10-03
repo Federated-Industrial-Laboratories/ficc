@@ -31,7 +31,7 @@ def request(action, params):
             "namespace": "", "binding": "b" * 64, "action": action, "parameters": params}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("provider", ["docker", "podman"])
 def test_engine_inventory_fixed_ids_multiplexed_logs_and_stop(count, provider):
     engine = Engine.__new__(Engine)
@@ -65,7 +65,7 @@ def test_engine_inventory_fixed_ids_multiplexed_logs_and_stop(count, provider):
     assert {tuple(call[2].items()) for call in posts} == {(('t' if provider == 'docker' else 'timeout', 10),)}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_transport_rejects_reordered_extra_and_replaced_results(count):
     engine = Engine.__new__(Engine)
     pointers = [resource(i) for i in range(count)]
@@ -93,7 +93,7 @@ def kube_row(index=0):
             "status": {"readyReplicas": 1}}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("replicas", [0, 1])
 def test_kubernetes_scale_has_atomic_identity_revision_replica_tests(count, replicas):
     kube = Kubernetes.__new__(Kubernetes)

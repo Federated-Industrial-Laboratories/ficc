@@ -49,7 +49,7 @@ def fixture(console, tmp_path, monkeypatch, count):
     return context, preview, bridge, checked.digest, grants
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_confirm_task_observation_retention_restore_and_cleanup(console, tmp_path, monkeypatch, count):
     client, service = console
     context, preview, bridge, digest, grants = fixture(console, tmp_path, monkeypatch, count)

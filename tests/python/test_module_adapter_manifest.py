@@ -25,7 +25,7 @@ def adapter_package(count=1, **changes):
     return manifest, files
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("windows", [False, True])
 def test_exact_adapter_role_survives_inspected_package(count, windows):
     manifest, files = adapter_package(count)

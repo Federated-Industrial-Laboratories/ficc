@@ -82,7 +82,7 @@ def test_broker_count_and_request_ids_are_unique_and_parameters_are_detached():
         value.call(call(value, id='c' * 32))
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_string_list_accepts_unique_bounded_batches(count):
     schema = {'selected': {'type': 'string-list', 'required': True}}
     parameter_schema(schema)

@@ -31,7 +31,7 @@ def package(service):
     return service.modules.install(inspection, inspection.digest)["digest"]
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_disposable_user_services_package_and_receipts(tmp_path, size):
     config = os.environ.get("FICC_ADMIN_TEST_CONFIG")
     if not config or os.environ.get("FICC_REAL_MODULE_SANDBOX") != "1":

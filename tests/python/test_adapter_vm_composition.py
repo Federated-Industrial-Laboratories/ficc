@@ -16,7 +16,7 @@ from ficc.modules import inspect_archive
 from ficc.modules.broker_protocol import BrokerCall
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_adapter_broker_host_confirmation_history_and_orphan_cleanup(console, count):
     client, service = console
     node_id = "d" * 32

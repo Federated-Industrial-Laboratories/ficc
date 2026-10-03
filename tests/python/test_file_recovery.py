@@ -120,9 +120,11 @@ async def test_changed_destination_refuses_overwrite_and_nonempty_delete(files_f
 
 async def test_upload_resume_refuses_different_prefix(files_fixture):
     service, actor, root, path = files_fixture
-    operation, _ = await admitted(service, actor, [{"name": "upload", "size": CHUNK+1}], root, "upload")
-    item_id = operation["items"][0]["id"]
     chunk = b"x" * CHUNK
+    source = {"name": "upload", "size": CHUNK+1,
+              "source_manifest": {"algorithm": "sha256", "digest": hashlib.sha256(chunk+b"z").hexdigest()}}
+    operation, _ = await admitted(service, actor, [source], root, "upload")
+    item_id = operation["items"][0]["id"]
     await service.transfers.upload(operation["id"], item_id, actor, 0, chunk, hashlib.sha256(chunk).hexdigest())
     await service.transfers.change(operation["id"], [item_id], actor)
     await service.transfers.change(operation["id"], [item_id], actor, resume=True)

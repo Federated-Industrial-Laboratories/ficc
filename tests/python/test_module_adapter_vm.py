@@ -95,7 +95,7 @@ async def setup(host, count=1):
                            preview=preview, ids=ids, parameters=parameters, call=call)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_complete_batch_has_frozen_consistency_and_no_replay(host, count):
     value = await setup(host, count)
     assert len(value.preview["vms"]) == count
@@ -112,7 +112,7 @@ async def test_complete_batch_has_frozen_consistency_and_no_replay(host, count):
     await host.adapters.remove("owner", value.profile["id"])
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_unknown_cannot_replay_or_cleanup_and_explicit_resolution_retains_no_effect_claim(host, count):
     value = await setup(host, count)
     value.provider.fail_apply = True
@@ -128,7 +128,7 @@ async def test_unknown_cannot_replay_or_cleanup_and_explicit_resolution_retains_
     assert sum(call["phase"] == "apply" for call in value.provider.calls) == 1
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_known_active_provider_task_cannot_be_resolved(host, count):
     value = await setup(host, count)
     value.provider.task_pending = True
@@ -179,7 +179,7 @@ async def test_revoke_during_dispatch_retains_unknown_and_does_not_repeat(host):
     assert sum(call["phase"] == "apply" for call in value.provider.calls) == 1
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_acknowledged_method_without_job_can_close_after_current_state_read(host, count):
     value = await setup(host, count)
     value.provider.task_pending = True

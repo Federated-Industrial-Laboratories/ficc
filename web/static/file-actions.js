@@ -3,6 +3,7 @@
 import { request } from './api.js';
 import { button, el, errorPanel, notice, state } from './components.js';
 import { fileDialog } from './file-dialog.js';
+import { sourceManifest } from './file-manifest.js';
 
 export function fileAction(action, pane, recorded, transferred) {
   const value = pane.value(), ids = value.entries.map(entry => entry.entry_id);
@@ -58,9 +59,20 @@ export function transferPreview(kind, source, destination, received, files = nul
     el('ul', { class: 'file-selected-names' }, (files ?? source.entries).map(item => el('li', {}, item.name))),
     kind === 'download' ? notice('FICC verifies the server download copy. The browser controls saving; FICC cannot attest that the browser saved these bytes.') :
       el('label', { class: 'check-label', for: overwrite.id }, overwrite, 'Allow replacement of existing destination files identified in the preview.'),
-    el('div', { class: 'actions' }, button('Preview transfer', () => {
+    el('div', { class: 'actions' }, button('Preview transfer', async () => {
+      if (view.busy()) return;
       body.overwrite = overwrite.checked;
-      view.preview('/transfer-previews', body, '/transfers', result => received(result, files),
+      if (files) {
+        view.working(true);
+        const progress = notice('Verifying the whole selected source before upload.'); view.content.append(progress);
+        try {
+          for (const [index, file] of files.entries()) {
+            sources[index].source_manifest = await sourceManifest(file,
+              offset => { progress.textContent = `Verifying ${file.name}: ${offset.toLocaleString()} / ${file.size.toLocaleString()} bytes`; }, () => !view.active());
+          }
+        } catch (error) { view.content.append(errorPanel(error)); view.working(false); return; }
+      }
+      await view.preview('/transfer-previews', body, '/transfers', result => received(result, files),
         [['Source', files ? 'Selected browser files' : source.root.display_label], ['Destination', destination?.root.display_label ?? 'Verified browser download']]);
     }, { class: 'primary' })));
 }
@@ -73,8 +85,8 @@ export function chooseUpload(destination, received) {
     el('form', { onsubmit: event => {
       event.preventDefault();
       const files = [...picker.files];
-      if (!files.length || files.length > 64 || files.some(file => file.size > 17179869184)) {
-        error.replaceChildren(notice('Select 1 to 64 files, each at most 16 GiB.', 'error')); return;
+      if (!files.length || files.length > 64 || files.some(file => !Number.isSafeInteger(file.size))) {
+        error.replaceChildren(notice('Select 1 to 64 files whose sizes this browser can address exactly.', 'error')); return;
       }
       if (new Set(files.map(file => file.name)).size !== files.length) { error.replaceChildren(notice('Each selected file must have a distinct name.', 'error')); return; }
       view.dialog.close(); transferPreview('upload', null, destination, received, files);

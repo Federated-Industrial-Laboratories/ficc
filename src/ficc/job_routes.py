@@ -21,12 +21,12 @@ def install(app, service, principal):
     async def submit(body: Submission, request: Request):
         actor = principal(request, "jobs:execute")
         result = await jobs.submit(body.preview_id, request.headers.get("idempotency-key", ""), actor.id)
-        return jobs.view(result, actor)
+        return jobs.view(result, actor, "jobs:execute")
 
     @app.get("/api/v1/operations")
     async def operations(request: Request):
         actor = principal(request, "jobs:read")
-        visible = [jobs.view(operation, actor) for operation in jobs.store.all()]
+        visible = [jobs.view(operation, actor) for operation in jobs.store.all(project_id=actor.project_id)]
         return {"operations": [operation for operation in visible if operation["targets"]][:200]}
 
     @app.get("/api/v1/operations/{operation_id}")
@@ -41,7 +41,7 @@ def install(app, service, principal):
     async def cancel(operation_id: str, body: Cancellation, request: Request):
         actor = principal(request, "jobs:cancel")
         result = await jobs.cancel(operation_id, body.node_ids, body.force, actor.id)
-        return jobs.view(result, actor)
+        return jobs.view(result, actor, "jobs:cancel")
 
     @app.get("/api/v1/operations/{operation_id}/logs/{node_id}")
     async def logs(operation_id: str, node_id: str, request: Request,

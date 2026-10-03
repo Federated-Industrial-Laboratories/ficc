@@ -5,4 +5,11 @@ recursive-include node/ficc_node *.py
 prune tests
 prune web/node_modules
 recursive-include docs *.md
+recursive-include sdk *.md
+prune sdk/build
+recursive-include *-providers *.py *.toml *.md *.lock *.c *.h *.json LICENSE
+prune *-providers/*/build
+prune *-providers/*/dist
+recursive-include policy-packs *.json *.rego *.md
+include packaging/providers.json
 recursive-include .github/assets *.png *.svg

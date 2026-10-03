@@ -10,6 +10,8 @@ import time
 from .viewer.wire import instruction, number, parse
 
 MAX_IMAGE = 8 * 1024 * 1024
+MAX_MESSAGE = 65536
+MAX_INSTRUCTIONS = 64
 
 
 class OutputError(ValueError):
@@ -172,6 +174,24 @@ class Output:
 
     def feed(self, data):
         return list(self.iter_feed(data))
+
+    def iter_batches(self, data):
+        """Group complete validated instructions within one bounded delivery."""
+        packets: list[bytes] = []
+        size = 0
+        for packet in self.iter_feed(data):
+            if len(packet) > MAX_MESSAGE:
+                raise OutputError("Display instruction exceeds its delivery limit.")
+            if packets and (size + len(packet) > MAX_MESSAGE or len(packets) == MAX_INSTRUCTIONS):
+                yield b"".join(packets)
+                packets, size = [], 0
+            packets.append(packet)
+            size += len(packet)
+            if packet.startswith(b"4.sync,"):
+                yield b"".join(packets)
+                packets, size = [], 0
+        if packets:
+            yield b"".join(packets)
 
     def iter_feed(self, data):
         now = time.monotonic()

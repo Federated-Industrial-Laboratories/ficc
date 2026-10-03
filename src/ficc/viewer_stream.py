@@ -20,7 +20,9 @@ WINDOW = 2 * 1024 * 1024
 
 
 class ProviderStream:
-    def __init__(self, arguments):
+    def __init__(self, arguments, check=lambda: None):
+        self.check = check
+        self.buffer = b""
         self.process = subprocess.Popen(arguments, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True, bufsize=0)
         assert self.process.stdin and self.process.stdout
@@ -30,31 +32,50 @@ class ProviderStream:
 
     async def read(self, size=32768):
         while True:
+            self.check()
+            if self.buffer:
+                data, self.buffer = self.buffer[:size], self.buffer[size:]
+                return data
             try:
-                return os.read(self.pipes[1].fileno(), size)
+                data = os.read(self.pipes[1].fileno(), size)
+                self.check()
+                return data
             except BlockingIOError:
-                await ready(self.pipes[1].fileno())
+                try:
+                    async with asyncio.timeout(1):
+                        await ready(self.pipes[1].fileno())
+                except TimeoutError:
+                    pass
 
     async def write(self, data):
         async with asyncio.timeout(10):
             offset = 0
             while offset < len(data):
+                await asyncio.sleep(0)
+                self.check()
                 try:
                     offset += os.write(self.pipes[0].fileno(), data[offset:offset + 8192])
                 except BlockingIOError:
-                    await ready(self.pipes[0].fileno(), writing=True)
+                    try:
+                        async with asyncio.timeout(1):
+                            await ready(self.pipes[0].fileno(), writing=True)
+                    except TimeoutError:
+                        pass
 
     async def start(self, header, authentication="none"):
         async with asyncio.timeout(8):
             await self.write(header)
             response = bytearray()
             while len(response) < 1024:
-                byte = await self.read(1)
-                if not byte:
+                data = await self.read(1024 - len(response))
+                if not data:
                     raise Failure("viewer_attach_failed", "The provider closed the display connection.", 502)
-                response.extend(byte)
-                if byte == b"\n":
-                    return configuration.ready(response, authentication)
+                response.extend(data)
+                line, separator, tail = response.partition(b"\n")
+                if separator:
+                    result = configuration.ready(line + separator, authentication)
+                    self.buffer = bytes(tail)
+                    return result
             raise ValueError("The graphics helper response exceeds its limit.")
 
     async def close(self):
@@ -87,7 +108,7 @@ async def bridge(socket, runtime, arguments, header, check, *, authentication="n
     try:
         check()
         if connection is None:
-            provider = ProviderStream(arguments)
+            provider = ProviderStream(arguments, check)
             password = await provider.start(header, authentication)
             config = {"version": 1, "protocol": "vnc"}
             if password is not None:
@@ -105,23 +126,29 @@ async def bridge(socket, runtime, arguments, header, check, *, authentication="n
 
         async def provider_output():
             while data := await provider.read():
+                await asyncio.sleep(0)
+                check()
                 await native.send(wire.PROVIDER, data)
 
         async def native_output():
             nonlocal pending, last_ack
             while True:
                 kind, data = await native.receive()
+                await asyncio.sleep(0)
+                check()
                 if kind == wire.PROVIDER:
                     await provider.write(data)
                 elif kind == wire.DISPLAY:
                     try:
-                        for packet in output.iter_feed(data):
+                        for packet in output.iter_batches(data):
+                            await asyncio.sleep(0)
                             while pending + len(packet) > WINDOW:
                                 changed.clear()
                                 await changed.wait()
                             if pending == 0:
                                 last_ack = time.monotonic()
                             pending += len(packet)
+                            check()
                             async with asyncio.timeout(10):
                                 await socket.send_bytes(packet)
                             while len(output.syncs) >= 3:
@@ -137,6 +164,7 @@ async def bridge(socket, runtime, arguments, header, check, *, authentication="n
             start, count, size = time.monotonic(), 0, 0
             while True:
                 text = await socket.receive_text()
+                await asyncio.sleep(0)
                 check()
                 now = time.monotonic()
                 if now - start >= 1:

@@ -1,0 +1,44 @@
+{
+  "format": "ficc-policy",
+  "version": 1,
+  "id": "ficc-managed",
+  "release": "0.2.5",
+  "decision_api": 1,
+  "roles": [
+    {
+      "id": "observer",
+      "label": "Observer",
+      "description": "Read assigned project resources, files, workspaces, and operation records."
+    },
+    {
+      "id": "operator",
+      "label": "Managed operator",
+      "description": "Use assigned project capabilities. Job and terminal execution have full remote-account authority."
+    },
+    {
+      "id": "node-administrator",
+      "label": "Node administrator",
+      "description": "Invite, approve and revoke contributors within the assigned project."
+    },
+    {
+      "id": "vm-observer",
+      "label": "VM observer",
+      "description": "Read VM inventory and operation records on assigned systems. Console input and power actions are excluded."
+    },
+    {
+      "id": "vm-operator",
+      "label": "VM operator",
+      "description": "Inspect VMs, open interactive consoles and confirm power actions on assigned systems."
+    },
+    {
+      "id": "container-operator",
+      "label": "Container operator",
+      "description": "Inspect workloads and logs, and confirm container lifecycle actions on assigned systems."
+    },
+    {
+      "id": "system-operator",
+      "label": "System operator",
+      "description": "Inspect status and logs, and confirm service or system power actions on assigned systems."
+    }
+  ]
+}

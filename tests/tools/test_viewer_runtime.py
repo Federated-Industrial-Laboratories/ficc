@@ -29,7 +29,7 @@ def runtime(path):
     return path
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_inventory_checks_distinct_files_and_installation(tmp_path, count):
     source = runtime(tmp_path / 'source')
     for i in range(count):
@@ -90,7 +90,7 @@ def test_manifest_paths_rejected(tmp_path, name):
         native.validate(source)
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_distribution_source_versions_keep_tilde_names(tmp_path, count):
     source = runtime(tmp_path / 'source')
     for index in range(count):
@@ -179,7 +179,7 @@ def test_install_never_replaces_an_existing_path(tmp_path):
     assert not list(tmp_path.glob('.viewer-*'))
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_source_control_requires_every_exact_source_member(tmp_path, count):
     rows = []
     for index in range(count):

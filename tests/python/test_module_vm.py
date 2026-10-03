@@ -10,11 +10,13 @@ from types import SimpleNamespace
 import pytest
 from ficc_node import vm_rpc, vm_spec, vm_state
 from ficc_node.vm_libvirt import ProviderError
+from provider_batch_fixtures import batched_service
 
 from ficc.errors import Failure
 from ficc.module_vm import VMs
-from ficc.module_vm_store import validate_records
+from ficc.module_vm_store import initialize, validate_records
 from ficc.modules.broker_protocol import BrokerCall
+from ficc.state_provider import BoundConnection
 
 DIGEST = "a" * 64
 
@@ -53,7 +55,8 @@ class FakeProvider:
 
 def setup(tmp_path, monkeypatch, size=1, node_count=1):
     class Store:
-        db = sqlite3.connect(":memory:")
+        db = sqlite3.connect(":memory:", factory=BoundConnection)
+        initialize(db)
         lock = threading.RLock()
         settings = {}
 
@@ -108,6 +111,7 @@ def setup(tmp_path, monkeypatch, size=1, node_count=1):
 
     service = SimpleNamespace(store=Store(), ssh=SSH(), authorize=authorize,
                               modules=SimpleNamespace(require=require), live=lambda: None)
+    batched_service(service)
     vms = VMs(service)
     for node_id in nodes:
         vms.set_profile("owner", node_id, "session")
@@ -124,7 +128,7 @@ def ids(vms, size):
     return [f"libvirt-{profile['id']}-{index:032x}" for index in range(size)]
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_lifecycle_receipts_idempotence_reconciliation(tmp_path, monkeypatch, size):
     vms, provider, _, _ = setup(tmp_path, monkeypatch, size)
     selected = ids(vms, size)
@@ -145,7 +149,7 @@ async def test_lifecycle_receipts_idempotence_reconciliation(tmp_path, monkeypat
                      list(vms.service.store.db.execute("SELECT * FROM module_vm_operations")), {"node-0"})
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_inventory_total_budget_and_per_node_refusal(tmp_path, monkeypatch, count):
     vms, _, denied, nodes = setup(tmp_path, monkeypatch, 64, count)
     result = await vms.broker("owner", call("vm.libvirt.list", list(nodes), {}), "instance")
@@ -157,7 +161,7 @@ async def test_inventory_total_budget_and_per_node_refusal(tmp_path, monkeypatch
     assert all("data" in item for item in result[:-1])
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_unknown_never_replayed_or_inferred_success(tmp_path, monkeypatch, size):
     vms, provider, _, _ = setup(tmp_path, monkeypatch, size)
     selected = ids(vms, size)
@@ -182,7 +186,7 @@ async def test_unknown_never_replayed_or_inferred_success(tmp_path, monkeypatch,
     assert provider.calls == [("start", f"{index:032x}") for index in range(size)]
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_accepted_without_effect_requires_explicit_resolution(tmp_path, monkeypatch, size):
     vms, provider, denied, _ = setup(tmp_path, monkeypatch, size)
     selected = ids(vms, size)
@@ -217,7 +221,7 @@ async def test_accepted_without_effect_requires_explicit_resolution(tmp_path, mo
     assert {item["state"] for item in receipt["results"]} == {"accepted"}
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_transport_loss_recovered_only_from_receipt(tmp_path, monkeypatch, size):
     vms, provider, _, _ = setup(tmp_path, monkeypatch, size)
     selected = ids(vms, size)
@@ -280,7 +284,7 @@ async def test_module_cannot_commit_or_cross_profile_or_instance(tmp_path, monke
         await vms.broker("owner", call("vm.libvirt.status", ["node-0"], {"vm_ids": ["libvirt-" + "f" * 32 + "-" + "0" * 32]}), "instance")
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_cancel_after_dispatch_retains_unknown(tmp_path, monkeypatch, size):
     vms, provider, _, _ = setup(tmp_path, monkeypatch, size)
     selected = ids(vms, size)
@@ -322,7 +326,7 @@ def test_receipt_loss_and_changed_idempotent_intent(tmp_path, monkeypatch):
         vm_state.receipt(provider, request)
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_revocation_after_remote_effect_records_unknown(tmp_path, monkeypatch, size):
     vms, provider, denied, _ = setup(tmp_path, monkeypatch, size)
     selected = ids(vms, size)

@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 from ficc.api import create_app
 from ficc.settings import Settings
 
+pytest_plugins = ["state_fixtures", "policy_fixtures", "remote_fixtures", "contributor_fixtures"]
+
 
 @pytest.fixture
 def console(tmp_path):

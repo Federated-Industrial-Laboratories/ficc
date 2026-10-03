@@ -12,7 +12,7 @@ from ficc.errors import Failure
 from ficc.jobs import Jobs
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_cancelled_waiting_workers_never_contact_nodes(console, monkeypatch, count):
     client, service, remote, actor = prepare(console, monkeypatch, count)
     operation, _ = submit(client, request(count))

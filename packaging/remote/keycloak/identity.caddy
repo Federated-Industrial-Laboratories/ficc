@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: Apache-2.0
+# Expose only the supplied realm's browser and OIDC endpoints through verified private TLS.
+@identity path /auth/realms/ficc/.well-known/openid-configuration /auth/realms/ficc/protocol/openid-connect/* /auth/realms/ficc/login-actions/* /auth/resources/*
+handle @identity {
+	@ambiguous expression `{http.request.orig_uri}.matches('^[^?]*%') || {http.request.orig_uri}.matches('^[^?]*/[.][.]?(/|[?]|$)') || {http.request.orig_uri}.matches('^[^?]*//') || {http.request.orig_uri}.matches('^[^?]*[\\\\]')`
+	respond @ambiguous "Invalid identity path." 400
+	@large expression `header({'Content-Length':'*'}) ? int({http.request.header.Content-Length}) > 65536 : false`
+	respond @large "Identity request is too large." 413
+	request_body {
+		max_size 64KB
+	}
+	reverse_proxy https://127.0.0.1:8543 {
+		header_up Host {$FICC_PUBLIC_ADDRESS}
+		header_up X-Forwarded-Host {$FICC_PUBLIC_ADDRESS}
+		header_up X-Forwarded-Proto https
+		header_up X-Forwarded-Port 443
+		header_up X-Forwarded-For {remote_host}
+		header_up -Forwarded
+		header_up -X-FICC-Gateway
+		header_up -X-FICC-Client-IP
+		transport http {
+			tls_trust_pool file /etc/ficc-gateway/identity-ca.pem
+			tls_server_name localhost
+			dial_timeout 5s
+			response_header_timeout 20s
+			max_response_header 32KB
+			max_conns_per_host 64
+		}
+	}
+}

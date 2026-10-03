@@ -1,5 +1,27 @@
 # Changes
 
+## 0.2.5
+
+- Add durable identities, project membership and resource assignments, with SQLite and PostgreSQL support through controller schema 15.
+- Add signed runtime policy packages, role assignments, effective-access previews, activation, rollback and revocation checks.
+- Add explicit HTTPS remote mode with approved OIDC identities and MFA, contributor mTLS enrollment and polling, and installation-approved OpenSSH certificate trust.
+- Add contributor workload queues, runtime and resource offers, enforced CPU/RAM/storage limits, whole-GPU allocation, renewable authority, cancellation and retained cleanup receipts.
+- Add resumable large-file transfers with bounded memory, disk reservations, source commitments and explicit recovery after uncertain publication.
+- Add immutable dataset manifests, schemas and lineage, controller-relayed workload inputs, and complete output publication to registered files and datasets.
+- Add registered SQL queries, CSV/Arrow/Parquet formats, local DuckDB analytics and S3-compatible reads and multipart publication with separate write authority.
+- Add encrypted runtime secret storage with explicit key custody, revision-bound references, rotation and migration of older plaintext source credentials.
+- Add optional local ClamAV inspection with recorded coverage, logical quarantine, inherited sensitivity restrictions and explicit exemptions.
+- Add operational health, redacted diagnostics, audit export, completed backup/restore receipts, project usage accounting and shared workspace/workload templates.
+- Add durable audit delivery to a separately administered append-only HTTPS destination, with visible gaps and optional admission gates for workload submissions and external source writes.
+- Supply 17 separately built provider wheels through the source installer and binary payload, retaining runtime installation and extension interfaces.
+
+Remote access, policy enforcement, executors, source accounts, inspection and audit
+destinations need explicit deployment configuration and authority. Dataset traffic
+currently relays through the controller; uncertain writes are retained for explicit
+recovery. Inspection reports bounded coverage, and secret keys and external data
+need separate custody and backups. See the [operator manuals](docs/README.md) for
+setup and the limits of each workflow.
+
 ## 0.2.0-stable
 
 - Add installable runtime modules with archive inspection, sandboxing and explicit capability grants.

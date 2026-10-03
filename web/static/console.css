@@ -60,6 +60,7 @@ code { font-family: JetBrains, monospace; font-size: 13px; }
 .brand p { margin: 8px 0 0; font-size: 12px; color: #384b5b; }
 .owner { text-align: right; display: grid; gap: 4px; }
 .owner .eyebrow { font-size: 10px; margin: 0; }
+#project-select { max-width: 240px; width: 100%; margin-top: 6px; }
 .owner strong { font-size: 16px; }
 .status-strip { display: flex; justify-content: space-between; gap: 15px; padding: 8px 22px; background: #30363d; color: #fff; border-top: 1px solid #151b20; border-bottom: 3px double #a4abb1; font-size: 14px; }
 #connection { padding-left: 0; }
@@ -147,6 +148,10 @@ summary { cursor: pointer; min-height: 36px; font-weight: 600; }
 .command-well span { font-size: 14px; color: #c9d0d7; }
 .command-well code { font-size: 18px; }
 .scope-list { margin: 0; padding-left: 18px; }
+ul.scope-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 2px 12px; list-style: none; padding: 0; }
+.project-access .scope-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); padding: 12px 0; gap: 8px; }
+.project-access .cell-note { max-width: none; }
+.project-access .actions { margin-bottom: 12px; }
 .scope-list li { margin-bottom: 4px; }
 .wrap { overflow-wrap: anywhere; max-width: 30ch; }
 dialog { color: var(--ink); background: var(--white); border: 1px solid #727d87; box-shadow: 0 20px 100px #1118; padding: 25px; width: min(610px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; }

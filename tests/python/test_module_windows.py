@@ -3,15 +3,13 @@
 
 import copy
 import json
-import sqlite3
-import threading
-from types import SimpleNamespace
 
 import pytest
 
 from ficc import module_windows_spec as spec
 from ficc import module_windows_store as store
 from ficc.errors import Failure
+from ficc.store import Store
 
 
 def endpoint(index=0):
@@ -25,14 +23,13 @@ def endpoint(index=0):
 
 
 @pytest.fixture
-def records():
-    db = sqlite3.connect(':memory:')
-    value = store.Records(SimpleNamespace(db=db, lock=threading.RLock()))
-    yield value
-    db.close()
+def records(tmp_path):
+    backend = Store(tmp_path / 'state.sqlite3')
+    yield store.Records(backend)
+    backend.close()
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_distinct_windows_endpoints_restore_disabled_and_revision_bound(records, count):
     for index in range(count):
         records.save(endpoint(index))
@@ -95,7 +92,7 @@ def test_windows_backup_cannot_alias_other_endpoint_credentials(records):
         store.validate_records(records.store.db)
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_jea_batch_preserves_literals_and_order(count):
     commands = [{'command': 'Invoke-FICCHyperV', 'parameters': {'Request': json.dumps({'index': index, 'name': 'VM\u03b1'})}}
                 for index in range(count)]

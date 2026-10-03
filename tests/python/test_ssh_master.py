@@ -42,7 +42,7 @@ async def test_repeated_config_values_are_part_of_identity(tmp_path, monkeypatch
     assert first["resolved_digest"] != second["resolved_digest"]
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_distinct_observation_identities_and_fresh_commands(tmp_path, monkeypatch, count):
     transport = SSH(Settings(state_dir=tmp_path / "state"))
     acquired, calls, grants = [], [], []

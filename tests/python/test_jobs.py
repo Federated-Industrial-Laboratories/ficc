@@ -8,6 +8,7 @@ import time
 import pytest
 from conftest import node
 
+from ficc.backup_database import SCHEMA
 from ficc.errors import Failure
 from ficc.job_schema import JobRequest
 from ficc.jobs import Jobs
@@ -77,7 +78,7 @@ def submit(client, body=None, key="first-submission-key"):
     return result.json(), preview.json()
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_durable_batch_partial_results_and_scoped_reads(console, monkeypatch, count):
     client, service, remote, actor = prepare(console, monkeypatch, count)
     body = request(count)
@@ -349,7 +350,7 @@ def test_schema_one_migrates_without_losing_settings(tmp_path):
     store = Store(path)
     assert store.get_setting("preserved", False) is True
     version = store.db.execute("PRAGMA user_version").fetchone()[0]
-    assert version == 6
+    assert version == SCHEMA
     store.close()
     reopened = Store(path)
     assert reopened.get_setting("preserved", False) is True

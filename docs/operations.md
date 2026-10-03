@@ -112,14 +112,16 @@ Install the new wheel into a separate environment and read its compatibility
 notes. Do not run two service processes against the same state directory.
 Use a new empty state directory if a development schema is incompatible.
 
-The managed-job version migrates controller state from schema 1 to schema 2.
-The coding-agent version migrates schemas 1, 2 and 3 to schema 4. Helper protocol 3
-adds an explicit agents capability. The controller preserves prior credentials
-without new scopes; sign in again or deliberately issue a new scoped credential.
+Version 0.2.5 uses controller schema 15, including identities, projects, policy,
+contributors, datasets, data sources and inspection records. Existing local
+state migrates under exclusive ownership. The existing local owner is retained;
+older credentials do not acquire newly introduced capabilities. Sign in again
+or deliberately issue a scoped credential. Remote access and contributor
+execution still require their explicit deployment and authority setup.
 
 Stop the service and keep a complete private pre-upgrade copy first.
-The older observation-only version refuses schema 2. A downgrade needs its
-pre-upgrade state copy; restoring that copy loses subsequent job records and
+An older controller cannot open the migrated schema. A downgrade needs its
+pre-upgrade state copy; restoring that copy loses subsequent operation records and
 must wait until those jobs are reconciled. Preserve the current state as well.
 
 Restore only with the original service stopped and a compatible application
@@ -151,6 +153,43 @@ inclusion. A generic inbox works without a native adapter. See [agents](agents.m
 and [bus](bus.md) for direct delivery, scoped replies and explicit closed-run
 archival. Agent spools remain on their node until that explicit archive operation.
 
+
+## Operational status and recovery
+
+Open **Operations** with an unrestricted local-owner identity and `audit:read`.
+The view shows saved connection freshness, policy readiness, contributor authority
+expiry, background errors, local audit retention and completed metadata recovery
+operations. Select **Refresh** for a new observation.
+
+**Download redacted diagnostics** exports an explicit allowlist of status and
+counters. It excludes account and resource labels, hostnames, paths, source
+configuration, query text, payloads, credentials and raw exception messages.
+The export does not probe external systems or certify storage encryption.
+
+**Export retained audit events** downloads NDJSON with actor, project and resource
+identities. Treat it as operational data and review it before sharing. Its header
+identifies the retained range and any earlier retention gap. The final record has
+`complete: true` only after the selected range finishes. A disconnected or revoked
+export without that final record is incomplete. API clients can use
+`GET /api/v1/operational-status/audit?after=EVENT_ID` to export subsequent retained events.
+Local retention and an exported checksum are not proof against an administrator
+who can change or remove controller state.
+
+[Durable audit delivery](audit.md) adds automatic acknowledged export to a
+separately administered append-only destination. Operations reports its backlog
+and retention gaps. Optional required mode gates new workload admission and
+external source writes while preserving cancellation and lease maintenance.
+
+The backup timestamp records successful completion of `ficc backup`. The restore
+timestamp records a verified archive restored into a new private state directory.
+Neither timestamp proves that external dataset storage or a database source has a
+working backup. Back up those systems separately, protect their keys and perform
+an isolated restore drill. A restored controller has no retained login credentials;
+reconcile external work before granting execution again.
+
+The contributor authority expiry comes from its configured public certificate.
+The HTTPS gateway manages its own certificate and renewal. Use the gateway's
+monitoring for that endpoint; this screen labels it as externally managed.
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 

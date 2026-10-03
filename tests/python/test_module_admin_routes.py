@@ -77,7 +77,7 @@ def retained(client, service, context, digest, profile):
     assert renamed.status_code == 200
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_complete_confirmation_history_retention_restore_and_cleanup(console, tmp_path, monkeypatch, count):
     client, service = console
     context, preview, profile, provider, digest, grants = fixture(console, tmp_path, monkeypatch, count)

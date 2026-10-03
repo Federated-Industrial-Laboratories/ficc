@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools==84.0.0", "wheel==0.48.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ficc-data-sqlite"
+version = "0.2.5"
+readme = "README.md"
+description = "FICC sqlite data runtime provider."
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = []
+
+[project.entry-points."ficc.data"]
+sqlite = "ficc_data_sqlite"
+
+[tool.setuptools.packages.find]
+where = ["src"]

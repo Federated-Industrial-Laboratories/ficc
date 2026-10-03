@@ -12,6 +12,7 @@ from test_module_vm import DIGEST, call, setup
 from ficc import module_proxmox
 from ficc.errors import Failure
 from ficc.module_proxmox import Proxmox
+from ficc.module_proxmox_store import initialize
 from ficc.providers.proxmox import validate
 
 
@@ -67,7 +68,7 @@ def node(tmp_path, monkeypatch, size):
     return bridge
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("failure", [False, True])
 def test_exact_tasks_recovery_and_terminal_cleanup(tmp_path, monkeypatch, size, failure):
     bridge = node(tmp_path, monkeypatch, size)
@@ -92,7 +93,7 @@ def test_exact_tasks_recovery_and_terminal_cleanup(tmp_path, monkeypatch, size, 
     assert proxmox_rpc.dispatch(value) == {"removed": True}
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_lost_task_result_does_not_dispatch_again(tmp_path, monkeypatch, size):
     bridge = node(tmp_path, monkeypatch, size)
     bridge.lost = True
@@ -107,11 +108,12 @@ def test_lost_task_result_does_not_dispatch_again(tmp_path, monkeypatch, size):
         proxmox_rpc.dispatch(changed)
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_host_batch_requires_task_completion_and_current_grants(tmp_path, monkeypatch, size):
     original, _, denied, _ = setup(tmp_path, monkeypatch, size)
     bridge = node(tmp_path, monkeypatch, size)
     service = original.service
+    initialize(service.store.db)
 
     async def command(node, command, payload, check, timeout):
         check()

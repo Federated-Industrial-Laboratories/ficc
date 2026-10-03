@@ -25,7 +25,7 @@ async def completed(vms, selected, nodes):
     return value, preview
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_remove_receipt_then_profile_without_replay(tmp_path, monkeypatch, size):
     vms, provider, denied, _ = setup(tmp_path, monkeypatch, size)
     value, preview = await completed(vms, ids(vms, size), ["node-0"])
@@ -49,7 +49,7 @@ async def test_remove_receipt_then_profile_without_replay(tmp_path, monkeypatch,
     assert not vms.records.retained("node-0")
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("fault", ["lost_ack", "cancel", "revoke"])
 async def test_cleanup_partial_ack_restart_and_exact_retry(tmp_path, monkeypatch, count, fault):
     vms, _, denied, nodes = setup(tmp_path, monkeypatch, 1, count)
@@ -113,7 +113,7 @@ async def test_cleanup_partial_ack_restart_and_exact_retry(tmp_path, monkeypatch
     assert not vms.records.all()
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("state", ["queued", "dispatching", "accepted", "unknown"])
 async def test_nonterminal_cleanup_refused_before_remote_call(tmp_path, monkeypatch, size, state):
     vms, _, _, _ = setup(tmp_path, monkeypatch, size)
@@ -146,7 +146,7 @@ def remote_receipt(tmp_path, request, state="accepted"):
     return path
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_node_terminal_proof_survives_interrupted_unlink(tmp_path, monkeypatch, size):
     request = remote_request(size)
     path = remote_receipt(tmp_path, request)
@@ -173,7 +173,7 @@ def test_node_terminal_proof_survives_interrupted_unlink(tmp_path, monkeypatch, 
     assert not path.exists()
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("mutation", ["identity", "intent", "profile", "unknown", "outcomes"])
 def test_node_forget_rejects_forged_terminal_proof(tmp_path, monkeypatch, size, mutation):
     request = remote_request(size)

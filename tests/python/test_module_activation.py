@@ -14,7 +14,7 @@ from ficc.errors import Failure
 from ficc.modules.sandbox import SandboxStatus
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("case", ["architecture", "platform", "interpreter", "sandbox"])
 def test_refused_replacement_preserves_active_package(console, monkeypatch, count, case):
     import ficc.modules.sandbox as sandbox
@@ -86,7 +86,7 @@ def native_entry(tmp_path):
     return build
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("missing", [False, True])
 def test_native_loader_admission_preserves_or_replaces_exact_grants(
         console, monkeypatch, native_entry, count, missing):

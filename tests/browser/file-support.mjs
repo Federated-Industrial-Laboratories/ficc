@@ -18,9 +18,11 @@ export async function setupFiles(page, options = {}) {
   const state = { entries: options.entries ?? [fileEntry()], previews: [], submissions: [], transfers: options.transfers ?? [],
     operations: options.operations ?? [], mutations: [], reconciliations: [], lists: [], chunks: [], finishes: [], resumes: [], cancellations: [], denied: false, previewDenied: false };
   await page.route('**/api/v1/session', route => route.fulfill({ json: { csrf: 'test-csrf', mode: options.mode ?? 'live', version: 'fixture',
-    principal: { id: 'test', label: 'Test operator', scopes: options.scopes ?? fileScopes, node_ids: null, root_ids: null } } }));
+    principal: { id: 'test', label: 'Test operator', project_id: '1'.repeat(32), scopes: options.scopes ?? fileScopes, node_ids: null, root_ids: null } } }));
+  await page.route('**/api/v1/projects', route => route.fulfill({ json: { projects: [{ id: '1'.repeat(32), label: 'File project', disabled: false }] } }));
   await page.route('**/api/v1/nodes', route => route.fulfill({ json: { nodes: [node()] } }));
   await page.route('**/api/v1/file-roots', route => route.fulfill({ json: { roots } }));
+  await page.route('**/api/v1/datasets', route => route.fulfill({ json: { datasets: [], next_cursor: null, provider_available: true } }));
   await page.route('**/api/v1/files/list', route => {
     const body = route.request().postDataJSON(); state.lists.push(body);
     if (state.denied) return route.fulfill({ status: 403, json: { error: { code: 'denied', message: 'File permission revoked.' } } });

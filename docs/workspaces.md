@@ -6,6 +6,12 @@ The **Workspace** navigation entry opens a saved desktop area. Each workspace
 contains module panels and their saved data. Each window has a separate layout,
 so two monitors can show the same workspace with different arrangements.
 
+The **Current project** selector controls the workspace list. Members of one
+project share its saved panels and contents. Each user's views and saved window
+surfaces are private. Only the local owner administers installed packages and
+system providers. See [identities and projects](identities.md) for membership,
+project switching and the current local-access limits.
+
 ## Create and arrange
 
 Enter a name and select **New workspace**. Use **Manage modules** to install and
@@ -57,6 +63,27 @@ Select a workspace and choose **Open** for a new arrangement.
 Save or discard unsaved text before resuming another window layout.
 
 ## Saving and concurrent changes
+
+### Project templates
+
+Open a workspace and select **Project templates**. **Share current panel
+template** publishes a new immutable recipe in the current project. It contains
+only module package digests and panel titles. Saved notes, panel input values,
+targets, grants and personal window geometry are excluded.
+
+Open the destination workspace and choose **Add panels to open workspace**.
+Install and enable the exact module packages first, with grants for that
+workspace. Select target systems or folders when prompted. All panels are
+submitted together through the normal revision and permission checks; the
+template cannot grant access or activate a missing package. Each new panel
+starts with empty saved data and its own identity.
+
+Project members with workspace write access can share and remove template
+versions. Removing a version does not change any existing workspace. Other
+projects cannot list or use the shared catalogue. Personal layouts remain private
+to their user and browser surface.
+
+### Saved state
 
 FICC saves layout changes automatically. Notes have an explicit **Save** action.
 Saved data lives in the controller's private state directory. File permissions

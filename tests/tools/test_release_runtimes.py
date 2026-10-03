@@ -22,7 +22,7 @@ def runtime(path, index):
     return sources
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_release_uses_exact_matching_transport_helpers(tmp_path, count):
     for index in range(count):
         path = tmp_path / str(index)

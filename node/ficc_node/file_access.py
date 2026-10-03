@@ -11,7 +11,8 @@ import stat
 from contextlib import contextmanager
 
 CHUNK = 262144
-MAX_FILE = 16 * 1024**3
+# Linux off_t is signed 64-bit. Filesystem capability and quota decide admission.
+MAX_FILE = 2**63 - 1
 RESERVED = b".ficc-"
 LIBC = ctypes.CDLL(None, use_errno=True)
 
@@ -173,8 +174,8 @@ def display(value):
 
 
 def regular(info):
-    if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_FILE:
-        raise FileError("unsupported_file", "Select a regular file no larger than 16 GiB.")
+    if not stat.S_ISREG(info.st_mode):
+        raise FileError("unsupported_file", "Select a regular file.")
 
 
 def change_mode(fd, mode):
@@ -203,16 +204,13 @@ def check_cancel(cancel):
 
 
 def file_hash(fd, expected=None, cancel=None):
-    import time
     before = identity(os.fstat(fd))
     regular(os.fstat(fd))
     if expected and not same(before, expected):
         raise FileError("source_changed", "The source file changed.")
-    value, offset, deadline = hashlib.sha256(), 0, time.monotonic() + 300
+    value, offset = hashlib.sha256(), 0
     while offset < before["size"]:
         check_cancel(cancel)
-        if time.monotonic() > deadline:
-            raise FileError("verification_timeout", "File verification exceeded its deadline.")
         data = os.pread(fd, min(CHUNK, before["size"] - offset), offset)
         if not data:
             break

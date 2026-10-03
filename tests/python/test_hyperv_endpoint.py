@@ -81,7 +81,7 @@ def assert_mapping(result, expected):
     assert actual == expected, 'VM metadata association differs'
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize('mode', ['inventory', 'selected'])
 def test_actual_endpoint_joins_distinct_shuffled_metadata(powershell, tmp_path, count, mode):
     data, expected = fixture(count, mode)
@@ -97,7 +97,7 @@ def test_actual_endpoint_joins_distinct_shuffled_metadata(powershell, tmp_path, 
     assert calls == expected_calls
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize('column', ['memory', 'processor'])
 def test_mapping_assertion_detects_actual_endpoint_wrong_index(powershell, tmp_path, count, column):
     data, expected = fixture(count, 'inventory')

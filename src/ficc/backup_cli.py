@@ -31,7 +31,7 @@ def reconciled(root, database, decode):
                     or hashlib.sha256(key.encode()).hexdigest() + ".json" != name
                     or not isinstance(actor, str) or not isinstance(value.get("digest"), str)):
                 raise ValueError("A saved CLI submission identity is invalid.")
-            row = database.execute("SELECT id,digest FROM operations WHERE actor=? AND key=?", (actor, key)).fetchone()
+            row = database.execute("SELECT id,digest FROM operations WHERE actor=:p0 AND key=:p1", (actor, key)).fetchone()
             if (row is None or row[1] != value["digest"]
                     or value.get("operation_id") not in (None, row[0])):
                 raise ValueError("Reconcile every saved CLI submission before backup; its operation must be retained and closed.")

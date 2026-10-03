@@ -25,7 +25,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from release_lib.modules import components as module_components  # noqa: E402
 from release_lib.runtimes import verify_windows_sources  # noqa: E402
 
-PROBE = '''import asyncio,io,json,pathlib,zipfile
+PROBE = '''import asyncio,io,json,pathlib,sys,zipfile
+import importlib.metadata as metadata
 import ficc_node
 from ficc.ssh import archive
 from ficc.terminal_pty import TerminalPTY
@@ -40,7 +41,19 @@ async def check():
   assert output==b'ficc-package-pty',output
  finally: await p.close()
 asyncio.run(check())
-print(json.dumps({'helper_modules':len(members),'pty':True}))
+inventory=json.loads((pathlib.Path(sys.argv[1])/'runtime-packages/index.json').read_text())
+assert inventory['version']==1 and inventory['packages']
+providers=[]
+for package in inventory['packages']:
+ assert metadata.version(package['name'])==package['version']
+ for group,items in package['entry_points'].items():
+  if not group.startswith('ficc.'): continue
+  for name in items:
+   entries=list(metadata.entry_points(group=group,name=name))
+   assert len(entries)==1,(group,name)
+   assert entries[0].load().API_VERSION==1,(group,name)
+   providers.append(group+':'+name)
+print(json.dumps({'helper_modules':len(members),'pty':True,'runtime_packages':len(inventory['packages']),'providers':providers}))
 '''
 
 
@@ -83,10 +96,14 @@ def qualify(command: Path, payload: Path, service_log: Path | None = None) -> di
         return subprocess.check_output([str(command), *args], text=True, env=env, timeout=30).strip()
 
     check("version", cli("--version") == "FICC " + manifest["version"])
-    native = json.loads(subprocess.check_output([str(payload / "python/bin/python3"), "-I", "-B", "-c", PROBE],
+    native = json.loads(subprocess.check_output([str(payload / "python/bin/python3"), "-I", "-B", "-c", PROBE, str(payload)],
                                                env=env, text=True, timeout=20))
     check("helper archive", native["helper_modules"] > 20)
     check("terminal child", native["pty"] is True)
+    check("installed runtime providers", native["runtime_packages"] > 0 and bool(native["providers"]))
+    collector = subprocess.run([str(payload / "python/bin/ficc-audit-collector"), "--help"],
+                               env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=15, check=False)
+    check("audit collector command", collector.returncode == 0)
     with tempfile.TemporaryDirectory(prefix="ficc-package-check-") as temporary:
         state = Path(temporary) / "state"
         with socket.socket() as listener:

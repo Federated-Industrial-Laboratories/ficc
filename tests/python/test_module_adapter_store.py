@@ -3,15 +3,13 @@
 
 import copy
 import hashlib
-import sqlite3
-import threading
-from types import SimpleNamespace
 
 import pytest
 
 from ficc import module_adapter_store as model
 from ficc.errors import Failure
 from ficc.modules.validation import dumps
+from ficc.store import Store
 
 
 def profile(index=0):
@@ -38,13 +36,13 @@ def operation(count=1):
 
 
 @pytest.fixture
-def records():
-    store = SimpleNamespace(db=sqlite3.connect(":memory:"), lock=threading.RLock())
+def records(tmp_path):
+    store = Store(tmp_path / "state.sqlite3")
     yield model.Records(store)
-    store.db.close()
+    store.close()
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_profiles_are_immutable_and_retained_until_explicit_removal(records, count):
     for index in range(count):
         value = profile(index)
@@ -61,7 +59,7 @@ def test_profiles_are_immutable_and_retained_until_explicit_removal(records, cou
     assert not model.retained(records.store)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_durable_complete_batch_and_terminal_cleanup_retention(records, count):
     records.save_profile(profile())
     value = operation(count)
@@ -89,7 +87,7 @@ def test_durable_complete_batch_and_terminal_cleanup_retention(records, count):
     assert not model.retained(records.store, endpoint_id=profile()["endpoint_id"])
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("changed", ["birth", "intent", "endpoint", "resource", "proof"])
 def test_private_frozen_intent_and_completion_proof_reject_substitution(count, changed):
     value = operation(count)
@@ -110,7 +108,7 @@ def test_private_frozen_intent_and_completion_proof_reject_substitution(count, c
         model.operation(value)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_history_capacity_reserves_completion_before_any_dispatch(records, monkeypatch, count):
     value = operation(count)
     maximum = model.reservation(value)

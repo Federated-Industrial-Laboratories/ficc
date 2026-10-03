@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools==84.0.0", "wheel==0.48.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ficc-data-s3"
+version = "0.2.5"
+readme = "README.md"
+description = "FICC s3 data runtime provider."
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = ["boto3==1.43.104", "botocore==1.43.108"]
+
+[project.entry-points."ficc.data"]
+s3 = "ficc_data_s3"
+
+[tool.setuptools.packages.find]
+where = ["src"]

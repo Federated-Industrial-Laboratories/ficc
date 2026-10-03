@@ -1,0 +1,101 @@
+{
+  "roles": {
+    "observer": [
+      "nodes:read",
+      "resources:read",
+      "jobs:read",
+      "jobs:logs",
+      "files:read",
+      "terminals:read",
+      "workspaces:read",
+      "modules:read",
+      "contributors:read"
+    ],
+    "operator": [
+      "nodes:read",
+      "resources:read",
+      "jobs:read",
+      "jobs:execute",
+      "jobs:cancel",
+      "jobs:logs",
+      "files:read",
+      "files:write",
+      "files:mode",
+      "files:delete",
+      "terminals:read",
+      "terminals:execute",
+      "terminals:stop",
+      "workspaces:read",
+      "workspaces:write",
+      "modules:read",
+      "modules:execute",
+      "audio:playback",
+      "contributors:read"
+    ],
+    "node-administrator": [
+      "contributors:read",
+      "contributors:manage"
+    ],
+    "vm-observer": [
+      "nodes:read",
+      "workspaces:read",
+      "modules:read",
+      "modules:execute",
+      "vm:read"
+    ],
+    "vm-operator": [
+      "nodes:read",
+      "workspaces:read",
+      "modules:read",
+      "modules:execute",
+      "workspaces:write",
+      "vm:read",
+      "vm:power",
+      "vm:console"
+    ],
+    "container-operator": [
+      "nodes:read",
+      "workspaces:read",
+      "modules:read",
+      "modules:execute",
+      "workspaces:write",
+      "container:read",
+      "container:logs",
+      "container:power"
+    ],
+    "system-operator": [
+      "nodes:read",
+      "workspaces:read",
+      "modules:read",
+      "modules:execute",
+      "resources:read",
+      "workspaces:write",
+      "admin:read",
+      "admin:logs",
+      "admin:services",
+      "admin:power"
+    ],
+    "data-observer": [
+      "data:read",
+      "files:read"
+    ],
+    "data-operator": [
+      "data:read",
+      "data:export",
+      "files:read",
+      "files:write"
+    ],
+    "data-writer": [
+      "data:read",
+      "data:write"
+    ],
+    "data-administrator": [
+      "data:read",
+      "data:export",
+      "data:write",
+      "data:manage",
+      "files:read",
+      "files:write"
+    ]
+  }
+}

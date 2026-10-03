@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: Apache-2.0
+# Serve a closed application boundary with automatically renewed IP or DNS TLS.
+{
+	admin unix//run/ficc-gateway/admin.sock
+	auto_https disable_redirects
+	skip_install_trust
+	default_sni {$FICC_PUBLIC_ADDRESS}
+	log default {
+		format filter {
+			wrap json
+			request>headers delete
+			request>uri delete
+			resp_headers delete
+		}
+	}
+	# Every TLS policy on this dedicated port requires the same client authority.
+	servers :8443 {
+		protocols h1 h2
+		strict_sni_host insecure_off
+		max_header_size 32KB
+		timeouts {
+			read_header 10s
+			idle 2m
+		}
+	}
+	servers {
+		protocols h1 h2
+		max_header_size 32KB
+		timeouts {
+			read_header 10s
+			idle 2m
+		}
+	}
+}
+
+:80 {
+	@approved host {$FICC_PUBLIC_ADDRESS}
+	redir @approved https://{$FICC_PUBLIC_ADDRESS}{uri} 308
+	respond "Unknown host." 421
+}
+
+https://{$FICC_PUBLIC_ADDRESS} {
+	tls {
+		issuer acme {$FICC_ACME_DIRECTORY} {
+			profile shortlived
+		}
+	}
+	header {
+		-Server
+		Cache-Control no-store
+		Referrer-Policy no-referrer
+		X-Content-Type-Options nosniff
+	}
+	import /etc/ficc-gateway/routes/*.caddy
+	handle {
+		header Content-Type "text/plain; charset=utf-8"
+		header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+		respond "FICC remote access is not enabled." 503
+	}
+}
+
+:443 {
+	respond "Unknown host." 421
+}
+
+import /etc/ficc-gateway/listeners/*.caddy

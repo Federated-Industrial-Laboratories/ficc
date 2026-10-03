@@ -28,7 +28,7 @@ def table(count=1):
                      for index in range(count)]}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_stable_table_rows_and_selection_binding(count):
     ui = {"type": "column", "children": [table(count), {
         "type": "button", "action": "read", "parameters": {"ids": {"selection": "items"}}}]}
@@ -92,7 +92,7 @@ def test_sample_source_builds_deterministically_with_complete_inventory(tmp_path
     assert set(files) == {"main.py", "ficc_module.py"}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_sample_runtime_returns_complete_bounded_batches(count):
     targets = [f"target-{index}" for index in range(count)]
     request_id, request = protocol.request("load", targets, {"count": count})

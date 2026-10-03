@@ -14,12 +14,14 @@ from conftest import node
 from ficc.auth import digest
 from ficc.backup import export, restore
 from ficc.errors import Failure
+from ficc.identity_store import LOCAL_OWNER, LOCAL_PROJECT
 from ficc.service import Service
 from ficc.settings import Settings
 
 
 def populated(path, count=1):
     service = Service(Settings(state_dir=path, control=False))
+    ownership = {"subject_id": LOCAL_OWNER, "project_id": LOCAL_PROJECT}
     credentials, markers = [], []
     controller = service.store.get_setting("controller_id", None)
     (path / "files").mkdir(mode=0o700)
@@ -44,15 +46,15 @@ def populated(path, count=1):
         root = {"id": f"{index:032x}", "path": f"/synthetic/registered/{index}", "node_id": item["id"],
                 "identity": {"dev": 2, "ino": 400 + index}, "reference": {"parts": []}, "label": f"Root {index}"}
         service.files.store.add_root(root)
-        operation = {"id": f"job-{index}", "actor": "fixture", "key": f"job-{index}", "digest": f"digest-{index}",
+        operation = {**ownership, "id": f"job-{index}", "actor": "fixture", "key": f"job-{index}", "digest": f"digest-{index}",
                      "targets": [{"node_id": item["id"], "job_id": f"job-target-{index}", "state": "succeeded"}]}
         service.jobs.store.insert(operation)
-        value = {"id": f"mutation-{index}", "actor": "fixture", "key": f"mutation-{index}",
+        value = {**ownership, "id": f"mutation-{index}", "actor": "fixture", "key": f"mutation-{index}",
                  "state": "succeeded", "items": [{"state": "succeeded", "id": f"item-{index}"}]}
         service.files.store.insert(value)
         transfer = {**value, "id": f"transfer-{index}", "kind": "upload", "key": f"transfer-{index}"}
         service.transfers.store.insert(transfer)
-        service.terminals.save({"id": f"terminal-{index}", "actor": "fixture", "key": f"terminal-{index}",
+        service.terminals.save({**ownership, "id": f"terminal-{index}", "actor": "fixture", "key": f"terminal-{index}",
                                 "digest": f"term-digest-{index}", "state": "stopped", "mode": "tmux"})
         receipt = local / f"{index:032x}.json"
         receipt.write_text(json.dumps({"id": receipt.stem, "state": "succeeded", "digest": f"file-digest-{index}"}))
@@ -60,7 +62,7 @@ def populated(path, count=1):
     return service, credentials, markers
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_roundtrip_preserves_every_identity_and_erases_credential_bytes(tmp_path, count):
     state, bundle, target = (tmp_path / value for value in ("state", "backup", "restored"))
     service, credentials, markers = populated(state, count)
@@ -85,7 +87,7 @@ def test_roundtrip_preserves_every_identity_and_erases_credential_bytes(tmp_path
     assert all(p.stat().st_mode & 0o777 == (0o700 if p.is_dir() else 0o600) for p in target.rglob("*"))
     recovered = Service(Settings(state_dir=target, control=False))
     try:
-        assert dict(recovered.store.db.execute("SELECT key,value FROM settings")) == settings
+        assert dict(recovered.store.db.execute("SELECT key,value FROM settings")) == {**settings, "workloads.suspended": "true"}
         for table, expected in rows.items():
             assert recovered.store.db.execute(f"SELECT * FROM {table} ORDER BY id").fetchall() == expected
         for expected, actual in zip(nodes, recovered.store.nodes(), strict=True):
@@ -194,7 +196,7 @@ def test_registered_tree_content_is_excluded(tmp_path):
     assert not any(original in p.read_bytes() for p in (tmp_path / "bundle").rglob("*") if p.is_file())
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("table", ["operations", "file_operations", "transfers", "terminals"])
 def test_last_record_and_last_batch_item_blocks_export(tmp_path, count, table):
     state = tmp_path / "state"

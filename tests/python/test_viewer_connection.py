@@ -13,7 +13,7 @@ RDP = VNC - {"autoretry"} | {"security", "preconnection-blob", "username", "doma
        "enable-audio-input", "enable-printing", "enable-drive"}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_daemon_config_binds_each_vm_and_certificate(count):
     for index in range(count):
         private = rdp_config(index)

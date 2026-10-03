@@ -2,7 +2,7 @@
 // Own one Dockview panel layout and save only normal, bounded geometry.
 import { createDockview, FloatingGroupModule, registerModules, themeLight } from './dockview.js';
 import { button, confirmation, el, notice } from './components.js';
-import { request } from './api.js';
+import { allowed, request } from './api.js';
 import { renderModule } from './ui-renderer.js';
 import { requiredCapabilities, selectTargets, workspaceCapability } from './module-targets.js';
 
@@ -117,12 +117,12 @@ export function workspaceLayout({ workspace, viewId = identity(), modules, audio
     return state;
   }
   function saveSoon() {
-    if (!ready || disposed || zoom) return;
+    if (!allowed('workspaces:write') || !ready || disposed || zoom) return;
     clearTimeout(timer); timer = setTimeout(saveLayout, 250);
   }
   function saveLayout() {
       clearTimeout(timer); timer = null;
-      if (!ready || disposed || zoom) return saving;
+      if (!allowed('workspaces:write') || !ready || disposed || zoom) return saving;
       const state = layout();
       pending++;
       saving = saving.catch(() => {}).then(async () => {
@@ -163,6 +163,20 @@ export function workspaceLayout({ workspace, viewId = identity(), modules, audio
       const targets = await selectTargets(module); if (targets === null) return;
       const item = { id: identity(), digest: module.digest, title: module.manifest.display_name || module.manifest.id, state: {}, targets };
       await queue(next => { next.instances.push(item); }); add(item, true); saveSoon();
+    },
+    async applyTemplate(template) {
+      if (this.dirty) throw Error('Save or discard unsaved text before adding template panels.');
+      await this.flush();
+      const items = [];
+      for (const panel of template.panels) {
+        const module = modules.find(item => item.digest === panel.digest && item.enabled);
+        if (!module) throw Error(`Install, enable and grant the package for ${panel.title} before applying this template.`);
+        const targets = await selectTargets(module); if (targets === null) return false;
+        items.push({ id: identity(), digest: panel.digest, title: panel.title, state: {}, targets });
+      }
+      await queue(next => { next.instances.push(...items); });
+      for (const item of items) add(item, true);
+      saveSoon(); return true;
     },
     showAll() { for (const item of value.instances) add(item); saveSoon(); },
     recover() { restoreZoom(); for (const item of value.instances) { add(item); dock(item.id); } saveSoon(); },

@@ -150,6 +150,7 @@ class Agents:
                 terminal_id=secrets.token_hex(16), state="starting", runtime_session_id=None,
                 last_contact=None, error=None, outbox_acks=[])
             terminal = {"id": value["terminal_id"], "actor": actor, "key": "agent-" + value["id"],
+                **self.service.auth.ownership(actor),
                 "digest": value["digest"], "node_id": node["id"], "node_name": node["name"],
                 "account": node["account"], "label": value["label"], "mode": "tmux", "cols": value["cols"],
                 "rows": value["rows"], "fingerprint": node["fingerprint"], "state": "unknown",

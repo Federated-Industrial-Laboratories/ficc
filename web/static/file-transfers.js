@@ -24,13 +24,13 @@ export function fileTransfers(demo, changed) {
       if (!demo && write && item.resumable && !uploads.busy(transfer.id)) controls.push(button('Resume', async () => {
         if (transfer.kind === 'upload') uploads.resume({ ...transfer, items: [item] });
         else {
-          try { await request(`/transfers/${transfer.id}/resume`, { method: 'POST', body: { item_ids: [item.id] } }); load(); }
+          try { await request(`/transfers/${transfer.id}/resume`, { method: 'POST', body: { item_ids: [item.id] }, timeout: null }); load(); }
           catch (error) { if (active) status.replaceChildren(errorPanel(error)); }
         }
       }, { 'data-focus': `resume-${item.id}` }));
       if (!demo && write && item.state === 'unknown') controls.push(button('Check recorded outcome', async () => {
         try {
-          await request(`/transfers/${transfer.id}/resume`, { method: 'POST', body: { item_ids: [item.id] } });
+          await request(`/transfers/${transfer.id}/resume`, { method: 'POST', body: { item_ids: [item.id] }, timeout: null });
           status.replaceChildren(notice('Recorded outcome checked. An unresolved result remains unknown; this does not repeat the transfer.')); load();
         } catch (error) { if (active) status.replaceChildren(errorPanel(error), notice('The outcome is still unresolved. Do not create a replacement transfer until it is known.', 'warning')); }
       }, { 'data-focus': `reconcile-${item.id}` }));

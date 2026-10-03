@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+# Give the controller access to its policy service manager and private temporary files.
+[Unit]
+Requires=user@CONTROLLER_UID.service
+After=user@CONTROLLER_UID.service
+
+[Service]
+ProtectHome=tmpfs
+InaccessiblePaths=/home /root
+BindReadOnlyPaths=/run/user/CONTROLLER_UID/bus /run/user/CONTROLLER_UID/systemd/private
+Environment=TMPDIR=/var/lib/ficc-controller/tmp

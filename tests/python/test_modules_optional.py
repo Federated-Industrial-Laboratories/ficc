@@ -27,7 +27,7 @@ def install(registry, files=None, **changes):
     return value.digest
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_optional_grants_do_not_block_required_targets_or_grant_access(registry, count):
     selected = [f"{index:032x}" for index in range(count)]
     digest = install(registry, capabilities=["system:read", "files:read"], optional_capabilities=["files:read"])
@@ -78,7 +78,7 @@ def test_unavailable_optional_permission_can_remain_absent_but_cannot_be_granted
     assert registry.get(digest)["grants"] == grants
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_optional_action_refused_before_sandbox_or_callback(registry, count):
     selected = [f"{index:032x}" for index in range(count)]
     runtime = {"kind": "python", "language": "python", "entry": "main.py", "platform": "linux",
@@ -112,8 +112,6 @@ def test_optional_only_instance_targets_must_still_have_actual_grants(registry):
 
 def test_backup_accepts_missing_optional_grants_and_refuses_missing_required(registry):
     db = registry.store.db
-    db.executescript("CREATE TABLE workspaces(id,value); CREATE TABLE workspace_views(id,workspace_id,value);"
-                     "CREATE TABLE workspace_surfaces(id,value); CREATE TABLE settings(key,value);")
     digest = install(registry, capabilities=["system:read", "files:read"], optional_capabilities=["files:read"])
     registry.set_enabled(digest, True, [{"capability": "system:read", "target_ids": ["system"]}])
     assert records(db)[digest]["grants"] == {"system:read": ["system"]}

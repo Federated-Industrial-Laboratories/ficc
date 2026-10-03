@@ -135,7 +135,7 @@ def inventory(live_hyperv):
     return rows
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_real_installed_hyperv_inventory(live_hyperv, inventory, count):
     selected = [inventory[name] for name in sorted(DISKLESS[count])]
     assert len(selected) == count
@@ -143,7 +143,7 @@ def test_real_installed_hyperv_inventory(live_hyperv, inventory, count):
     assert all(row['id'].startswith('vm-' + live_hyperv.record['profile']['id'] + '-') for row in selected)
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_real_installed_hyperv_diskless_start(live_hyperv, inventory, count):
     live_hyperv.power()
     selected = [inventory[name] for name in sorted(DISKLESS[count])]

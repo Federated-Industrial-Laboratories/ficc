@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools==84.0.0", "wheel==0.48.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ficc-audit-https"
+version = "0.2.5"
+description = "TLS append delivery and a separately administered audit collector for FICC"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = ["httpx==0.28.1"]
+
+[project.entry-points."ficc.audit"]
+https = "ficc_audit_https"
+
+[project.scripts]
+ficc-audit-collector = "ficc_audit_https.collector:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

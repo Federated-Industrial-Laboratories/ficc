@@ -49,10 +49,11 @@ class AdapterVMs(AdapterOperations):
         def current():
             check()
             self.service.live()
-            for scope in {"nodes:read", "vm:read", capability}:
-                self.service.authorize(actor, scope, node_id)
-            for scope in {"vm:read", capability}:
-                self.service.modules.require(digest, scope, [node_id])
+            # Full-account adapters require the installation owner's provider permission.
+            capabilities = list(dict.fromkeys(("vm:read", capability)))
+            self.service.policies.check_many(self.service.auth.current(actor),
+                [(scope, node_id, None) for scope in ("providers:write", "nodes:read", *capabilities)])
+            self.service.modules.require_many(digest, [(scope, [node_id]) for scope in capabilities])
             latest = self.adapters.profile(profile["id"])
             keys = IMMUTABLE | {"provider"} if recovery else set(profile)
             if profile["endpoint_id"] != node_id or any(latest.get(key) != profile.get(key) for key in keys):
@@ -60,6 +61,10 @@ class AdapterVMs(AdapterOperations):
             self.service.modules.require(profile["digest"], ADMIN, [profile["id"]])
         current()
         return current
+
+    def local_authority(self, actor, value, capability, check):
+        self.service.authorize(actor, "providers:write")
+        super().local_authority(actor, value, capability, check)
 
     def groups(self, node_ids, vm_ids):
         if (not isinstance(vm_ids, list) or not 1 <= len(vm_ids) <= 64

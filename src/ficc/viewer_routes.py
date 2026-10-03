@@ -9,6 +9,7 @@ from fastapi import Request, WebSocket
 from starlette.websockets import WebSocketDisconnect
 
 from .errors import Failure
+from .ssh import SSH
 from .viewer_stream import bridge
 
 
@@ -31,6 +32,7 @@ def install(app, service, principal, origins, hosts):
             return
         await socket.accept()
         actor, owned = None, False
+        arguments = None
         try:
             async with asyncio.timeout(5):
                 text = await socket.receive_text()
@@ -59,9 +61,13 @@ def install(app, service, principal, origins, hosts):
                 await bridge(socket, service.settings.viewer_runtime, [], b"", check, connection=connection)
             elif graphics.get("protocol", "vnc") == "vnc":
                 arguments, header = await host.console_command(descriptor, check)
-                check()
+                trust = SSH.connection_check(arguments)
+                def transport_check():
+                    check()
+                    trust()
+                transport_check()
                 service.store.audit("viewer.attach", descriptor["vm_id"], actor=actor)
-                await bridge(socket, service.settings.viewer_runtime, arguments, header, check,
+                await bridge(socket, service.settings.viewer_runtime, arguments, header, transport_check,
                              authentication=graphics.get("authentication", "none"))
             else:
                 raise Failure("viewer_unavailable", "The provider has no compatible display protocol.", 409)
@@ -72,6 +78,8 @@ def install(app, service, principal, origins, hosts):
             with suppress(WebSocketDisconnect, RuntimeError):
                 await socket.send_json({"type": "error", "message": "The display connection closed. Request a new connection."})
         finally:
+            if arguments is not None:
+                SSH.release(arguments)
             if owned:
                 manager.active.pop(reference, None)
                 manager.references.pop(reference, None)

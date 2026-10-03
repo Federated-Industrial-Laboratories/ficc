@@ -70,7 +70,8 @@ export function overview() {
       if (!nodes.some(node => node.id === selected)) selected = nodes[0]?.id ?? null;
       status.replaceChildren();
       draw();
-      document.querySelector('#connection').textContent = demo ? 'Simulation service connected' : 'Local service connected';
+      document.querySelector('#connection').textContent = demo ? 'Simulation service connected' :
+        getSession()?.remote ? 'Secure remote service connected' : 'Local service connected';
       if (probe) announce('Machine samples updated');
     } catch (error) {
       if (!active) return;
@@ -79,7 +80,7 @@ export function overview() {
         status.append(notice('Cached samples are shown below. Their current state is unknown.', 'warning'));
         draw(true);
       } else if (error.status === 403) { nodes = []; inventory.replaceChildren(); detail.replaceChildren(); summary.replaceChildren(); }
-      document.querySelector('#connection').textContent = error.status === 0 ? 'Local service disconnected' : 'Request unavailable';
+      document.querySelector('#connection').textContent = error.status === 0 ? 'Service disconnected' : 'Request unavailable';
     } finally {
       loading = false;
       update.disabled = false;

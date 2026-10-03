@@ -16,7 +16,7 @@ pytestmark = pytest.mark.skipif(os.environ.get("FICC_VIEWER_RDP_HOST_TESTS") != 
                                reason="Set FICC_VIEWER_RDP_HOST_TESTS=1 with an RDP runtime")
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_native_rdp_private_connection_and_owned_process_cleanup(count):
     runtime = Path(os.environ["FICC_VIEWER_RUNTIME"])
     for index in range(count):

@@ -21,7 +21,7 @@ def helper(tmp_path):
     return runner, tmp_path / 'helper/entry.py'
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_helper_complete_distinct_batch(helper, count):
     runner, script = helper
     script.write_text('import json,sys\nv=json.load(sys.stdin)\njson.dump({"version":1,"results":v["items"]},sys.stdout)\n')

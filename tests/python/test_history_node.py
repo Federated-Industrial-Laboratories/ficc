@@ -44,7 +44,7 @@ def node_state(tmp_path, monkeypatch, count=1):
     return body, {"jobs": jobs, "files": files, "terminals": terms}, original
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_node_archive_preserves_all_hashes_and_stable_locks(tmp_path, monkeypatch, count):
     body, bases, original = node_state(tmp_path, monkeypatch, count)
     locks = {kind: (base / ("namespace.lock" if kind == "files" else "lock")).stat().st_ino for kind, base in bases.items()}
@@ -68,7 +68,7 @@ def test_node_archive_preserves_all_hashes_and_stable_locks(tmp_path, monkeypatc
     assert sum(path.is_dir() for path in bases["jobs"].iterdir()) == 0
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("kind", ["jobs", "files", "terminals"])
 def test_last_unclosed_receipt_blocks_all_retirement(tmp_path, monkeypatch, count, kind):
     body, bases, original = node_state(tmp_path, monkeypatch, count)
@@ -84,7 +84,7 @@ def test_last_unclosed_receipt_blocks_all_retirement(tmp_path, monkeypatch, coun
 
 
 @pytest.mark.parametrize("unit", ["active", "mismatch", "unknown"])
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_exact_unit_verification_refuses_unsafe_state(tmp_path, monkeypatch, unit, count):
     body, bases, _ = node_state(tmp_path, monkeypatch, count)
     def properties(name):
@@ -139,7 +139,7 @@ def test_interrupted_node_archive_resumes_same_identity(tmp_path, monkeypatch, b
 
 
 @pytest.mark.parametrize("kind", ["wrong_owner", "symlink", "hardlink", "unexpected", "live_tmux"])
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_unknown_unsafe_or_unowned_history_is_retained(tmp_path, monkeypatch, kind, count):
     body, bases, _ = node_state(tmp_path, monkeypatch, count)
     if kind == "wrong_owner":
@@ -211,7 +211,7 @@ def test_corrupt_pending_manifest_is_refused_before_moving(tmp_path, monkeypatch
     assert (bases["jobs"] / ("0" * 32)).exists()
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_completed_archive_rejects_changed_last_record(tmp_path, monkeypatch, count):
     body, _, _ = node_state(tmp_path, monkeypatch, count)
     result = history.dispatch(body)

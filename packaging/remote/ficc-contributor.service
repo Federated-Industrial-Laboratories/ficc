@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: Apache-2.0
+# Maintain an outbound approved contributor connection as an unprivileged account.
+[Unit]
+Description=FICC contributor connection
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ficc-contributor
+Group=ficc-contributor
+StateDirectory=ficc-contributor
+StateDirectoryMode=0700
+ExecStart=/opt/ficc-contributor/venv/bin/ficc node-connect --state-dir /var/lib/ficc-contributor
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+TasksMax=64
+MemoryMax=256M
+LimitNOFILE=256
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

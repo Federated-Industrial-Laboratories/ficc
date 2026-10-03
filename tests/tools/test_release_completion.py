@@ -39,7 +39,7 @@ def release(tmp_path, count=1, corrupt=False):
     return output, package
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("corrupt", [False, True])
 def test_arch_finalization_checks_every_payload_member(tmp_path, count, corrupt):
     output, package = release(tmp_path, count, corrupt)

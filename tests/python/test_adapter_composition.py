@@ -11,6 +11,7 @@ from test_modules_packages import bundle
 
 from ficc.backup import export, restore
 from ficc.backup_adapters import validate_records
+from ficc.backup_database import SCHEMA
 from ficc.errors import Failure
 from ficc.modules import inspect_archive
 from ficc.service import Service
@@ -32,7 +33,7 @@ def installed(service, count):
     return values, package.digest
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_exact_profile_grants_use_separate_route_and_cannot_be_panels(console, count):
     client, service = console
     endpoints, checksum = installed(service, count)
@@ -66,7 +67,7 @@ def test_exact_profile_grants_use_separate_route_and_cannot_be_panels(console, c
     assert client.delete(f"/api/v1/modules/{checksum}").status_code == 200
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_windows_endpoint_ids_are_scoped_without_linux_node_access(console, count):
     client, service = console
     endpoints, checksum = installed(service, count)
@@ -100,7 +101,7 @@ def test_invalid_endpoint_enrollment_never_returns_submitted_secrets(console):
     assert service.windows.records.all() == [] and list(service.windows.private.path.iterdir()) == []
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_restored_bindings_are_disabled_and_private_accounts_are_excluded(tmp_path, count):
     state, archive, target = (tmp_path / name for name in ("state", "backup", "restored"))
     service = Service(Settings(state_dir=state, control=False))
@@ -118,7 +119,7 @@ def test_restored_bindings_are_disabled_and_private_accounts_are_excluded(tmp_pa
     service.modules.set_enabled(checksum, True, [{"capability": "provider:admin",
         "target_ids": [value["id"] for value in profiles]}], sandbox_ready=True)
     service.close()
-    assert export(state, archive)["schema"] == 6
+    assert export(state, archive)["schema"] == SCHEMA
     for path in archive.rglob("*"):
         assert "windows-private" not in path.parts
         if path.is_file():

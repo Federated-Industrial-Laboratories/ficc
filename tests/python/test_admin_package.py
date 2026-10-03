@@ -51,7 +51,7 @@ def test_system_table_explains_interactive_power_permission():
     table({**component, "rows": rows})
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_supplied_module_preserves_targets_selection_and_bounded_logs(count):
     module = load("admin_payload", ROOT / "modules/system-admin/payload/main.py")
     targets = [f"node-{index}" for index in range(count)]

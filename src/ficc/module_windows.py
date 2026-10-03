@@ -51,9 +51,10 @@ class WindowsEndpoints:
                 'diagnostic': '' if ready else 'Install the Windows transport runtime for this host.'}
 
     def endpoints(self, actor):
-        self.authorize(actor, 'nodes:read')
-        selected = self.service.auth.current(actor).node_ids
-        return [self.public(value) for value in self.records.all() if selected is None or value['id'] in selected]
+        with self.service.store.lock:
+            self.authorize(actor, 'nodes:read')
+            principal = self.service.auth.current(actor)
+            return [self.public(value) for value in self.records.all() if principal.permits('nodes:read', value['id'])]
 
     def retained(self, identity):
         from .module_adapter_store import retained

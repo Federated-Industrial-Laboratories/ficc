@@ -30,6 +30,7 @@ from ficc.modules.sandbox import (
     management,
     stop_service,
 )
+from ficc.state_provider import BoundConnection
 
 ROOT = Path(__file__).resolve().parents[2]
 OPT_IN = os.environ.get("FICC_MODULE_HOST_TESTS") == "1"
@@ -132,7 +133,7 @@ async def host(tmp_path):
     status = await Sandbox().probe()
     if not status.available:
         unavailable(status.reason)
-    db = sqlite3.connect(":memory:", check_same_thread=False)
+    db = sqlite3.connect(":memory:", check_same_thread=False, factory=BoundConnection)
     initialize(db)
     registry = Registry(SimpleNamespace(db=db, lock=threading.RLock()), tmp_path / "modules")
     runtime = Runtime(registry)
@@ -184,7 +185,7 @@ def results(expression):
 
 
 @pytest.mark.parametrize("language", ["c", "cpp", "rust", "python", "javascript", "typescript"])
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_installed_sdk_runtime_batches_and_disable(host, language, count):
     folder = Path(os.environ.get("FICC_MODULE_HOST_PACKAGES", ROOT / "dist/module-examples"))
     archive = folder / f"org.example.echo.{language}-1.0.0.ficc-module.zip"
@@ -208,7 +209,7 @@ async def test_installed_sdk_runtime_batches_and_disable(host, language, count):
     record("sdk_runtime", language=language, count=count, digest=digest, result="passed")
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_real_mixed_results_and_order(host, count):
     digest = await script(host, "return list(reversed([{'target':t,'data':i} if i%2==0 else "
                         "{'target':t,'error':{'code':'unavailable','message':'Unavailable'}} "

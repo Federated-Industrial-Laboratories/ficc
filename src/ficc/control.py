@@ -52,6 +52,14 @@ class Control:
                 request = json.loads(data)
                 action = request.get("action")
                 auth = self.service.auth
+                from .identity_cli import ACTIONS
+                from .identity_cli import control as identity_control
+                from .identity_store import LOCAL_OWNER, LOCAL_PROJECT
+                if action in ACTIONS:
+                    response = identity_control(self.service, request)
+                    writer.write(json.dumps(response).encode() + b"\n")
+                    await writer.drain()
+                    return
                 if action == "bus-archive":
                     if request.get("confirm") is not True:
                         raise Failure("confirmation_required", "Confirm the selected closed run archive.")
@@ -86,7 +94,9 @@ class Control:
                     await writer.drain()
                     return
                 if action == "bootstrap":
-                    secret, principal = auth.issue("bootstrap", lifetime=60)
+                    secret, principal = auth.issue("bootstrap", lifetime=60,
+                                                   subject_id=request.get("subject_id", LOCAL_OWNER),
+                                                   project_id=request.get("project_id", LOCAL_PROJECT))
                 elif action == "job-credential":
                     secret, principal = auth.issue("token", "Local job CLI", lifetime=3600)
                     self.service.store.audit("credential.create", principal.id)
@@ -95,7 +105,8 @@ class Control:
                 elif action == "token":
                     secret, principal = auth.issue(
                         "token", label=request["label"], scopes=request["scopes"],
-                        node_ids=request.get("node_ids"), root_ids=request.get("root_ids"), lifetime=request.get("lifetime", 3600))
+                        node_ids=request.get("node_ids"), root_ids=request.get("root_ids"), lifetime=request.get("lifetime", 3600),
+                        subject_id=request.get("subject_id", LOCAL_OWNER), project_id=request.get("project_id", LOCAL_PROJECT))
                     self.service.store.audit("credential.create", principal.id)
                 elif action == "revoke":
                     auth.revoke(request["id"])

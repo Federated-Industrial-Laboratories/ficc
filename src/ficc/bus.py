@@ -103,7 +103,7 @@ class Bus:
                 deliveries.append(value)
             db = self.service.store.db
             try:
-                db.execute("BEGIN IMMEDIATE")
+                self.service.store.begin()
                 self.store.save("bus_messages", message, commit=False)
                 for value in deliveries:
                     self.store.save("bus_deliveries", value, commit=False)

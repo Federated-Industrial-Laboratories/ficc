@@ -11,7 +11,7 @@ from ficc.viewer import wire
 from ficc.viewer_stream import bridge
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("authentication", ["none", "rfb-password", "vmconnect"])
 async def test_frame_burst_waits_for_browser_and_cleans_up(monkeypatch, count, authentication):
     packets = asyncio.Queue()
@@ -51,8 +51,8 @@ async def test_frame_burst_waits_for_browser_and_cleans_up(monkeypatch, count, a
             state["closed"] += 1
 
     class Provider:
-        def __init__(self, args):
-            pass
+        def __init__(self, args, check):
+            check()
 
         async def start(self, header, authentication):
             return "Test1234" if authentication == "rfb-password" else None

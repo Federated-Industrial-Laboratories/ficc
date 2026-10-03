@@ -1,0 +1,39 @@
+{
+  "roles": {
+    "observer": [
+      "nodes:read",
+      "resources:read",
+      "jobs:read",
+      "jobs:logs",
+      "workspaces:read",
+      "contributors:read"
+    ],
+    "contributor": [
+      "nodes:read",
+      "resources:read",
+      "jobs:read",
+      "jobs:logs",
+      "files:read",
+      "files:write",
+      "workspaces:read",
+      "workspaces:write",
+      "modules:read",
+      "audio:playback",
+      "contributors:read"
+    ],
+    "node-administrator": [
+      "contributors:read",
+      "contributors:manage"
+    ],
+    "data-observer": [
+      "data:read",
+      "files:read"
+    ],
+    "data-operator": [
+      "data:read",
+      "data:export",
+      "files:read",
+      "files:write"
+    ]
+  }
+}

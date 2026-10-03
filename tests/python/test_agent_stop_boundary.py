@@ -14,7 +14,7 @@ from ficc.settings import Settings
 from ficc.terminal_stream import attachment
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_attached_stop_releases_capacity_and_repairs_repeated_stop(tmp_path, monkeypatch, count):
     service = Service(Settings(state_dir=tmp_path / "state", control=False))
     _, principal = service.auth.issue("token")
@@ -36,7 +36,8 @@ def test_attached_stop_releases_capacity_and_repairs_repeated_stop(tmp_path, mon
             agent = service.agents.store.new("agents", principal.id, str(index), {}, node_id=selected["id"],
                 fingerprint=selected["fingerprint"], terminal_id=tid, state="ready", run_id="a" * 32, outbox_acks=[])
             service.agents.store.save("agents", agent)
-            service.terminals.save({"id": tid, "actor": principal.id, "key": str(index), "digest": "fixture",
+            service.terminals.save({**service.auth.ownership(principal.id),
+                                   "id": tid, "actor": principal.id, "key": str(index), "digest": "fixture",
                 "node_id": selected["id"], "node_name": selected["name"], "account": selected["account"],
                 "fingerprint": selected["fingerprint"], "label": "Fixture", "mode": "tmux", "state": "detached",
                 "cols": 80, "rows": 24, "created_at": 0, "error": None, "agent_id": agent["id"]})

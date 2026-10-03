@@ -50,15 +50,11 @@ class Removal(Operation):
 
 def instance_guard(service, actor, context, value):
     def check():
-        service.authorize(actor, "modules:execute")
-        service.authorize(actor, "workspaces:read")
-        workspace = service.workspaces.get(context.workspace_id)
-        instance = next((item for item in workspace["instances"] if item["id"] == context.instance_id), None)
-        if (instance is None or instance["digest"] != value["package_digest"]
-                or instance["id"] != value["instance_id"]
-                or any(item["node_id"] not in instance["targets"] for item in value["targets"])):
-            raise Failure("instance_changed", "The operation no longer belongs to this panel.", 409)
+        caller = service.auth.current(actor)
+        instance = service.auth.resources.module_operation(caller, context.workspace_id, context.instance_id, value)
         service.modules.require(instance["digest"], "workspace:read", [context.workspace_id])
+        service.policies.check_many(caller, [("modules:execute", None, None), ("workspaces:read", None, None),
+                                            *[("nodes:read", item["node_id"], None) for item in value["targets"]]])
     check()
     return check
 

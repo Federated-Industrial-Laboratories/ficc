@@ -73,7 +73,7 @@ def test_all_broker_archive_conformance(language):
 
 
 @pytest.mark.parametrize('language', LANGUAGES)
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_real_host_broker_archives(tmp_path, language, count):
     directory = os.environ.get('FICC_SDK_BROKER_PACKAGES')
     if not directory or os.environ.get('FICC_REAL_MODULE_SANDBOX') != '1':

@@ -199,7 +199,7 @@ async def assert_reaped(masters, pids):
     assert all(not master.directory.exists() and not master.socket.exists() for master in masters)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_real_observation_pool_lifecycle(observer, count):
     """Use distinct owners on one isolated endpoint, not separate physical machines."""
     transport, template, root = observer

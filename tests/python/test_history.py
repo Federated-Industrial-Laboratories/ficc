@@ -46,7 +46,7 @@ async def acknowledge(transport, node, intent):
             "next_controller_id": intent["next_controller_id"]}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_epoch_retirement_preserves_metadata_and_restores_capacity(tmp_path, monkeypatch, count):
     state, old, credentials, markers = controller(tmp_path, count)
     output = tmp_path / "archive"
@@ -80,7 +80,9 @@ async def test_epoch_retirement_preserves_metadata_and_restores_capacity(tmp_pat
         assert all(node["last_seen"] is None and node["resources"] is None for node in current.store.nodes())
         assert not list((state / "files" / old["controller_id"]).glob("*.json"))
         for index in range(count):
-            current.jobs.store.insert({"id": f"new-{index}", "actor": "fresh", "key": f"new-key-{index}",
+            from ficc.identity_store import LOCAL_OWNER, LOCAL_PROJECT
+            current.jobs.store.insert({"subject_id": LOCAL_OWNER, "project_id": LOCAL_PROJECT,
+                                       "id": f"new-{index}", "actor": "fresh", "key": f"new-key-{index}",
                                        "digest": f"digest-{index}", "targets": [{"node_id": f"node-{index}", "state": "succeeded"}]})
     finally:
         current.close()
@@ -135,7 +137,7 @@ async def test_pending_archive_blocks_start_and_resumes_same_ids(tmp_path, monke
     assert intent["controller_id"] == old["controller_id"]
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_cli_receipts_are_archived_without_credentials_before_retirement(tmp_path, monkeypatch, count):
     state, _, _, _ = controller(tmp_path, count)
     folder = state / "cli-requests"
@@ -177,7 +179,7 @@ async def test_history_refuses_activity_running_owner_and_missing_helper(tmp_pat
 
 
 @pytest.mark.parametrize("table", ["operations", "terminals", "file_operations", "transfers"])
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_forgotten_machine_history_cannot_be_silently_retired(tmp_path, table, count):
     state, _, _, _ = controller(tmp_path, count)
     with sqlite3.connect(state / "state.sqlite3") as db:

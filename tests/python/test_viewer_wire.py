@@ -8,7 +8,7 @@ import pytest
 from ficc.viewer import wire
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_bounded_frame_batches(count):
     reader = asyncio.StreamReader()
     for index in range(count):

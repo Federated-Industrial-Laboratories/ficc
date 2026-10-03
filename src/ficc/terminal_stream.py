@@ -9,7 +9,9 @@ from contextlib import suppress
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from .errors import Failure
+from .modules.sandbox import finish_cleanup
 from .process import ready
+from .ssh import SSH
 from .terminal_pty import TerminalPTY
 from .terminals import TERMINAL
 
@@ -35,6 +37,7 @@ async def bridge(socket: WebSocket, pty: TerminalPTY, check) -> str:
             chunk = await pty.read(min(32768, WINDOW - pending))
             if not chunk:
                 return "exited"
+            check()
             if pending == 0:
                 last_ack = time.monotonic()
             pending += len(chunk)
@@ -123,6 +126,7 @@ async def attachment(socket: WebSocket, manager, terminal_id: str, origins: set[
         return
     await socket.accept()
     pty, actor, owned = None, None, False
+    args = None
     outcome = "interrupted"
     try:
         async with asyncio.timeout(5):
@@ -144,13 +148,17 @@ async def attachment(socket: WebSocket, manager, terminal_id: str, origins: set[
             value["state"] = "connecting"
             manager.save(value)
         args = await manager.arguments(value, actor)
-        manager.check(actor, "terminals:execute", value)
+        trust = SSH.connection_check(args)
+        def check():
+            manager.check(actor, "terminals:execute", value)
+            trust()
+        check()
         pty = TerminalPTY(args, value["cols"], value["rows"])
         value["state"] = "attached"
         manager.save(value)
         manager.store.audit("terminal.attach", terminal_id, actor=actor)
         await socket.send_json({"type": "status", "state": "attached"})
-        outcome = await bridge(socket, pty, lambda: manager.check(actor, "terminals:execute", value))
+        outcome = await bridge(socket, pty, check)
         if outcome == "exited":
             await socket.send_json({"type": "status", "state": "exited"})
     except Failure as exc:
@@ -164,15 +172,19 @@ async def attachment(socket: WebSocket, manager, terminal_id: str, origins: set[
     except (WebSocketDisconnect, asyncio.CancelledError):
         outcome = "detached"
     finally:
-        if pty:
-            await pty.close()
-        if owned:
-            manager.active.pop(terminal_id, None)
-            value = manager.get(terminal_id)
-            if value["state"] not in TERMINAL and value["state"] != "unknown":
-                value["state"] = ("detached" if value["mode"] == "tmux" else
-                                  "exited" if outcome in {"exited", "detached"} else "interrupted")
-                manager.save(value)
-            manager.store.audit("terminal.detach", terminal_id, outcome, actor or "unknown")
-        with suppress(WebSocketDisconnect, RuntimeError, OSError):
-            await socket.close()
+        async def cleanup():
+            if pty:
+                await pty.close()
+            if args is not None:
+                SSH.release(args)
+            if owned:
+                manager.active.pop(terminal_id, None)
+                value = manager.get(terminal_id)
+                if value["state"] not in TERMINAL and value["state"] != "unknown":
+                    value["state"] = ("detached" if value["mode"] == "tmux" else
+                                      "exited" if outcome in {"exited", "detached"} else "interrupted")
+                    manager.save(value)
+                manager.store.audit("terminal.detach", terminal_id, outcome, actor or "unknown")
+            with suppress(WebSocketDisconnect, RuntimeError, OSError):
+                await socket.close()
+        await finish_cleanup(cleanup())

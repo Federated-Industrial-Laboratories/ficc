@@ -63,7 +63,7 @@ def transport(monkeypatch):
     return state, request
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_identity_and_literal_batch_share_one_authenticated_pool(transport, count):
     state, request = transport
     values = [{'index': index, 'literal': "a'; Get-Process; 'b"} for index in range(count)]

@@ -25,7 +25,11 @@ async def controller_run(folder, expected):
     result = await history.run(folder / "state", folder / "archive", True)
     with sqlite3.connect(folder / "archive/controller/state.sqlite3") as db:
         for table, rows in expected["rows"].items():
-            assert [list(row) for row in db.execute(f"SELECT * FROM {table} ORDER BY rowid")] == rows
+            actual = [list(row) for row in db.execute(f"SELECT * FROM {table} ORDER BY rowid")]
+            if table == "settings":
+                assert dict(actual) == {**dict(rows), "workloads.suspended": "true"}
+            else:
+                assert actual == rows
     assert not any(bytes.fromhex(marker) in path.read_bytes()
                    for path in (folder / "archive").rglob("*") if path.is_file() for marker in expected["markers"])
     for name, value in expected["cli"].items():
