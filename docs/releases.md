@@ -43,13 +43,22 @@ requires a systemd user manager. Installation does not start a root service.
 | Wheel and source | Development and independently managed Python environments. |
 
 Download `SHA256SUMS`, `SHA256SUMS.sig` and the selected packages from the same
-release. Obtain the publisher's Ed25519 public key through an independently
-trusted channel and confirm its fingerprint with `ssh-keygen -lf`. The downloaded
-`RELEASE.pub` alone does not establish publisher identity. Use the trusted key:
+release. Save the [publisher's public key from the FICC website](https://ficc.federatedindustrial.com/docs/source/packaging/ficc-release.pub)
+as `ficc-release.pub`. The [repository copy](../packaging/ficc-release.pub) contains
+the same Ed25519 key. Confirm its fingerprint through an independently trusted
+channel before first use:
+
+```text
+SHA256:Z8IL7pkS9IT5uHTv+YUsQnN4GE1N8CQPTVUNq+QLYlU
+```
+
+Use `ssh-keygen -lf ficc-release.pub` to display the downloaded key's fingerprint.
+The release asset `RELEASE.pub` alone does not establish publisher identity.
+After confirming the key, verify the signature and package checksums:
 
 ```sh
 printf 'ficc-release namespaces="ficc-release-v1" ' > allowed-signers
-cat /trusted/ficc-release.pub >> allowed-signers
+cat ficc-release.pub >> allowed-signers
 ssh-keygen -Y verify -f allowed-signers -I ficc-release \
   -n ficc-release-v1 -s SHA256SUMS.sig < SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
