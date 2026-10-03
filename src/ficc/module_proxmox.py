@@ -149,8 +149,14 @@ class Proxmox(Operations):
         request = {"version": 1, "action": "console", "connection": "local", "provider": profile["provider"],
                    "profile": profile["id"], "parameters": {"uuids": [domain_id]}}
         arguments = await self.service.ssh.arguments(node)
-        guard()
-        return arguments + [CONSOLE_COMMAND], spec.encode({"request": request}) + b"\n"
+        try:
+            guard()
+            arguments.append(CONSOLE_COMMAND)
+            return arguments, spec.encode({"request": request}) + b"\n"
+        except BaseException:
+            from .ssh import SSH
+            SSH.release(arguments)
+            raise
 
 
     def profile(self, node_id):
@@ -166,9 +172,10 @@ class Proxmox(Operations):
         def current():
             check()
             self.service.live()
-            self.service.authorize(actor, "nodes:read", node_id)
-            self.service.authorize(actor, capability, node_id)
-            self.service.modules.require(digest, capability, [node_id])
+            capabilities = list(dict.fromkeys(("vm:read", capability)))
+            self.service.policies.check_many(self.service.auth.current(actor),
+                [(scope, node_id, None) for scope in ("nodes:read", *capabilities)])
+            self.service.modules.require_many(digest, [(scope, [node_id]) for scope in capabilities])
             try:
                 if capability == "vm:power" and not recovery:
                     require_power(profile["provider"])
@@ -176,9 +183,6 @@ class Proxmox(Operations):
                     require_console(profile["provider"])
             except ProviderError as exc:
                 raise Failure(exc.code, exc.message, 409) from exc
-            if capability != "vm:read":
-                self.service.authorize(actor, "vm:read", node_id)
-                self.service.modules.require(digest, "vm:read", [node_id])
             _, latest = self.profile(node_id)
             keys = set(profile) - ({"revision", "enabled"} if recovery else set())
             if any(latest[key] != profile[key] for key in keys):

@@ -68,6 +68,8 @@ def install(payload: Path, inputs: dict[str, Path], lock: dict) -> list[dict]:
         "FICC uses Apache-2.0. Bundled components retain their own licences.\n"
         "Python distributions keep their notices in python/lib/python3.12/site-packages.\n"
         "Supplied runtime modules remain separate archives in ficc/module_packages.\n"
+        "Trusted infrastructure providers remain separate wheels in runtime-packages/.\n"
+        "Their installed distribution metadata and dependency notices are retained.\n"
         "Each archive contains its own license notices; sbom.cdx.json records its exact digest.\n"
         "Native module source and pinned dependency references are in the matching FICC source archive.\n"
         "Web and font notices are beside the installed static assets. CPython and its\n"

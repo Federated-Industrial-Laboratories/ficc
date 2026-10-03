@@ -6,7 +6,7 @@ import random
 import secrets
 import sqlite3
 import time
-from contextlib import asynccontextmanager
+from contextlib import ExitStack, asynccontextmanager
 
 from .agents import Agents
 from .audio_sessions import AudioSessions
@@ -14,6 +14,7 @@ from .auth import Auth
 from .bus import Bus
 from .errors import Failure
 from .files import Files
+from .identity_store import LOCAL_OWNER
 from .jobs import Jobs
 from .module_adapter_vm import AdapterVMs
 from .module_adapters import Adapters
@@ -25,6 +26,7 @@ from .module_vm_hosts import VMHosts
 from .module_windows import WindowsEndpoints
 from .modules import Registry
 from .modules.runtime import Runtime
+from .policies import Policies
 from .settings import MAX_NODES, Settings
 from .ssh import SSH
 from .state_lock import StateLock
@@ -48,28 +50,45 @@ class Service:
                 raise ValueError("History archival is incomplete. Resume archive-history with the same output directory before starting FICC.")
             self.initialize(settings)
         except BaseException:
+            if hasattr(self, "remote_auth"):
+                self.remote_auth.close()
+            if hasattr(self, "contributors"):
+                self.contributors.close()
+            if hasattr(self, "policies"):
+                self.policies.close()
+            if hasattr(self, "workloads"):
+                self.workloads.close()
             if hasattr(self, "store"):
                 self.store.close()
             self.state_lock.close()
             raise
 
     def close(self) -> None:
-        try:
-            self.ssh.reset()
-            self.store.close()
-        finally:
-            self.state_lock.close()
+        with ExitStack() as cleanup:
+            for close in (self.state_lock.close, self.store.close, self.policies.close,
+                          self.remote_auth.close, self.contributors.close, self.workloads.close, self.ssh.reset):
+                cleanup.callback(close)
 
     def initialize(self, settings: Settings) -> None:
         self.store = Store(settings.state_dir / "state.sqlite3")
+        from .audit_delivery import Delivery
+        self.audit_delivery = Delivery(self)
         self.auth = Auth(self.store)
+        from .contributors import Contributors
+        self.contributors = Contributors(self)
+        from .remote_auth import RemoteAuth
+        self.remote_auth = RemoteAuth(self)
+        self.policies = Policies(self)
+        self.auth.policy_check = self.policies.check
+        from .workloads.queue import Queue
+        self.workloads = Queue(self)
         self.modules = Registry(self.store, settings.state_dir / "modules")
         self.module_runtime = Runtime(self.modules)
         self.workspaces = WorkspaceStore(self.store)
         self.audio = AudioSessions(self)
         self.jobs = Jobs(self)
         self.ssh = SSH(settings)
-        self.auth.on_revoke = lambda: self.ssh.reset()
+        self.auth.on_revoke = self.revoke_observers
         self.terminals = Terminals(self)
         self.files = Files(self)
         self.vms = VMs(self)
@@ -82,6 +101,12 @@ class Service:
         self.administration = Administration(self)
         self.viewers = Viewers(self)
         self.transfers = Transfers(self)
+        from .datasets import Datasets
+        self.datasets = Datasets(self)
+        from .inspections import Inspections
+        self.inspections = Inspections(self)
+        from .sources import Sources
+        self.sources = Sources(self)
         self.bus = Bus(self)
         self.agents = Agents(self)
         self.previews: dict[str, dict] = {}
@@ -97,6 +122,12 @@ class Service:
             raise ValueError("Live mode requires a separate state directory.")
         if settings.demo:
             self.seed_demo()
+
+    def revoke_observers(self, subject_id: str, node_ids: list[str] | None) -> None:
+        # Observation connections belong to the local owner until machine access has project boundaries.
+        if subject_id == LOCAL_OWNER:
+            for node_id in [None] if node_ids is None else node_ids:
+                self.ssh.reset(node_id)
 
     def seed_demo(self) -> None:
         if self.store.nodes():
@@ -230,7 +261,12 @@ class Service:
                 check()
                 return await self.observe(node, check)
 
-        return await asyncio.gather(*(one(node) for node in nodes))
+        results = await asyncio.gather(*(one(node) for node in nodes))
+        if actor:
+            for node in nodes:
+                self.authorize(actor, "nodes:read", node["id"])
+                self.authorize(actor, "resources:read", node["id"])
+        return results
 
     async def observe(self, node: dict, check) -> dict:
         try:

@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // Arrange saved workspaces in independent authenticated browser surfaces.
 import { createDockview, themeLight } from './dockview.js';
-import { request } from './api.js';
+import { allowed, request } from './api.js';
 import { button, confirmation, el, heading, notice } from './components.js';
 import { getAudioManager } from './audio-manager.js';
 import { fullscreen } from './fullscreen.js';
 import { moduleManager } from './module-manager.js';
 import { identity, workspaceLayout } from './workspace-layout.js';
 import { savedLayouts } from './workspace-saved-layouts.js';
+import { workspaceTemplates } from './workspace-templates.js';
 import { vmProfiles } from './vm-profiles.js';
 import { containerProfiles } from './container-profiles.js';
 import { adminProfiles } from './admin-profiles.js';
@@ -75,12 +76,12 @@ export function workspaces() {
     },
   });
   function saveSoon() {
-    if (!ready || disposed) return;
+    if (!allowed('workspaces:write') || !ready || disposed) return;
     clearTimeout(saveTimer); saveTimer = setTimeout(saveSurface, 250);
   }
   function saveSurface() {
       clearTimeout(saveTimer); saveTimer = null;
-      if (!ready || disposed || !surfaceId) return saveWork;
+      if (!allowed('workspaces:write') || !ready || disposed || !surfaceId) return saveWork;
       const layout = api.toJSON(), visible = tiles.filter(tile => api.getPanel(tile.id)); tiles = visible;
       pending++;
       saveWork = saveWork.catch(() => {}).then(async () => {
@@ -129,6 +130,13 @@ export function workspaces() {
     button('Recover panels', () => selected()?.recover()), button('Show hidden panels', () => selected()?.showAll()),
     button('Reload saved workspace', () => { void selected()?.reload().catch(fail); }),
     button('Saved layouts', manageLayouts),
+    button('Project templates', () => {
+      const layout = selected(); manager?.dispose();
+      manager = workspaceTemplates(layout?.workspace, async template => {
+        if (!layout) throw Error('Open a destination workspace first.');
+        return layout.applyTemplate(template);
+      });
+    }),
     button('Discard unsaved text', () => confirmation('Discard unsaved text?', 'Unsaved text in this window is removed. Saved notes are retained.',
       'Discard unsaved text', () => { for (const layout of layouts.values()) layout.discard();
         for (const items of drafts.values()) for (const draft of items.values()) for (const key of Object.keys(draft)) delete draft[key]; })));
@@ -158,8 +166,14 @@ export function workspaces() {
     button('Administration profiles', () => { manager?.dispose(); manager = adminProfiles(); }),
     button('Provider adapters', () => { manager?.dispose(); manager = adapterProfiles(); }),
     button('Windows endpoints', () => { manager?.dispose(); manager = windowsEndpoints(); }));
-  element.append(heading('PERSISTENT / LOCAL', 'Workspace', 'Arrange module panels and open separate workspace windows.'), actions, edit, sound.element, message, canvas);
-  void Promise.all([request('/workspaces'), request('/modules'), surfaceId ? request(`/workspace-surfaces/${surfaceId}`) : request('/workspace-layouts')]).then(([saved, packages, restored]) => {
+  for (const item of edit.querySelectorAll('button')) {
+    if (['Manage modules', 'VM providers', 'Container providers', 'Administration profiles', 'Provider adapters', 'Windows endpoints'].includes(item.textContent)) {
+      item.hidden = !allowed(item.textContent === 'Manage modules' ? 'modules:manage' : 'providers:write');
+    } else if (!allowed('workspaces:write')) item.disabled = true;
+  }
+  sound.element.hidden = !allowed('audio:playback');
+  element.append(heading('PERSISTENT / PROJECT' , 'Workspace', 'Arrange module panels and open separate workspace windows.'), actions, edit, sound.element, message, canvas);
+  void Promise.all([request('/workspaces'), allowed('modules:read') ? request('/modules') : Promise.resolve({ modules: [] }), surfaceId ? request(`/workspace-surfaces/${surfaceId}`) : request('/workspace-layouts')]).then(([saved, packages, restored]) => {
     if (disposed) return;
     const surface = surfaceId ? restored : { revision: 0, tiles: [], layout: {} };
     spaces = saved.workspaces; modules.push(...packages.modules); updateSelects(); revision = surface.revision;
@@ -173,7 +187,9 @@ export function workspaces() {
       message.replaceChildren(notice('Saved window layouts are available. Resume one, or select a workspace and choose Open for a new arrangement.'),
         button('Resume saved window', manageLayouts));
     } else if (!api.panels.length && initial) open(initial);
-    if (!spaces.length) message.replaceChildren(notice('Create a workspace, then install and enable modules with Manage modules.'));
+    if (!spaces.length) message.replaceChildren(notice(allowed('modules:manage') ?
+      'Create a workspace, then install and enable modules with Manage modules.' : 'Create a workspace, then ask the owner to enable modules for it.'));
+    else if (!modules.length && !allowed('modules:manage')) message.replaceChildren(notice('No modules are granted to this project. Ask the owner to enable them, then reload this window.'));
   }).catch(fail);
   return { element, async prepareLeave() {
     try { await flush(); return true; }

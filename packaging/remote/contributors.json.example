@@ -1,0 +1,17 @@
+{
+  "deployment_id": "REPLACE_WITH_32_LOWERCASE_HEXADECIMAL_CHARACTERS",
+  "origin": "https://192.0.2.10:8443",
+  "ca_file": "/var/lib/ficc-controller/node-ca.pem",
+  "gateway_secret_file": "/var/lib/ficc-controller/node-gateway.secret",
+  "issuer": {
+    "provider": "smallstep",
+    "configuration": {}
+  },
+  "limits": {
+    "certificate_seconds": 3600,
+    "invitation_seconds": 900,
+    "lease_seconds": 30,
+    "heartbeat_seconds": 5,
+    "max_nodes": 64
+  }
+}

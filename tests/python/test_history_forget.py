@@ -4,8 +4,10 @@
 import pytest
 from conftest import node
 
+from ficc.identity_store import LOCAL_OWNER, LOCAL_PROJECT
 
-@pytest.mark.parametrize('count', [1, 64])
+
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize('kind', ['job', 'terminal', 'file', 'source', 'destination'])
 def test_closed_history_prevents_forgetting_its_last_machine(console, count, kind):
     client, service = console
@@ -13,7 +15,8 @@ def test_closed_history_prevents_forgetting_its_last_machine(console, count, kin
     service.store.save_node(node(1))
     for index in range(count):
         target = 'node-0' if index == count - 1 else 'other-node'
-        value = {'id': f'history-{index}', 'actor': 'retired', 'key': f'key-{index}',
+        value = {'subject_id': LOCAL_OWNER, 'project_id': LOCAL_PROJECT,
+                 'id': f'history-{index}', 'actor': 'retired', 'key': f'key-{index}',
                  'digest': 'digest', 'state': 'succeeded', 'items': []}
         if kind == 'job':
             value['targets'] = [{'node_id': target, 'state': 'succeeded'}]

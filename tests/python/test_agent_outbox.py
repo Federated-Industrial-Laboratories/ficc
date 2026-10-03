@@ -39,7 +39,8 @@ def local(tmp_path, monkeypatch):
         agent = service.agents.store.new("agents", principal.id, str(index), {}, node_id=value["id"],
             fingerprint=value["fingerprint"], terminal_id=terminal, state="ready", run_id=run["id"], outbox_acks=[])
         service.agents.store.save("agents", agent)
-        service.terminals.save({"id": terminal, "actor": principal.id, "key": str(index), "digest": "fixture",
+        service.terminals.save({**service.auth.ownership(principal.id),
+                               "id": terminal, "actor": principal.id, "key": str(index), "digest": "fixture",
                                "state": "detached", "mode": "tmux"})
         spec = {"controller_id": service.agents.controller, "agent_id": agent["id"], "run_id": run["id"],
                 "terminal_controller": service.terminals.controller, "terminal_id": terminal, "delivery_method": "inbox"}
@@ -67,7 +68,7 @@ def test_local_invalid_body_is_not_published(local, extra):
     assert {p.name: p.read_bytes() for p in folder.iterdir() if p.name != "lock"} == before
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_permanent_rejection_keeps_exact_bytes_and_later_reply_progresses(local, monkeypatch, count):
     service, _, run, create = local
     controller = service.agents.controller

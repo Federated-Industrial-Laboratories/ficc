@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
+from .file_numbers import ByteCount
 from .schema import Model
 
 Id = Annotated[str, Field(pattern=r"^[a-f0-9]{32}$")]
@@ -41,8 +42,19 @@ class Confirm(Model):
 
 class UploadSource(Model):
     name: Annotated[str, Field(min_length=1, max_length=255)]
-    size: Annotated[int, Field(ge=0, le=16*1024**3)]
+    size: ByteCount
     last_modified: Annotated[int, Field(ge=0)] = 0
+    source_manifest: "SourceManifest | None" = None
+
+
+class SourceManifest(Model):
+    algorithm: Literal["sha256", "sha256-chain-v1"]
+    digest: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
+
+
+class TransferLimits(Model):
+    retained_bytes: ByteCount | None = 64 * 1024**3
+    free_bytes: ByteCount = 256 * 1024**2
 
 
 class TransferPreview(Model):

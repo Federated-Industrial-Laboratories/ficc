@@ -4,6 +4,7 @@
 from fastapi import Request
 
 from .errors import Failure
+from .file_numbers import wire
 from .file_schema import Confirm, ContentPreview, FileOperation, Listing
 
 
@@ -16,7 +17,7 @@ def install(app, service, principal):
 
     @app.post("/api/v1/files/list")
     async def listing(body: Listing, request: Request):
-        return await files.listing(body.model_dump(), principal(request, "files:read").id)
+        return wire(await files.listing(body.model_dump(), principal(request, "files:read").id))
 
     @app.post("/api/v1/files/preview")
     async def content_preview(body: ContentPreview, request: Request):
@@ -34,9 +35,10 @@ def install(app, service, principal):
 
     @app.get("/api/v1/file-operations")
     async def operations(request: Request):
-        actor = principal(request, "files:read").id
+        current = principal(request, "files:read")
+        actor = current.id
         result = []
-        for value in files.store.iterate():
+        for value in files.store.iterate(project_id=current.project_id):
             try:
                 result.append(files.view(value, actor))
             except Failure as exc:

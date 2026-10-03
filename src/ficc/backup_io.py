@@ -155,7 +155,7 @@ def copy(root, target, name):
     return {"size": size, "sha256": digest.hexdigest()}
 
 
-def inventory(root, bundle=False, maintenance=False):
+def inventory(root, bundle=False, maintenance=False, database_required=True):
     found = []
     count = 0
 
@@ -179,12 +179,18 @@ def inventory(root, bundle=False, maintenance=False):
                         walk(child, name + "/")
                     finally:
                         os.close(child)
-                elif not bundle and name == "windows-private":
+                elif not bundle and name in {"windows-private", "state-private", "data-secrets", "secrets-private", "audit-private"}:
                     checked(info, directory=True)
-                elif not bundle and name in {"service.lock", "state.sqlite3-wal", "state.sqlite3-shm"}:
+                elif not bundle and name in {"service.lock", "state.sqlite3-wal", "state.sqlite3-shm", "state-provider.json",
+                                             "state-binding", "policy-provider.json", "artifact-provider.json",
+                                             "operations-backup.json", "operations-restore.json"}:
                     checked(info)
                     if info.st_size > MAX_DATABASE:
                         raise ValueError("The state journal exceeds the backup size limit.")
+                elif not bundle and re.fullmatch(r"\.operations-receipt-[a-f0-9]{32}", name):
+                    checked(info)
+                    if info.st_size > 4096:
+                        raise ValueError("The pending operation receipt exceeds its size limit.")
                 elif not bundle and maintenance and name == "archive.pending.json":
                     checked(info)
                     if info.st_size > 1024 * 1024:
@@ -209,7 +215,7 @@ def inventory(root, bundle=False, maintenance=False):
                         raise ValueError("A backup member exceeds its size limit.")
                     found.append(name)
     walk(root)
-    if "state.sqlite3" not in found or len(found) > MAX_MEMBERS:
+    if (database_required and "state.sqlite3" not in found) or len(found) > MAX_MEMBERS:
         raise ValueError("The backup member set is incomplete or too large.")
     return sorted(found)
 

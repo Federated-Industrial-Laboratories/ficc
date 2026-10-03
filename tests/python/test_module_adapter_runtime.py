@@ -61,7 +61,7 @@ def test_apply_uses_only_the_fixed_extended_service_limit(tmp_path):
 
 
 @REAL
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("phase", ["status", "apply"])
 async def test_real_broker_wait_uses_its_bounded_transport_deadline(tmp_path, monkeypatch, count, phase):
     from ficc.modules import sandbox
@@ -84,7 +84,7 @@ async def test_real_broker_wait_uses_its_bounded_transport_deadline(tmp_path, mo
 
 
 @REAL
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("language", ["python", "c", "cpp"])
 async def test_real_adapter_sdk_complete_batch_and_authority_check(tmp_path, count, language):
     path, manifest, digest = package(tmp_path, language=language)

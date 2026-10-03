@@ -19,12 +19,12 @@
 </details>
 
 Download FICC from [GitHub Releases](https://github.com/Federated-Industrial-Laboratories/ficc/releases).
-Use a Linux x86_64 package below. The examples use version 0.2.0.
+Use a Linux x86_64 package below. The examples use version 0.2.5.
 Check the published release version before downloading. These manuals also cover the current source version.
 
-The public release is `0.2.0-stable`, with tag `v0.2.0-stable`.
-Application and package versions use `0.2.0` for Python and native package compatibility.
-Select that stable release and verify its `SHA256SUMS` file.
+The stable release designation is `0.2.5-stable`, with tag `v0.2.5-stable`.
+Application and package versions use `0.2.5` for Python and native package compatibility.
+Select the matching release and verify its signed `SHA256SUMS` file.
 
 VM providers require their documented host versions, transports and explicit grants.
 See [provider support](testing.md#runtime-modules-and-providers) before installing VM modules.
@@ -42,21 +42,44 @@ requires a systemd user manager. Installation does not start a root service.
 | Portable `.tar.gz` | An extracted directory with its own `ficc` command. |
 | Wheel and source | Development and independently managed Python environments. |
 
-Download SHA256SUMS from the same release and verify the downloaded files with
-`sha256sum --check --ignore-missing SHA256SUMS`. Checksums detect corruption;
-obtain the files and checksum list from the trusted project release page.
+Download `SHA256SUMS`, `SHA256SUMS.sig` and the selected packages from the same
+release. Save the [publisher's public key from the FICC website](https://ficc.federatedindustrial.com/docs/source/packaging/ficc-release.pub)
+as `ficc-release.pub`. The [repository copy](../packaging/ficc-release.pub) contains
+the same Ed25519 key. Confirm its fingerprint through an independently trusted
+channel before first use:
+
+```text
+SHA256:Z8IL7pkS9IT5uHTv+YUsQnN4GE1N8CQPTVUNq+QLYlU
+```
+
+Use `ssh-keygen -lf ficc-release.pub` to display the downloaded key's fingerprint.
+The release asset `RELEASE.pub` alone does not establish publisher identity.
+After confirming the key, verify the signature and package checksums:
+
+```sh
+printf 'ficc-release namespaces="ficc-release-v1" ' > allowed-signers
+cat ficc-release.pub >> allowed-signers
+ssh-keygen -Y verify -f allowed-signers -I ficc-release \
+  -n ficc-release-v1 -s SHA256SUMS.sig < SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS
+```
+
+Run the checksum command only after signature verification succeeds, and confirm
+that it reports the exact package you intend to install. A checksum alone detects
+corruption; the pinned signing key establishes which publisher signed those bytes.
+Key rotation requires independent confirmation before replacing the trusted key.
 
 ## Debian and Ubuntu
 
 ```sh
-sudo apt install ./ficc_0.2.0_amd64.deb
+sudo apt install ./ficc_0.2.5_amd64.deb
 ficc desktop
 ```
 
 ## Arch Linux
 
 ```sh
-sudo pacman -U ./ficc-bin-0.2.0-1-x86_64.pkg.tar.zst
+sudo pacman -U ./ficc-bin-0.2.5-1-x86_64.pkg.tar.zst
 ficc desktop
 ```
 
@@ -68,8 +91,8 @@ Extract it and run `makepkg` as a regular user to build the package locally.
 Run the executable from a directory owned by the desktop account.
 
 ```sh
-chmod +x FICC-0.2.0-x86_64.AppImage
-./FICC-0.2.0-x86_64.AppImage
+chmod +x FICC-0.2.5-x86_64.AppImage
+./FICC-0.2.5-x86_64.AppImage
 ```
 
 On first desktop use, FICC verifies and copies the bundled runtime into
@@ -82,7 +105,7 @@ Opening the AppImage requires a working FUSE installation. Without FUSE, extract
 into the directory where FICC will remain:
 
 ```sh
-./FICC-0.2.0-x86_64.AppImage --appimage-extract
+./FICC-0.2.5-x86_64.AppImage --appimage-extract
 ./squashfs-root/AppRun desktop
 ```
 
@@ -94,8 +117,8 @@ extraction directory must remain available while its launcher is installed.
 ## Portable archive
 
 ```sh
-tar -xzf ficc-0.2.0-linux-x86_64.tar.gz
-./ficc-0.2.0-linux-x86_64/ficc desktop
+tar -xzf ficc-0.2.5-linux-x86_64.tar.gz
+./ficc-0.2.5-linux-x86_64/ficc desktop
 ```
 
 The first desktop start creates a private on-demand user service and opens the
@@ -114,6 +137,13 @@ Install the new package normally, then open FICC. AppImage users must stop the s
 and their existing settings to select the new verified runtime. Portable users
 must stop the service before replacing their extracted directory.
 
+An upgrade from 0.2.0 migrates local state into the identity/project model with
+the existing local owner. It does not enable remote access, enroll contributors,
+activate policies or grant new source permissions. Retain the stopped 0.2.0
+backup and old runtime together for rollback; do not open migrated state with
+the older version. Restore into a separate directory and follow the
+[recovery procedure](backup.md) before resuming external work.
+
 Use `sudo apt remove ficc` or `sudo pacman -R ficc-bin` to remove a native package.
 Removal preserves private state and user launcher files. To retire the launcher,
 run `systemctl --user disable --now ficc.service`, remove its generated service
@@ -128,12 +158,20 @@ it is no longer needed.
 
 ## Release contents
 
-Each release includes SHA256SUMS, build.json, a CycloneDX inventory, complete FICC
+Each release includes SHA256SUMS and its OpenSSH signature, RELEASE.pub, build.json,
+a CycloneDX inventory, complete FICC
 source and a third-party source archive. The payload's bundle.json binds its
 files and links to the source and build inputs. THIRD-PARTY.md describes licenses
 and source correspondence. The AppImage runtime's native dependency versions are
 only listed where upstream provides evidence; its remaining build dependencies
 are named without a claimed binary version.
+
+Supplied infrastructure providers remain separate wheels under `runtime-packages/`
+in the payload. Their installed packages, hashes and dependencies enter the SBOM
+and payload inventory. SDK documentation, remote deployment presets and policy
+sources are included. Provider installation does not configure its external
+service or grant authority. Use a dedicated Python environment or the source
+installation for administrator-managed provider extensions after build.
 
 See [dependency notices](dependencies.md), [testing](testing.md) and the
 [maintainer build procedure](../packaging/README.md).

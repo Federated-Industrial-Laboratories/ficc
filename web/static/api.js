@@ -13,13 +13,15 @@ export class ApiError extends Error {
   }
 }
 
-export async function request(path, { method = 'GET', body, signal, idempotencyKey, bytes, chunkHash } = {}) {
+export async function request(path, { method = 'GET', body, signal, idempotencyKey, bytes, chunkHash, timeout = 35000 } = {}) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 35000);
+  const timer = timeout == null ? null : setTimeout(() => controller.abort(), timeout);
   const abort = () => controller.abort();
   signal?.addEventListener('abort', abort, { once: true });
   if (signal?.aborted) controller.abort();
   const headers = { Accept: 'application/json' };
+  if (session?.principal.project_id) headers['X-FICC-Project'] = session.principal.project_id;
+  if (session?.principal.id) headers['X-FICC-Session'] = session.principal.id;
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (bytes !== undefined) headers['Content-Type'] = 'application/octet-stream';

@@ -18,18 +18,25 @@
 
 </details>
 
-FICC connects a local browser and CLI to Linux machines through OpenSSH.
+FICC connects a browser and CLI to Linux machines through OpenSSH.
 One Python controller owns inventory, authentication, audit records and resource
-snapshots in SQLite. Each approved machine runs a small Python helper under its
+snapshots in SQLite or an explicitly configured PostgreSQL database.
+Each approved machine runs a small Python helper under its
 remote account. The helper opens no network listener.
 
 The browser uses local HTML, CSS and JavaScript. It does not execute code sent
 by a managed machine. The wheel includes all web assets and font licenses.
 Node.js is required to build and test these assets, not to serve the application.
 
+Local mode uses a loopback listener and local owner recovery. Explicit remote mode
+uses a private Unix socket behind a verified HTTPS gateway. A separately installed
+identity provider verifies organization accounts. FICC binds approved external
+subjects to local identities and checks their current project access. See
+[remote access](remote-access.md) for the configuration and trust boundaries.
+
 The installed service provides observation, access management and durable jobs.
 Typed requests travel to the helper through SSH stdin. A fixed node runner reads
-saved arguments and starts programs under bounded systemd user services. SQLite
+saved arguments and starts programs under bounded systemd user services. Durable
 intent and node receipts support reconciliation after a controller restart.
 
 Registered roots and verified file transfers use descriptor-relative helper
@@ -62,19 +69,43 @@ Resource data carries a receipt time and visible age. An unsuccessful poll does
 not replace an earlier sample with zeros. The browser shows stale samples and
 the connection error. Unsupported GPU reporting is distinct from zero use.
 
-SQLite stores local metadata on a local filesystem. Large external workloads
+SQLite stores local metadata on a local filesystem. An optional trusted driver
+stores the same records in PostgreSQL with verified TLS and exclusive connection
+ownership. Local module files and receipts remain in the private state directory.
+See [controller state storage](state-storage.md) for installation and recovery.
+Large external workloads
 and their state remain under their own tools. FICC does not infer ownership of
 a process from the fact that it is visible in a resource sample.
 
 ## Access
 
-A private Unix socket checks the caller's account and supplies a one-use browser
+A private Unix socket checks the caller's account. In local mode it supplies a one-use browser
 login credential. The credential is exchanged for a session cookie and removed
 from the browser URL. Mutations also require a session CSRF value.
+
+Remote mode uses a bound authorization-code exchange with PKCE. Identity tokens
+remain in provider memory; the browser receives an opaque Secure, HttpOnly session
+cookie. External authority expires within 30 seconds unless verified again.
+Exact external-identity approval, project membership and resource grants are
+checked independently. The remote browser cannot become the local recovery owner.
+Controller restart invalidates all remote sessions.
 
 Automation credentials have a scope, optional node list and expiry. Each API
 request checks current grants. Revocation prevents later use. Local owner access
 is separate from a token's restricted view of the inventory.
+
+Schema 7 separates durable user identities from credential IDs and assigns each
+credential to a project. Workspace contents are shared within that project;
+views and window surfaces belong to their user. Membership limits are checked
+when resolving credentials and before queued actions. Schema 8 adds project
+resource assignments and durable job, file, transfer and terminal ownership.
+Lists, direct access and queued actions use those boundaries; file chunks and
+terminal frames also check current access. Provider and installation administration
+remain local-owner capabilities. See [identities and projects](identities.md).
+
+Schema 9 stores policy packages, role assignments and activation history. Schema 10
+adds external-identity mappings. Restore suspends external mappings and non-owner
+identities until the administrator reviews and explicitly enables them.
 
 ## Demonstration mode
 

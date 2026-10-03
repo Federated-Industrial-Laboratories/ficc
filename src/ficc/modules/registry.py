@@ -60,7 +60,7 @@ class Registry:
         if checked.digest != expected_digest:
             raise Failure("module_changed", "The package differs from the inspected digest.", 409)
         with self.store.lock, self.store.db:
-            if self.store.db.execute("SELECT 1 FROM module_packages WHERE digest=?",
+            if self.store.db.execute("SELECT 1 FROM module_packages WHERE digest=:p0",
                                      (checked.digest,)).fetchone():
                 self.verify(checked.digest)
                 return self.get(checked.digest)
@@ -71,7 +71,7 @@ class Registry:
                 raise Failure("capacity", "The module storage limit was reached.", 409)
             publish(self.root, checked)
             manifest = checked.manifest
-            self.store.db.execute("INSERT INTO module_packages VALUES (?,?,?,?,?,0,1)",
+            self.store.db.execute("INSERT INTO module_packages VALUES (:p0,:p1,:p2,:p3,:p4,0,1)",
                                   (checked.digest, manifest["id"], manifest["version"],
                                    checked._manifest, time.time()))
             self._history(manifest["id"], None, checked.digest, "install")
@@ -89,7 +89,7 @@ class Registry:
             row = self._row(digest)
             grants: dict[str, list[str]] = {}
             for capability, target in self.store.db.execute(
-                    "SELECT capability,target_id FROM module_grants WHERE digest=? "
+                    "SELECT capability,target_id FROM module_grants WHERE digest=:p0 "
                     "ORDER BY capability,target_id", (digest,)):
                 grants.setdefault(capability, []).append(target)
             return {"digest": digest, "manifest": loads(bytes(row[0]), 65536),
@@ -100,7 +100,7 @@ class Registry:
 
     def _row(self, digest: str):
         row = self.store.db.execute(
-            "SELECT manifest,enabled,revision,installed FROM module_packages WHERE digest=?",
+            "SELECT manifest,enabled,revision,installed FROM module_packages WHERE digest=:p0",
             (digest,)).fetchone()
         if row is None:
             raise Failure("module_missing", "The module package was not found.", 404)
@@ -144,7 +144,7 @@ class Registry:
             previous = None
             if enabled:
                 rows = self.store.db.execute(
-                    "SELECT digest FROM module_packages WHERE package_id=? AND enabled=1 AND digest<>?",
+                    "SELECT digest FROM module_packages WHERE package_id=:p0 AND enabled=1 AND digest<>:p1",
                     (manifest["id"], digest)).fetchall()
                 for old in rows:
                     previous = old[0]
@@ -154,31 +154,36 @@ class Registry:
                 count = self.store.db.execute("SELECT count(*) FROM module_grants").fetchone()[0]
                 if count + sum(len(grant["target_ids"]) for grant in accepted) > MAX_GRANTS:
                     raise Failure("capacity", "The module grant limit was reached.", 409)
-                self.store.db.execute("UPDATE module_packages SET enabled=1 WHERE digest=?", (digest,))
+                self.store.db.execute("UPDATE module_packages SET enabled=1 WHERE digest=:p0", (digest,))
                 for grant in accepted:
-                    self.store.db.executemany("INSERT INTO module_grants VALUES (?,?,?)",
+                    self.store.db.executemany("INSERT INTO module_grants VALUES (:p0,:p1,:p2)",
                                              [(digest, grant["capability"], target)
                                               for target in grant["target_ids"]])
             self._history(manifest["id"], previous or digest, digest, "enable" if enabled else "disable")
             return self.get(digest)
 
     def _disable(self, digest: str) -> None:
-        self.store.db.execute("DELETE FROM module_grants WHERE digest=?", (digest,))
+        self.store.db.execute("DELETE FROM module_grants WHERE digest=:p0", (digest,))
         self.store.db.execute(
-            "UPDATE module_packages SET enabled=0,revision=revision+1 WHERE digest=?", (digest,))
+            "UPDATE module_packages SET enabled=0,revision=revision+1 WHERE digest=:p0", (digest,))
 
     def revoke(self, digest: str) -> dict:
         return self.set_enabled(digest, False)
 
     def require(self, digest: str, capability: str, target_ids: builtins.list[str]) -> None:
-        targets(target_ids)
+        self.require_many(digest, [(capability, target_ids)])
+
+    def require_many(self, digest: str, requirements) -> None:
+        """Check exact capability targets from one fresh package grant snapshot."""
+        selected = [(capability, targets(target_ids)) for capability, target_ids in requirements]
         with self.store.lock:
             current = self.get(digest)
             if not current["enabled"]:
                 raise Failure("module_disabled", "The module is disabled.", 403)
-            matches = [g for g in current["grants"] if g["capability"] == capability]
-            if not matches or set(target_ids) - set(matches[0]["target_ids"]):
-                raise Failure("denied", "The module grant does not permit the selected targets.", 403)
+            grants = {item["capability"]: set(item["target_ids"]) for item in current["grants"]}
+            for capability, target_ids in selected:
+                if capability not in grants or set(target_ids) - grants[capability]:
+                    raise Failure("denied", "The module grant does not permit the selected targets.", 403)
 
     def acquire(self, digest: str) -> dict:
         with self.store.lock, self._lease_lock:
@@ -214,22 +219,22 @@ class Registry:
             for directory, _, _ in os.walk(path):
                 os.chmod(directory, 0o700)
             shutil.rmtree(path)
-            self.store.db.execute("DELETE FROM module_packages WHERE digest=?", (digest,))
+            self.store.db.execute("DELETE FROM module_packages WHERE digest=:p0", (digest,))
             self._history(manifest["id"], digest, None, "uninstall")
 
     def history(self, package_id: str) -> builtins.list[dict]:
         with self.store.lock:
             rows = self.store.db.execute(
                 "SELECT previous_digest,new_digest,action,at FROM module_history "
-                "WHERE package_id=? ORDER BY id DESC LIMIT 128", (package_id,)).fetchall()
+                "WHERE package_id=:p0 ORDER BY id DESC LIMIT 128", (package_id,)).fetchall()
             return [dict(zip(("previous_digest", "new_digest", "action", "at"), row)) for row in rows]
 
     def _history(self, package_id: str, previous: str | None, current: str | None, action: str):
         self.store.db.execute(
-            "INSERT INTO module_history(package_id,previous_digest,new_digest,action,at) VALUES (?,?,?,?,?)",
+            "INSERT INTO module_history(package_id,previous_digest,new_digest,action,at) VALUES (:p0,:p1,:p2,:p3,:p4)",
             (package_id, previous, current, action, time.time()))
         self.store.db.execute("DELETE FROM module_history WHERE id NOT IN "
-                              "(SELECT id FROM module_history ORDER BY id DESC LIMIT ?)", (MAX_HISTORY,))
+                              "(SELECT id FROM module_history ORDER BY id DESC LIMIT :p0)", (MAX_HISTORY,))
 
     def _storage_bytes(self) -> int:
         total, count = 0, 0

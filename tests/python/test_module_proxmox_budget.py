@@ -12,7 +12,7 @@ from test_module_proxmox_protocol import request
 from ficc.providers import proxmox
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("action", ["apply", "receipt", "status"])
 def test_transport_extends_only_host_commit(monkeypatch, size, action):
     async def run():
@@ -37,7 +37,7 @@ def test_transport_extends_only_host_commit(monkeypatch, size, action):
     asyncio.run(run())
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("action", ["apply", "receipt"])
 def test_node_commit_budget_includes_input_time(monkeypatch, size, action):
     value = request(size)

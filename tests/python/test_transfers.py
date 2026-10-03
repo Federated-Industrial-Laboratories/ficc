@@ -35,7 +35,7 @@ async def completed(service, operation_id):
     return service.transfers.store.get(operation_id)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_copy_batch_bytes_and_deduplication(files_fixture, tmp_path, count):
     service, actor, root, path = files_fixture
     target = await destination(service, tmp_path / "destination")
@@ -145,7 +145,8 @@ async def test_download_spool_and_partial_tamper(files_fixture):
     assert not service.transfers.active(root_id=root["id"])
     assert not (service.settings.state_dir / "downloads" / op["items"][0]["id"]).exists()
     assert (path / "result").read_bytes() == b"verified result"
-    op, _ = await admitted(service, actor, [{"name": "partial", "size": CHUNK+1}], root, "upload")
+    op, _ = await admitted(service, actor, [{"name": "partial", "size": CHUNK+1,
+        "source_manifest": {"algorithm": "sha256", "digest": hashlib.sha256(b"x" * (CHUNK+1)).hexdigest()}}], root, "upload")
     item = op["items"][0]
     chunk = b"x" * CHUNK
     await service.transfers.upload(op["id"], item["id"], actor, 0, chunk, hashlib.sha256(chunk).hexdigest())

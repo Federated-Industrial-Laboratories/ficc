@@ -5,6 +5,7 @@ import asyncio
 from types import SimpleNamespace
 
 import pytest
+from provider_batch_fixtures import batched_service
 from test_module_adapter_manifest import adapter_package
 from test_modules_packages import bundle
 from test_modules_registry import registry as registry
@@ -51,6 +52,7 @@ def host(registry, monkeypatch):
     calls = []
     service = SimpleNamespace(store=registry.store, modules=registry, live=lambda: None,
                               authorize=lambda *args: calls.append(args))
+    batched_service(service)
     transport = Transport()
     adapters = Adapters(service, transport=transport)
     inspection = inspect_archive(bundle(*adapter_package()))
@@ -59,7 +61,7 @@ def host(registry, monkeypatch):
                            transport=transport, authorized=calls, service=service)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_only_explicit_qualified_profiles_receive_account_grants(host, count):
     profiles = []
     for index in range(count):

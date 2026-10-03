@@ -8,19 +8,24 @@ import stat
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .contributor_settings import ContributorSettings
+from .contributor_settings import configuration as contributor_configuration
 from .native_runtime import discover
+from .remote_settings import RemoteSettings
+from .remote_settings import configuration as remote_configuration
 from .windows_runtime import discover as discover_windows
 
 PROFILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\Z")
-SCOPES = {"nodes:read", "nodes:write", "resources:read", "tokens:manage", "audit:read",
+SCOPES = {"nodes:read", "nodes:write", "resources:read", "tokens:manage", "identities:manage", "policies:manage", "audit:read",
           "jobs:read", "jobs:execute", "jobs:cancel", "jobs:logs",
           "files:read", "files:write", "files:mode", "files:delete",
+          "data:read", "data:export", "data:write", "data:manage",
           "terminals:read", "terminals:execute", "terminals:stop",
           "agents:read", "agents:execute", "agents:stop", "bus:read", "bus:send",
           "workspaces:read", "workspaces:write", "modules:read", "modules:manage",
           "modules:execute", "audio:playback", "vm:read", "vm:power", "vm:console", "providers:write",
           "container:read", "container:logs", "container:power",
-          "admin:read", "admin:logs", "admin:services", "admin:power"}
+          "admin:read", "admin:logs", "admin:services", "admin:power", "contributors:read", "contributors:manage"}
 MAX_NODES = 64
 MAX_MESSAGE = 1024 * 1024
 
@@ -53,9 +58,16 @@ class Settings:
     viewer_runtime_error: str | None = field(default=None, init=False)
     windows_runtime: Path | None = None
     windows_runtime_error: str | None = field(default=None, init=False)
+    remote: RemoteSettings | None = field(default=None, init=False, repr=False)
+    contributors: ContributorSettings | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.state_dir = Path(self.state_dir).absolute()
+        self.remote = remote_configuration(self.state_dir)
+        self.contributors = contributor_configuration(self.state_dir)
+        if self.contributors and (self.remote is None or self.contributors.origin == self.remote.origin
+                                  or self.contributors.secret == self.remote.secret):
+            raise ValueError("Contributor mode requires separate HTTPS endpoints and gateway credentials.")
         if self.viewer_runtime is not None:
             self.viewer_runtime = discover(Path(self.viewer_runtime))
         else:
@@ -81,7 +93,7 @@ class Settings:
 
     @property
     def origin(self) -> str:
-        return f"http://127.0.0.1:{self.port}"
+        return self.remote.origin if self.remote is not None else f"http://127.0.0.1:{self.port}"
 
     @property
     def socket_path(self) -> Path:

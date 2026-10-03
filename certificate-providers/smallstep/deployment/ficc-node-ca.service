@@ -1,0 +1,45 @@
+[Unit]
+Description=FICC node certificate authority
+After=network.target
+
+[Service]
+Type=simple
+User=ficc-node-ca
+Group=ficc-node-ca
+UMask=0077
+WorkingDirectory=/var/lib/ficc-node-ca
+Environment=STEPPATH=/var/lib/ficc-node-ca
+Environment=GOMAXPROCS=2
+ExecStart=/usr/local/bin/step-ca /etc/ficc-node-ca/ca.json --password-file /etc/ficc-node-ca/intermediate-password
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+StateDirectory=ficc-node-ca
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+LimitNOFILE=1024
+TasksMax=64
+MemoryMax=512M
+CPUQuota=200%
+ReadOnlyPaths=/etc/ficc-node-ca
+ReadWritePaths=/var/lib/ficc-node-ca
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+[Install]
+WantedBy=multi-user.target

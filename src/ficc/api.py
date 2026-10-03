@@ -17,8 +17,11 @@ from . import __version__
 from .agent_routes import install as install_agent_routes
 from .auth import Principal
 from .control import Control
+from .dataset_routes import install as install_dataset_routes
 from .errors import Failure
 from .file_routes import install as install_file_routes
+from .identity_routes import install as install_identity_routes
+from .inspection_routes import install as install_inspection_routes
 from .job_routes import install as install_job_routes
 from .module_adapter_routes import install as install_adapter_profiles
 from .module_admin_routes import install as install_module_administration
@@ -28,9 +31,15 @@ from .module_editor_store import retained as editor_retained
 from .module_routes import install as install_module_routes
 from .module_vm_routes import install as install_module_vms
 from .module_windows_routes import install as install_windows_endpoints
+from .operation_routes import install as install_operation_routes
+from .policy_routes import install as install_policy_routes
+from .remote_ingress import RemoteIngress
+from .remote_routes import install as install_remote_routes
+from .remote_routes import session_cookie
 from .schema import Bootstrap, EnrolRequest, PreviewRequest, RefreshRequest
 from .service import Service
 from .settings import MAX_MESSAGE, Settings
+from .source_routes import install as install_source_routes
 from .terminal_routes import install as install_terminal_routes
 from .transfer_routes import install as install_transfer_routes
 from .viewer_routes import install as install_viewers
@@ -43,14 +52,21 @@ def failure_response(exc: Failure) -> JSONResponse:
     return JSONResponse({"error": {"code": exc.code, "message": exc.message}}, status_code=exc.status)
 
 
-def create_app(settings: Settings) -> FastAPI:
+def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
     service = Service(settings)
     control = Control(service)
+    cookie = "__Host-ficc_session" if settings.remote else COOKIE
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         tasks: list[asyncio.Task] = []
         try:
+            await service.remote_auth.start()
+            await service.contributors.start()
+            tasks.append(asyncio.create_task(service.remote_auth.poll()))
+            tasks.append(asyncio.create_task(service.contributors.poll()))
+            tasks.append(asyncio.create_task(service.workloads.runner.poll()))
+            service.audit_delivery.start()
             if settings.control:
                 await control.start()
             for name, run in (("poller", service.poll), ("job_poller", service.jobs.poll),
@@ -65,6 +81,10 @@ def create_app(settings: Settings) -> FastAPI:
                 for task in tasks:
                     task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)
+                await service.workloads.inputs.close()
+                await service.sources.close()
+                await service.audit_delivery.close()
+                await service.inspections.close()
                 await service.transfers.close()
                 await service.files.close()
                 await service.jobs.close()
@@ -82,13 +102,18 @@ def create_app(settings: Settings) -> FastAPI:
                 try:
                     await service.ssh.close()
                 finally:
-                    service.close()
+                    try:
+                        service.close()
+                    finally:
+                        if close_ingress is not None:
+                            close_ingress()
 
     app = FastAPI(title="FICC", version=__version__, lifespan=lifespan,
                   docs_url=None, redoc_url=None, openapi_url=None)
     app.state.service = service
-    origins = {settings.origin, f"http://localhost:{settings.port}"}
-    hosts = {origin.removeprefix("http://") for origin in origins}
+    origins = {settings.origin} if settings.remote else {settings.origin, f"http://localhost:{settings.port}"}
+    from urllib.parse import urlsplit
+    hosts = {urlsplit(origin).netloc for origin in origins}
     package_uploads = 0
 
     @app.middleware("http")
@@ -99,9 +124,14 @@ def create_app(settings: Settings) -> FastAPI:
             if request.headers.get("host") not in hosts:
                 raise Failure("invalid_host", "The request host is not allowed.", 403)
             origin = request.headers.get("origin")
-            if origin is not None and origin not in origins:
+            callback = settings.remote is not None and request.method == "GET" and request.url.path == "/auth/callback"
+            # An external login redirect keeps its cross-site marker on the public document.
+            landing = (settings.remote is not None and request.method == "GET" and request.url.path == "/"
+                       and request.headers.get("sec-fetch-mode") == "navigate"
+                       and request.headers.get("sec-fetch-dest") == "document")
+            if origin is not None and origin not in origins and not callback:
                 raise Failure("invalid_origin", "The request origin is not allowed.", 403)
-            if request.headers.get("sec-fetch-site") == "cross-site":
+            if request.headers.get("sec-fetch-site") == "cross-site" and not (callback or landing):
                 raise Failure("invalid_origin", "Cross-site requests are not allowed.", 403)
             if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
                 if request.url.path == "/api/v1/module-install-previews":
@@ -111,6 +141,13 @@ def create_app(settings: Settings) -> FastAPI:
                     package_uploads += 1
                     package_slot = True
                 maximum = 16 * 1024 * 1024 if request.url.path == "/api/v1/module-install-previews" else MAX_MESSAGE
+                if request.url.path == "/api/v1/workloads":
+                    principal(request, "jobs:execute")
+                    maximum = 8 * 1024 * 1024
+                elif request.url.path == "/api/v1/node-channel/execution":
+                    from .contributor_routes import node_fingerprint
+                    service.contributors.records.authenticate(node_fingerprint(request))
+                    maximum = 3 * 1024 * 1024
                 content_length = request.headers.get("content-length", "0")
                 if not content_length.isdigit() or int(content_length) > maximum:
                     raise Failure("request_limit", "The request exceeds the limit.", 413)
@@ -129,17 +166,21 @@ def create_app(settings: Settings) -> FastAPI:
         finally:
             if package_slot:
                 package_uploads -= 1
+        websocket_origins = " ".join(origin.replace("https://", "wss://").replace("http://", "ws://") for origin in origins)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; "
             "style-src-elem 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; font-src 'self'; "
-            f"img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws://127.0.0.1:{settings.port} "
-            f"ws://localhost:{settings.port}; object-src 'none'; "
+            f"img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' {websocket_origins}; object-src 'none'; "
             "base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Frame-Options"] = "DENY"
+        if settings.remote:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
         return response
+
+    app.add_middleware(RemoteIngress, settings=settings)
 
     @app.exception_handler(Failure)
     async def failed(request: Request, exc: Failure):
@@ -147,7 +188,7 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.exception_handler(sqlite3.Error)
     async def storage_failed(request: Request, exc: sqlite3.Error):
-        return failure_response(Failure("storage_unavailable", "Local state could not be saved or read.", 503))
+        return failure_response(Failure("storage_unavailable", "Controller state could not be saved or read.", 503))
 
     @app.exception_handler(RequestValidationError)
     async def invalid(request: Request, exc: RequestValidationError):
@@ -165,12 +206,18 @@ def create_app(settings: Settings) -> FastAPI:
                 raise Failure("unauthenticated", "Use a bearer credential.", 401)
             result = service.auth.resolve(authorization[7:], ("token",))
         else:
-            result = service.auth.resolve(request.cookies.get(COOKIE, ""), ("session",))
+            result = service.auth.resolve(request.cookies.get(cookie, ""), ("session",))
             if request.method not in {"GET", "HEAD", "OPTIONS"}:
                 if request.headers.get("origin") not in origins or not secrets.compare_digest(
                     result.csrf, request.headers.get("x-csrf-token", "")
                 ):
                     raise Failure("csrf_denied", "The session request check failed.", 403)
+        selected = request.headers.get("x-ficc-project")
+        if selected is not None and selected != result.project_id:
+            raise Failure("project_changed", "This window belongs to another project. Open a new console window.", 409)
+        selected_session = request.headers.get("x-ficc-session")
+        if selected_session is not None and selected_session != result.id:
+            raise Failure("session_changed", "The session changed in another window. Open a new console window.", 409)
         if scope:
             result.require(scope, node_id)
         return result
@@ -181,11 +228,15 @@ def create_app(settings: Settings) -> FastAPI:
 
     def session(value: Principal) -> dict:
         return {"version": __version__, "mode": "demo" if settings.demo else "live",
-                "csrf": value.csrf, "principal": value.public()}
+                "remote": settings.remote is not None,
+                "expires_at": value.expires_at,
+                "csrf": value.csrf, "principal": value.public(),
+                "identity": service.auth.identities.user(value.subject_id),
+                "project": service.auth.identities.project(value.project_id)}
 
     def visible(node: dict, value: Principal) -> dict:
         result = service.view(node)
-        if "resources:read" not in value.scopes:
+        if not value.permits("resources:read", node["id"]):
             result["resources"] = None
         return result
 
@@ -203,10 +254,12 @@ def create_app(settings: Settings) -> FastAPI:
     async def login(body: Bootstrap, request: Request):
         if request.headers.get("origin") not in origins:
             raise Failure("invalid_origin", "Sign in from the local console.", 403)
-        service.auth.resolve(body.bootstrap, ("bootstrap",), consume=True)
-        credential, value = service.auth.issue("session", lifetime=28800)
+        initial = service.auth.resolve(body.bootstrap, ("bootstrap",), consume=True)
+        credential, value = service.auth.issue("session", label=initial.label, lifetime=28800,
+                                              scopes=initial.scopes, node_ids=initial.node_ids, root_ids=initial.root_ids,
+                                              subject_id=initial.subject_id, project_id=initial.project_id)
         response = JSONResponse(session(value))
-        response.set_cookie(COOKIE, credential, max_age=28800, httponly=True, samesite="strict", path="/")
+        session_cookie(response, cookie, credential, value.expires_at, settings.remote is not None)
         service.store.audit("session.create", value.id, actor=value.id)
         return response
 
@@ -219,19 +272,21 @@ def create_app(settings: Settings) -> FastAPI:
         value = principal(request)
         service.auth.revoke(value.id, actor=value.id)
         response = JSONResponse({"ok": True})
-        response.delete_cookie(COOKIE, path="/", httponly=True, samesite="strict")
+        response.delete_cookie(cookie, path="/", secure=settings.remote is not None, httponly=True, samesite="strict")
         return response
 
     @app.get("/api/v1/nodes")
     async def nodes(request: Request):
-        value = principal(request, "nodes:read")
-        return {"nodes": [visible(node, value) for node in service.store.nodes()
-                          if value.node_ids is None or node["id"] in value.node_ids]}
+        with service.store.lock:
+            value = principal(request, "nodes:read")
+            return {"nodes": [visible(node, value) for node in service.store.nodes()
+                              if value.permits("nodes:read", node["id"])]}
 
     @app.get("/api/v1/nodes/{node_id}")
     async def node(node_id: str, request: Request):
-        value = principal(request, "nodes:read", node_id)
-        return visible(service.store.node(node_id), value)
+        with service.store.lock:
+            value = principal(request, "nodes:read", node_id)
+            return visible(service.store.node(node_id), value)
 
     @app.get("/api/v1/nodes/{node_id}/resources")
     async def resources(node_id: str, request: Request):
@@ -301,7 +356,7 @@ def create_app(settings: Settings) -> FastAPI:
     @app.get("/api/v1/permissions")
     async def permissions(request: Request):
         value = principal(request)
-        return {"scopes": value.scopes, "node_ids": value.node_ids, "root_ids": value.root_ids}
+        return {"scopes": value.scopes, "node_ids": value.effective("nodes"), "root_ids": value.effective("roots")}
 
     @app.get("/api/v1/tokens")
     async def tokens(request: Request):
@@ -320,12 +375,27 @@ def create_app(settings: Settings) -> FastAPI:
         unrestricted(principal(request, "audit:read"))
         return {"events": service.store.events()}
 
+    install_identity_routes(app, service, principal, session, cookie)
+    from .contributor_routes import install as install_contributor_routes
+    install_contributor_routes(app, service, principal)
+    from .workloads.routes import install as install_workload_routes
+    install_workload_routes(app, service, principal)
+    install_remote_routes(app, service, principal, cookie)
+    install_policy_routes(app, service, principal)
     install_agent_routes(app, service, principal)
     install_file_routes(app, service, principal)
     install_transfer_routes(app, service, principal)
+    install_dataset_routes(app, service, principal)
+    install_inspection_routes(app, service, principal)
+    install_source_routes(app, service, principal)
+    install_operation_routes(app, service, principal)
     install_job_routes(app, service, principal)
     install_terminal_routes(app, service, principal, origins, hosts)
     install_workspace_routes(app, service, principal)
+    from .workspace_templates import install as install_workspace_templates
+    install_workspace_templates(app, service, principal)
+    from .workloads.templates import install as install_workload_templates
+    install_workload_templates(app, service, principal)
     install_module_routes(app, service, principal)
     install_module_editor(app, service, principal)
     install_module_vms(app, service, principal)

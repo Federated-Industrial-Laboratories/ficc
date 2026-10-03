@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0
+# Run one privileged local executor with fail-stop workload dependencies.
+[Unit]
+Description=FICC local executor @INSTALLATION@
+After=local-fs.target
+RequiresMountsFor=@MOUNTS@
+
+[Service]
+Type=notify
+User=root
+Group=root
+ExecStart=@PYTHON@ -I -B -m ficc.execution serve --config @CONFIG@
+UMask=0077
+NotifyAccess=main
+WatchdogSec=2s
+WatchdogSignal=SIGKILL
+TimeoutStartSec=infinity
+TimeoutStopSec=2s
+KillMode=control-group
+SendSIGKILL=yes
+Restart=on-failure
+RestartSec=2s
+MemoryMax=256M
+TasksMax=64
+LimitNOFILE=512
+LimitCORE=0
+RestrictAddressFamilies=AF_UNIX
+StandardOutput=null
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

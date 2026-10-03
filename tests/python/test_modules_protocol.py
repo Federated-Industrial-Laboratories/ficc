@@ -15,7 +15,7 @@ def reply(request_id, results):
         "version": 1, "type": "result", "id": request_id, "results": results})
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_batches_preserve_target_identity_and_request_order(count):
     targets = [f"workspace-{i}" for i in range(count)]
     request_id, payload = protocol.request("read", targets, {})

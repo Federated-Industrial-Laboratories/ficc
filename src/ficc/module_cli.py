@@ -93,14 +93,14 @@ def result(response: httpx.Response):
 
 def execute(args):
     from .cli import local_request
+    from .local_client import client as local_client
     source = read_file(args.file, 16 * 1024 * 1024) if getattr(args, "file", None) else None
     grants = json_file(args.grants, list) if args.command == "module-enable" else []
     parameters = json_file(args.parameters, dict) if getattr(args, "parameters", None) else {}
     grant = local_request(args.state_dir, {"action": "ephemeral"})
     preview = None
     try:
-        with httpx.Client(base_url=grant["origin"], headers={"Authorization": "Bearer " + grant["credential"]},
-                          timeout=45, trust_env=False, follow_redirects=False) as client:
+        with local_client(grant, args.state_dir, timeout=45) as client:
             try:
                 if args.command in {"module-inspect", "module-install"}:
                     if source is not None:

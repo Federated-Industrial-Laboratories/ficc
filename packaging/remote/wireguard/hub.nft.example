@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+# Restrict the private hub interface and prevent routing between peers.
+table inet ficc_mgmt {
+    chain input {
+        type filter hook input priority -5; policy accept;
+        iifname "ficc-mgmt" ip saddr { NODE_A_PRIVATE_IP, NODE_B_PRIVATE_IP } ip daddr HUB_PRIVATE_IP ct state established,related accept
+        iifname "ficc-mgmt" ip saddr { NODE_A_PRIVATE_IP, NODE_B_PRIVATE_IP } ip daddr HUB_PRIVATE_IP icmp type echo-request accept
+        iifname "ficc-mgmt" counter drop
+    }
+    chain forward {
+        type filter hook forward priority -5; policy accept;
+        iifname "ficc-mgmt" counter drop
+        oifname "ficc-mgmt" counter drop
+    }
+}

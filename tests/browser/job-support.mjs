@@ -21,13 +21,19 @@ export function operation(nodes = [jobNode()], changes = {}) {
   };
 }
 export async function setupJobs(page, options = {}) {
+  const project = { id: '1'.repeat(32), label: 'Job project', disabled: false };
+  const principal = { id: 'fixture-actor', label: 'Synthetic operator', subject_id: '2'.repeat(32), project_id: project.id,
+    local_owner: false, scopes: options.scopes ?? jobScopes, node_ids: null, root_ids: null };
   const nodes = options.nodes ?? [jobNode()];
   const state = { operations: options.operations ?? [], available: true, denied: false, previews: [], submissions: [],
     cancellations: [], logCalls: [], ...options };
   await page.route('**/api/v1/session', route => route.fulfill({ json: {
     csrf: 'synthetic-csrf', mode: options.mode ?? 'live', version: 'fixture',
-    principal: { id: 'fixture-actor', label: 'Synthetic operator', scopes: options.scopes ?? jobScopes, node_ids: null },
+    principal,
   } }));
+  await page.route('**/api/v1/projects', route => route.fulfill({ json: { projects: [project] } }));
+  await page.route('**/api/v1/permissions', route => route.fulfill({ json: principal }));
+  await page.route('**/api/v1/policy-status', route => route.fulfill({ json: { required: false, ready: true, revision: 0 } }));
   await page.route('**/api/v1/nodes', route => route.fulfill({ json: { nodes } }));
   await page.route('**/api/v1/operation-previews', route => {
     const body = route.request().postDataJSON(); state.previews.push(body);

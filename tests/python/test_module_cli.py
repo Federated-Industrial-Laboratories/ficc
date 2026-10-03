@@ -58,7 +58,7 @@ def cli(capsys, state, name, *args, code=0):
     return json.loads(output.out)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_cli_preview_cleanup_install_grant_disable_and_remove(module_service, tmp_path, capsys, count):
     state = module_service
     source = tmp_path / "clock.ficc-module"

@@ -35,7 +35,7 @@ def executable(registry, capabilities=None):
     return inspection.digest
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_runtime_batches_check_current_authority(registry, monkeypatch, count):
     import ficc.modules.runtime as module
 
@@ -211,28 +211,36 @@ def test_command_uses_private_namespaces_explicit_mounts_and_no_inherited_secret
     assert "MODULE_TEST_SECRET" not in module.environment()
 
 
-async def test_repeated_cancellation_waits_for_cleanup():
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
+async def test_repeated_cancellation_waits_for_cleanup(count):
     from ficc.modules.sandbox import finish_cleanup
 
-    started, finish = asyncio.Event(), asyncio.Event()
+    started = [asyncio.Event() for _ in range(count)]
+    finish = [asyncio.Event() for _ in range(count)]
     completed = []
 
-    async def cleanup():
-        started.set()
-        await finish.wait()
-        completed.append(True)
+    async def cleanup(index):
+        started[index].set()
+        await finish[index].wait()
+        completed.append(index)
 
-    task = asyncio.create_task(finish_cleanup(cleanup()))
-    await started.wait()
-    task.cancel()
+    tasks = [asyncio.create_task(finish_cleanup(cleanup(index))) for index in range(count)]
+    await asyncio.gather(*(event.wait() for event in started))
+    for index, task in enumerate(tasks):
+        task.cancel(f"request-{index}")
     await asyncio.sleep(0)
-    task.cancel()
+    for index, task in enumerate(tasks):
+        task.cancel(f"second-request-{index}")
     await asyncio.sleep(0)
-    assert not task.done() and not completed
-    finish.set()
-    with pytest.raises(asyncio.CancelledError):
-        await task
-    assert completed == [True]
+    assert not any(task.done() for task in tasks) and not completed
+    for index in reversed(range(count)):
+        finish[index].set()
+        with pytest.raises(asyncio.CancelledError) as caught:
+            await tasks[index]
+        assert caught.value.args == (f"request-{index}",)
+        assert completed[-1] == index
+        assert not any(task.done() for task in tasks[:index])
+    assert completed == list(reversed(range(count)))
 
 
 async def test_cleanup_confirms_cgroup_empty_even_when_bus_stop_fails(tmp_path, monkeypatch):

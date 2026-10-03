@@ -4,7 +4,7 @@
 import pytest
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_remove_saved_window_then_unreferenced_views(console, count):
     client, _ = console
     space = client.post("/api/v1/workspaces", json={"name": "Retained data"}).json()

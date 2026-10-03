@@ -9,11 +9,13 @@ from types import SimpleNamespace
 import pytest
 from ficc_node import container_rpc, container_state
 from ficc_node import container_spec as spec
+from provider_batch_fixtures import batched_service
 
 from ficc.errors import Failure
 from ficc.module_containers import Containers
-from ficc.module_containers_store import retained, validate_records
+from ficc.module_containers_store import initialize, retained, validate_records
 from ficc.modules.broker_protocol import BrokerCall
+from ficc.state_provider import BoundConnection
 
 DIGEST = "a" * 64
 
@@ -60,7 +62,8 @@ async def setup(tmp_path, monkeypatch, size=1, count=1):
     denied = set()
 
     class Store:
-        db = sqlite3.connect(":memory:")
+        db = sqlite3.connect(":memory:", factory=BoundConnection)
+        initialize(db)
         lock = threading.RLock()
         settings = {}
 
@@ -107,6 +110,7 @@ async def setup(tmp_path, monkeypatch, size=1, count=1):
             return 0, spec.encode(data), b""
 
     service = SimpleNamespace(store=Store(), ssh=SSH(), authorize=authorize, modules=SimpleNamespace(require=require), live=lambda: None)
+    batched_service(service)
     host = Containers(service)
     for identity in nodes:
         await host.set_profile("owner", identity, "docker", "rootless")
@@ -127,7 +131,7 @@ def selected(host, size):
     return [spec.resource(profile["id"], {"kind": "container", "id": f"{i:064x}", "name": f"fixture-{i}", "namespace": ""}) for i in range(size)]
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_lifecycle_order_receipts_and_idempotence(tmp_path, monkeypatch, size):
     host, provider, _, _ = await setup(tmp_path, monkeypatch, size)
     await inventory(host, ["node-0"])
@@ -151,7 +155,7 @@ async def test_lifecycle_order_receipts_and_idempotence(tmp_path, monkeypatch, s
                      list(host.service.store.db.execute("SELECT * FROM module_container_operations")), {"node-0"})
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_inventory_budget_status_logs_and_denied_profiles(tmp_path, monkeypatch, count):
     host, _, denied, nodes = await setup(tmp_path, monkeypatch, 64, count)
     rows = await inventory(host, nodes)
@@ -277,7 +281,7 @@ async def test_restore_validator_refuses_live_records_and_digest_tampering(tmp_p
     validate_records([], operations, set())
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_terminal_history_removal_frees_node_and_controller_capacity(tmp_path, monkeypatch, size):
     host, provider, _, _ = await setup(tmp_path, monkeypatch, size)
     await inventory(host, ["node-0"])
@@ -374,7 +378,7 @@ async def test_disconnected_http_waiter_leaves_owned_dispatch_running(tmp_path, 
     assert repeated["id"] == record["id"] and len(provider.calls) == 1
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_provider_filter_omits_other_registered_engines_without_false_errors(tmp_path, monkeypatch, count):
     host, _, _, nodes = await setup(tmp_path, monkeypatch, 1, count)
     result = await host.broker("owner", call("container.list", nodes, {"provider": "kubernetes"}), "instance")

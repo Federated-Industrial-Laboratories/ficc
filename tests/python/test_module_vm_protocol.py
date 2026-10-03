@@ -24,7 +24,7 @@ def request(action="status", size=1):
             "profile": "b" * 32, "parameters": parameters}
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_exact_batch_identity_and_duplicate_refusal(size):
     value = request(size=size)
     assert vm_spec.request(value) == value

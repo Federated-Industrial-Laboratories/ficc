@@ -1,5 +1,19 @@
 # Module SDK
 
+[Policy packages](policies.md) have a separate signing and decision interface.
+They restrict authorization and are not ordinary workspace modules.
+[Identity providers](identities.md) have a separate trusted interface for external
+authentication. They do not grant project permissions.
+[Certificate providers](certificates.md) adapt approved private authorities.
+The host owns contributor invitation, independent key approval and current
+connection authority. See [contributor operations](../docs/contributors.md) and
+the separate [OpenSSH trust workflow](../docs/ssh-trust.md).
+[Executor providers](executors.md) supply approved container runtime behavior.
+[Scheduler providers](schedulers.md) propose project job order and concurrency.
+Both are trusted installation packages with independent host enforcement.
+[Inspection providers](inspection.md) supply optional local scanner behavior;
+the host owns immutable file binding, dataset restrictions and exemptions.
+
 FICC modules are runtime ZIP packages. The host owns the interface, credentials,
 permission checks and process sandbox. A module supplies a manifest, optional
 program files and declarative component data. The browser never runs module code.
@@ -25,6 +39,10 @@ Proxmox, container and administration integrations retain fixed host adapters.
 Keep provider behavior inside packages where the documented capabilities permit it.
 Host components own authentication, credential access, transport limits and display.
 Do not place credentials or commands in component state to bypass that boundary.
+
+Controller persistence uses a separate [state driver interface](../docs/state-storage.md#state-driver-interface).
+State drivers are trusted installation packages with full controller authority.
+They are not sandboxed workspace modules and cannot be installed through module grants.
 
 ## Development commands
 
@@ -179,3 +197,12 @@ dependencies must be bundled; manifest dependency resolution is not supported.
 
 See [the process protocols](PROTOCOL.md), the complete manifests under `sdk/examples/`, and
 the shared cases in `fixtures/conformance.json`.
+
+[Artifact and dataset interfaces](artifacts.md) describe digest-bound source
+transfers, installable filesystem storage providers and durable job input access.
+
+[Data source interfaces](data-sources.md) define installable SQL, file-format,
+object and customer API providers, registered queries and verified dataset exports.
+
+[Audit destination interfaces](audit.md) define bounded durable appends, exact
+acknowledgements and separately installed destination providers.

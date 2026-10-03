@@ -1,0 +1,24 @@
+{
+  "format": "ficc-policy",
+  "version": 1,
+  "id": "ficc-contribution",
+  "release": "0.2.5",
+  "decision_api": 1,
+  "roles": [
+    {
+      "id": "observer",
+      "label": "Observer",
+      "description": "Read assigned project resources and operation records."
+    },
+    {
+      "id": "contributor",
+      "label": "Contributor",
+      "description": "Prepare assigned project files and workspaces. Workload admission requires a qualified contributor executor and lease."
+    },
+    {
+      "id": "node-administrator",
+      "label": "Node administrator",
+      "description": "Invite, approve and revoke contributors within the assigned project."
+    }
+  ]
+}

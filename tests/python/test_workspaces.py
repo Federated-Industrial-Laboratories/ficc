@@ -21,7 +21,7 @@ def installed(client, workspace_ids, capabilities):
     return preview["digest"]
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_saved_workspaces_exact_grants_and_compare_and_swap(console, count):
     client, service = console
     spaces = [client.post("/api/v1/workspaces", json={"name": f"Workspace {i}"}).json() for i in range(count)]

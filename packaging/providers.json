@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "dependency_locks": [
+    "state-providers/postgresql/requirements.lock",
+    "identity-providers/oidc/requirements.lock",
+    "certificate-providers/smallstep/requirements.lock",
+    "data-providers/requirements.lock"
+  ],
+  "packages": [
+    "artifact-providers/filesystem",
+    "audit-providers/https",
+    "certificate-providers/smallstep",
+    "data-providers/arrow",
+    "data-providers/csv",
+    "data-providers/duckdb",
+    "data-providers/mysql",
+    "data-providers/postgresql",
+    "data-providers/s3",
+    "data-providers/sqlite",
+    "executor-providers/podman",
+    "identity-providers/oidc",
+    "inspection-providers/clamav",
+    "policy-providers/opa",
+    "scheduler-providers/fair",
+    "secret-providers/local",
+    "state-providers/postgresql"
+  ]
+}

@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ficc-inspection-clamav"
+version = "0.2.5"
+description = "Bounded local ClamAV inspection for FICC datasets"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+
+[project.entry-points."ficc.inspection"]
+clamav = "ficc_inspection_clamav"
+
+[tool.setuptools.packages.find]
+where = ["src"]

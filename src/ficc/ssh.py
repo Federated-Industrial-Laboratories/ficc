@@ -21,6 +21,9 @@ from .process import run
 from .schema import Sample
 from .settings import Settings, private_directory
 from .ssh_master import PROBE_TIMEOUT, Masters, StartupFailure, options
+from .ssh_trust import CA_KEY_TYPE, TRUST_ERRORS, denied, snapshot
+from .ssh_trust_connection import Arguments, Connection, guarded, identity, prepare, release
+from .ssh_trust_connection import check as connection_check
 
 PROBE = 'test -f "$HOME/.local/lib/ficc/node.pyz" || exit 42; exec python3 "$HOME/.local/lib/ficc/node.pyz"'
 INSTALL_SCRIPT = """import os,pathlib,sys,tempfile,zipfile,io
@@ -74,6 +77,9 @@ def fingerprint(key: str) -> str:
 
 
 def transport_failure(stderr: bytes) -> Failure:
+    if (b"certificate was refused by the current trust policy" in stderr
+            or b"REVOKED HOST KEY DETECTED" in stderr):
+        return denied()
     if b"REMOTE HOST IDENTIFICATION HAS CHANGED" in stderr or b"Host key verification failed" in stderr:
         return Failure("host_key_changed", "The host key does not match the trusted key.", 409)
     if b"Permission denied" in stderr or b"sign_and_send_pubkey" in stderr:
@@ -90,12 +96,19 @@ class SSH:
         self.trust_dir = settings.state_dir / "trust"
         private_directory(self.trust_dir)
         self.masters = Masters()
+        self.certificates: set[Connection] = set()
+
+    connection_check = staticmethod(connection_check)
+    release = staticmethod(release)
 
     def reset(self, node_id: str | None = None) -> None:
         self.masters.reset(node_id)
 
     async def close(self) -> None:
         await self.masters.close()
+        for connection in self.certificates:
+            connection.close()
+        self.certificates.clear()
 
     async def config(self, profile: str) -> dict:
         code, output, _ = await run(self.prefix + ["-G", "--", profile])
@@ -105,6 +118,8 @@ class SSH:
         for line in output.decode("utf-8", errors="replace").splitlines():
             key, _, value = line.partition(" ")
             config.setdefault(key, value)
+            if key in {"identityfile", "certificatefile"}:
+                config.setdefault(key + "s", []).append(value)
         host, user = config.get("hostname", ""), config.get("user", "")
         if not host or not user or len(host) > 253 or len(user) > 128:
             raise Failure("profile_failed", "The SSH destination is invalid.")
@@ -146,7 +161,12 @@ class SSH:
 
     async def preview(self, profile: str, name: str, check: Callable[[], None] | None = None) -> dict:
         config = await self.config(profile)
-        key = await self.known_key(config)
+        try:
+            selected = snapshot(self.settings.state_dir, profile)
+        except TRUST_ERRORS as exc:
+            raise denied() from exc
+        key = ((CA_KEY_TYPE, selected["ca"].split()[1]) if selected is not None
+               else await self.known_key(config))
         trusted = key is not None
         if key is None:
             if check:
@@ -163,6 +183,10 @@ class SSH:
                  "fingerprint": fingerprint(key[1]), "key_type": key[0], "key": key[1],
                  "trust": "trusted" if trusted else "untrusted", "helper_version": None,
                  "helper_install_required": True, "warnings": [], "expires_at": time.time() + 120}
+        if selected is not None:
+            value["host_principal"] = selected["profile"]["host_principal"]
+            value["warnings"] = ["The fingerprint identifies the approved SSH certificate authority. "
+                                 "The host certificate must name " + value["host_principal"] + "."]
         if trusted:
             sample = await self.probe(value, allow_missing=True, check=check)
             if sample:
@@ -181,6 +205,28 @@ class SSH:
             node["host"], node["account"], node["port"]
         ):
             raise Failure("profile_changed", "The approved SSH destination changed. Enroll it again.", 409)
+        connection = None
+        if node["key_type"] == CA_KEY_TYPE:
+            self.certificates = {value for value in self.certificates if not value.closed}
+            if len(self.certificates) >= 256:
+                raise Failure("capacity", "The SSH certificate connection limit was reached.", 429)
+            connection, trust_options = prepare(self.settings.state_dir, node, config)
+            self.certificates.add(connection)
+        else:
+            trust_options = self.pinned_options(node)
+        options = ["BatchMode=yes", "StrictHostKeyChecking=yes", "ControlPath=none",
+                   "ControlMaster=no", "ControlPersist=no", "ForwardAgent=no", "ForwardX11=no",
+                   "ClearAllForwardings=yes", "ConnectTimeout=5", "ConnectionAttempts=1",
+                   "ServerAliveInterval=3", "ServerAliveCountMax=1", "UpdateHostKeys=no",
+                   "VerifyHostKeyDNS=no", "CheckHostIP=no",
+                   "PermitLocalCommand=no", "EscapeChar=none", "RemoteCommand=none",
+                   "ForkAfterAuthentication=no", "StdinNull=no", "SessionType=default",
+                   "RequestTTY=force" if terminal else "RequestTTY=no", *trust_options]
+        args = self.prefix + [part for option in options for part in ("-o", option)]
+        args += ["--", node["profile"]]
+        return Arguments(args, connection) if connection is not None else args
+
+    def pinned_options(self, node: dict) -> list[str]:
         key_path = self.trust_dir / hashlib.sha256(node["key"].encode()).hexdigest()
         content = f"ficc-pin {node['key_type']} {node['key']}\n".encode()
         try:
@@ -191,28 +237,20 @@ class SSH:
         else:
             with os.fdopen(fd, "wb") as stream:
                 stream.write(content)
-        algorithms = node["key_type"]
-        if algorithms == "ssh-rsa":
-            algorithms = "rsa-sha2-512,rsa-sha2-256"
-        options = ["BatchMode=yes", "StrictHostKeyChecking=yes", "ControlPath=none",
-                   "ControlMaster=no", "ControlPersist=no", "ForwardAgent=no", "ForwardX11=no",
-                   "ClearAllForwardings=yes", "ConnectTimeout=5", "ConnectionAttempts=1",
-                   "ServerAliveInterval=3", "ServerAliveCountMax=1", "UpdateHostKeys=no",
-                   "GlobalKnownHostsFile=/dev/null", f"UserKnownHostsFile={key_path}",
-                   "HostKeyAlias=ficc-pin", f"HostKeyAlgorithms={algorithms}",
-                   "PermitLocalCommand=no", "EscapeChar=none", "RemoteCommand=none",
-                   "ForkAfterAuthentication=no", "StdinNull=no", "SessionType=default",
-                   "RequestTTY=force" if terminal else "RequestTTY=no"]
-        args = self.prefix + [part for option in options for part in ("-o", option)]
-        return args + ["--", node["profile"]]
+        algorithms = "rsa-sha2-512,rsa-sha2-256" if node["key_type"] == "ssh-rsa" else node["key_type"]
+        return ["GlobalKnownHostsFile=/dev/null", f"UserKnownHostsFile={key_path}",
+                "HostKeyAlias=ficc-pin", f"HostKeyAlgorithms={algorithms}", "KnownHostsCommand=none"]
 
     async def command(self, node: dict, command: str, payload: bytes,
                       check: Callable[[], None] | None = None,
                       timeout: float = 10) -> tuple[int, bytes, bytes]:
         args = await self.arguments(node)
-        if check:
-            check()
-        return await run(args + [command], payload, timeout=timeout)
+        try:
+            if check:
+                check()
+            return await guarded(args, run(args + [command], payload, timeout=timeout))
+        finally:
+            release(args)
 
     async def install(self, node: dict, check: Callable[[], None] | None = None) -> None:
         code, _, stderr = await self.command(node, INSTALL, archive(), check=check)
@@ -225,18 +263,21 @@ class SSH:
         if "id" not in node:
             code, output, stderr = await self.command(node, PROBE, payload, check=check)
         else:
+            args: list[str] = []
+            master = None
             try:
                 config = await self.config(node["profile"])
                 args = self.configured_arguments(node, config)
-                identity = hashlib.sha256(json.dumps([node["id"], args, config["resolved_digest"]],
-                                                     sort_keys=True).encode()).hexdigest()
+                key = hashlib.sha256(json.dumps([node["id"], identity(args), config["resolved_digest"]],
+                                                sort_keys=True).encode()).hexdigest()
                 if check:
                     check()
-                master = await self.masters.acquire(node["id"], identity, args, check)
+                master = await self.masters.acquire(node["id"], key, args, check)
                 if check:
                     check()
-                code, output, stderr = await run(
-                    options(args, ControlPath=str(master.socket)) + [PROBE], payload, timeout=PROBE_TIMEOUT)
+                active_args = getattr(master, "args", args)
+                code, output, stderr = await guarded(active_args, run(
+                    options(active_args, ControlPath=str(master.socket)) + [PROBE], payload, timeout=PROBE_TIMEOUT))
             except StartupFailure as exc:
                 self.reset(node["id"])
                 raise transport_failure(exc.stderr) from exc
@@ -246,6 +287,9 @@ class SSH:
             except Failure:
                 self.reset(node["id"])
                 raise
+            finally:
+                if master is None or getattr(master, "args", None) is not args:
+                    release(args)
         if code == 42 and allow_missing:
             return None
         if code == 42:

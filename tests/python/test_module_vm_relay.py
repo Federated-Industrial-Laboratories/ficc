@@ -47,7 +47,7 @@ def output(process):
             assert len(result) <= 131072
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_provider_eof_drains_last_bounded_response(size):
     with process_pair() as (process, provider):
         payload = bytes(range(255)) * (4 * size) + b"RFB-final"
@@ -57,7 +57,7 @@ def test_provider_eof_drains_last_bounded_response(size):
         assert process.wait(timeout=3) == 0
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_input_bytes_precede_provider_eof_and_cancel_stays_prompt(size):
     with process_pair() as (process, provider):
         payload = b"input" * size
@@ -71,7 +71,7 @@ def test_input_bytes_precede_provider_eof_and_cancel_stays_prompt(size):
         assert process.wait(timeout=1) == 0
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_blocked_output_cannot_extend_deadline(size):
     with process_pair(.2) as (process, provider):
         payload = b"x" * (2048 * size)

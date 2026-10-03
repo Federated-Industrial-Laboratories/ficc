@@ -5,6 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 python tools/check_source.py
-python -m ruff check --no-respect-gitignore src node tests tools
+python -m ruff check --no-respect-gitignore src node tests tools *-providers/*/src policy-providers/opa/tests identity-providers/oidc/tests packaging/remote/keycloak packaging/remote/executor
 python -m mypy
+MYPYPATH=src:node python -m mypy *-providers/*/src
 python -m pytest

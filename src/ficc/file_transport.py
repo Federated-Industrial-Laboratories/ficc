@@ -31,7 +31,10 @@ class FileTransport:
             raise Failure("capacity", "The file request queue is full.", 429)
         self.pending += 1
         try:
-            return await self.exchange(root, request, raw, data, check, timeout, semaphore)
+            result = await self.exchange(root, request, raw, data, check, timeout, semaphore)
+            if check:
+                check()
+            return result
         finally:
             self.pending -= 1
 

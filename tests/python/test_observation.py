@@ -11,7 +11,7 @@ from ficc.errors import Failure
 from ficc.schema import Sample
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_distinct_batch_observations_are_bounded(console, monkeypatch, count):
     client, service = console
     active = maximum = 0

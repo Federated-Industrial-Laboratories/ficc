@@ -25,12 +25,10 @@ def encoded(value):
 class EditorStore:
     def __init__(self, store):
         self.store = store
-        with store.lock, store.db:
-            initialize(store.db)
 
     def get(self, identity):
         with self.store.lock:
-            row = self.store.db.execute("SELECT value FROM module_editor_operations WHERE id=?", (identity,)).fetchone()
+            row = self.store.db.execute("SELECT value FROM module_editor_operations WHERE id=:p0", (identity,)).fetchone()
         if row is None:
             raise Failure("editor_missing", "The edit receipt was not found.", 404)
         return json.loads(row[0])
@@ -44,20 +42,20 @@ class EditorStore:
         with self.store.lock, self.store.db:
             if self.store.db.execute("SELECT count(*) FROM module_editor_operations").fetchone()[0] >= MAX_OPERATIONS:
                 raise Failure("editor_capacity", "Remove completed edit receipts before saving more files.", 409)
-            self.store.db.execute("INSERT INTO module_editor_operations VALUES (?,?,?,?)",
+            self.store.db.execute("INSERT INTO module_editor_operations VALUES (:p0,:p1,:p2,:p3)",
                                   (value["id"], value["actor"], value["key"], encoded(value)))
 
     def save(self, value):
         value["updated_at"] = time.time()
         with self.store.lock, self.store.db:
-            self.store.db.execute("UPDATE module_editor_operations SET value=? WHERE id=?", (encoded(value), value["id"]))
+            self.store.db.execute("UPDATE module_editor_operations SET value=:p0 WHERE id=:p1", (encoded(value), value["id"]))
 
     def remove(self, identity):
         value = self.get(identity)
         if any(item["state"] in {"pending", "unknown"} or item.get("retained") for item in value["items"]):
             raise Failure("editor_retained", "Recover and remove all retained copies first.", 409)
         with self.store.lock, self.store.db:
-            self.store.db.execute("DELETE FROM module_editor_operations WHERE id=?", (identity,))
+            self.store.db.execute("DELETE FROM module_editor_operations WHERE id=:p0", (identity,))
 
 
 def retained(store, *, root_id=None, node_id=None, workspace_id=None, instance_id=None, digest=None):

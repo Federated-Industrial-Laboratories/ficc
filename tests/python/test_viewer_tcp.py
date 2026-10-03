@@ -10,7 +10,7 @@ from test_viewer_configuration import rdp_config
 from ficc.viewer_tcp import TCPProviderStream
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_registered_tcp_transfers_distinct_bytes_and_closes(count):
     closed = asyncio.Queue()
 

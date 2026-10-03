@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: Apache-2.0
+# Run the controller behind the private authenticated gateway socket.
+[Unit]
+Description=FICC remote controller
+After=network-online.target ficc-identity.service
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User=ficc-controller
+Group=ficc-ingress
+WorkingDirectory=/var/lib/ficc-controller
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/ficc-controller/current/bin/ficc serve --state-dir /var/lib/ficc-controller
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=45
+StateDirectory=ficc-controller
+StateDirectoryMode=0700
+RuntimeDirectory=ficc-controller
+RuntimeDirectoryMode=0750
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictRealtime=true
+# Registered files require openat2; RestrictSUIDSGID blocks that syscall.
+# The unprivileged account has no capabilities and cannot gain privileges.
+RestrictSUIDSGID=false
+LockPersonality=true
+CapabilityBoundingSet=
+TasksMax=256
+MemoryHigh=768M
+MemoryMax=1024M
+CPUQuota=200%
+LimitNOFILE=16384
+
+[Install]
+WantedBy=multi-user.target

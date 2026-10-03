@@ -24,6 +24,11 @@ restoring its state. Export requires all work to be quiescent. The command takes
 the same exclusive state lock as service startup before opening the database.
 It refuses a running controller or another maintenance command.
 
+The same commands support [PostgreSQL state](state-storage.md). Network exports
+hold database ownership and create the canonical portable SQLite snapshot.
+Restore always creates isolated local SQLite state. Database connection settings,
+password files and the local database binding are excluded from the bundle.
+
 ## Prepare and export
 
 1. Finish or cancel managed jobs. Reconcile every unknown outcome.
@@ -66,11 +71,30 @@ are excluded. Back up those resources separately. No external file tree is read,
 copied or changed by this command. Existing node receipts remain on their nodes.
 A snapshot does not contain work performed after it was made.
 
+Audit destination configuration and checkpoints under `audit-private/` are also
+excluded. The required-audit policy marker remains in metadata. A restored
+required installation refuses protected admission until its separately managed
+destination is explicitly provisioned. See [audit recovery](audit.md#recovery-and-limits)
+before restoring or replacing a controller's delivery stream.
+
 Module package inventories and payloads, workspace data, layouts and sound
 preferences are included. Browser-selected audio files and remote retained edit
 copies are excluded. Module payloads are rechecked against their complete digest
 inventories. The separate native viewer runtime is an installation dependency;
 install a compatible verified runtime separately on the destination controller.
+
+Schema 7 also includes user identities, projects, membership grants and workspace
+ownership. Restore preserves these records but disables all non-owner identities.
+Review their membership and enable them explicitly before issuing fresh credentials.
+The local recovery owner remains enabled. Cross-project or cross-user layout
+references cause backup and restore validation to fail.
+
+Schema 10 includes external-identity mappings. Restore disables every mapping;
+review the issuer, immutable subject and local identity before enabling it again.
+External tokens and remote sessions cannot be restored. Identity-provider and
+gateway configuration, client secrets, private certificates and the separate
+identity database require their own protected backups. See
+[remote access](remote-access.md) for recovery boundaries.
 
 Credential-bearing CLI submission files under `cli-requests/` are excluded.
 Each must match a retained, closed operation before export; unresolved submissions
@@ -133,7 +157,7 @@ the restored console has been checked.
 
 ## Format and limits
 
-Bundle format 1 supports state schemas 4, 5 and 6. An older supported schema migrates when
+Bundle format 1 supports state schemas 4 through 12. An older supported schema migrates when
 the current controller first opens it. Incompatible schemas are refused. For an older application, retain a complete
 stopped copy of its private state before using the supported application upgrade
 path. Then stop and export with the current schema. A portable export does not
@@ -164,3 +188,25 @@ retiring terminal history with `archive-history`.
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 [Contents](README.md) | [Project README](../README.md) | [Previous: Agent bus](bus.md) | [Next: History archives](history.md)
+
+## Policy recovery
+
+Policy archives, publisher keys, role bindings and activation history are part
+of the portable schema. Restore disables every publisher and clears active and
+previous policy digests. It does not remove the requirement to enforce policy.
+Provider configuration is excluded from the bundle. Review trust, configure a
+verified evaluator and explicitly activate a package before restoring member
+access. Existing identity and module-grant recovery steps still apply.
+
+## Contributor workload recovery
+
+Workload jobs, attempts and saved node observations are included. Active jobs and
+unreleased attempts prevent backup or restore. An explicitly abandoned unknown
+attempt is permitted only when its contributor identity is revoked. Its unknown
+outcome and unconfirmed cleanup remain recorded.
+
+Restore suspends workload dispatch and marks retained jobs cancelled. It does not
+restart workloads or recover deleted local output. Scheduler and executor
+configuration remain installation settings outside the portable bundle. Inspect
+identities, policies and contributor recovery before the installation owner
+resumes dispatch. See [workload recovery](workloads.md#unknown-outcomes-and-recovery).

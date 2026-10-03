@@ -20,7 +20,7 @@ from ficc.errors import Failure
 from ficc.store import Store
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_full_database_refuses_job_before_acceptance(console, monkeypatch, count):
     client, service, remote, _ = prepare(console, monkeypatch, count)
     body = job_request(count)
@@ -116,7 +116,7 @@ def test_terminal_node_and_global_limits_preserve_records(console):
     assert service.terminals.get(accepted[0]["id"])["state"] == "stopped"
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_abrupt_exit_recovers_committed_wal_only(tmp_path, count):
     path = tmp_path / "state" / "state.sqlite3"
     program = """

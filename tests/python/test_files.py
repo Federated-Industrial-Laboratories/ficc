@@ -21,6 +21,8 @@ async def files_fixture(tmp_path):
     settings = Settings(state_dir=tmp_path / "state", control=False)
     store = Store(settings.state_dir / "state.sqlite3")
     service = SimpleNamespace(settings=settings, store=store, auth=Auth(store), live=lambda: None, ssh=None)
+    from ficc.audit_delivery import Delivery
+    service.audit_delivery = Delivery(service)
     service.files = Files(service)
     service.transfers = Transfers(service)
     _, actor = service.auth.issue("token")
@@ -30,6 +32,7 @@ async def files_fixture(tmp_path):
     try:
         yield service, actor.id, root, path
     finally:
+        await service.audit_delivery.close()
         await service.transfers.close()
         await service.files.close()
         store.close()
@@ -48,7 +51,7 @@ async def mutate(service, actor, root, action, entries=(), **values):
     return service.files.store.get(result["id"]), preview
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_byte_names_pagination_preview_and_delete(files_fixture, count):
     service, actor, root, path = files_fixture
     for index in range(count):
@@ -152,7 +155,7 @@ async def test_zero_mode_can_be_repaired_without_read_access(files_fixture):
     assert result["state"] == "succeeded" and (path / "locked").read_bytes() == b"private"
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_mode_batch_preserves_every_identity_and_content(files_fixture, count):
     service, actor, root, path = files_fixture
     originals = {}

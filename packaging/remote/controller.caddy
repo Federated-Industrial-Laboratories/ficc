@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: Apache-2.0
+# Forward application routes over an owned Unix socket with a separate gateway credential.
+@controller path / /static/* /api/v1/* /auth/start /auth/callback
+handle @controller {
+	reverse_proxy unix//run/ficc-controller/gateway.sock {
+		header_up Host {$FICC_PUBLIC_ADDRESS}
+		header_up X-FICC-Gateway {$FICC_GATEWAY_SECRET}
+		header_up X-FICC-Client-IP {remote_host}
+		header_up -Forwarded
+		header_up -X-Forwarded-*
+		header_up -X-FICC-Node-*
+		transport http {
+			# Retire idle connections before the controller's five-second timeout.
+			keepalive 1s
+			dial_timeout 5s
+			response_header_timeout 60s
+			max_response_header 32KB
+			max_conns_per_host 64
+		}
+	}
+}

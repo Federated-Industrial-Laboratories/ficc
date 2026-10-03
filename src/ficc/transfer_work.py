@@ -23,13 +23,14 @@ async def run(manager, operation_id, item_id):
             if destination["state"] == "succeeded":
                 item.update(state="succeeded", offset=destination["offset"], sha256=destination["sha256"],
                             cleanup_pending=destination.get("cleanup_pending", False))
+                record_artifact(operation, item, destination)
                 manager.save_item(operation, item)
                 return
-            result, _ = await manager.source(operation, item, "file.hash", timeout=300)
+            result, _ = await manager.source(operation, item, "file.hash", timeout=None)
             if item.get("sha256") and item["sha256"] != result["sha256"]:
                 raise Failure("source_changed", "The source changed since this transfer started.", 409)
             item["sha256"] = result["sha256"]
-            destination = await manager.destination(operation, item, "transfer.resume")
+            destination = await manager.destination(operation, item, "transfer.resume", timeout=None)
             offset = destination["offset"]
             prefix = hashlib.sha256()
             for position in range(0, offset, CHUNK):
@@ -53,7 +54,7 @@ async def run(manager, operation_id, item_id):
                     raise Failure("invalid_file_response", "The destination offset is invalid.", 502)
                 item["offset"] = destination["offset"]
                 manager.save_item(operation, item)
-            result, _ = await manager.source(operation, item, "file.hash", timeout=300)
+            result, _ = await manager.source(operation, item, "file.hash", timeout=None)
             if result["sha256"] != item["sha256"]:
                 raise Failure("source_changed", "The source changed during transfer.", 409)
             await finish(manager, operation, item)
@@ -72,8 +73,17 @@ async def finish(manager, operation, item):
     manager.check(operation["actor"], item, operation["kind"])
     item["state"] = "committing"
     manager.save_item(operation, item)
-    result = await manager.destination(operation, item, "transfer.commit", sha256=item["sha256"], timeout=300)
+    result = await manager.destination(operation, item, "transfer.commit", sha256=item["sha256"], timeout=None)
     if result["state"] != "succeeded" or result["sha256"] != item["sha256"] or result["offset"] != item["size"]:
         raise Failure("invalid_file_response", "The committed file could not be verified.", 502)
     item.update(state="succeeded", offset=item["size"], error=None, cleanup_pending=result.get("cleanup_pending", False))
+    record_artifact(operation, item, result)
     manager.save_item(operation, item)
+
+
+def record_artifact(operation, item, result):
+    identity = result.get("published_identity")
+    if identity:
+        item["artifact"] = {"version": 1, "algorithm": "sha256", "digest": item["sha256"], "size": item["size"],
+                            "root_id": item["destination"]["root"]["id"], "identity": identity,
+                            "transfer_id": operation["id"], "item_id": item["id"], "verified": True}

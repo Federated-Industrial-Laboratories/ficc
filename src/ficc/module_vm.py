@@ -83,12 +83,10 @@ class VMs(Operations):
         def current():
             check()
             self.service.live()
-            self.service.authorize(actor, "nodes:read", node_id)
-            self.service.authorize(actor, capability, node_id)
-            self.service.modules.require(digest, capability, [node_id])
-            if capability != "vm:read":
-                self.service.authorize(actor, "vm:read", node_id)
-                self.service.modules.require(digest, "vm:read", [node_id])
+            capabilities = list(dict.fromkeys(("vm:read", capability)))
+            self.service.policies.check_many(self.service.auth.current(actor),
+                [(scope, node_id, None) for scope in ("nodes:read", *capabilities)])
+            self.service.modules.require_many(digest, [(scope, [node_id]) for scope in capabilities])
             _, latest = self.profile(node_id)
             keys = set(profile) - ({"revision", "enabled"} if recovery else set())
             if any(latest[key] != profile[key] for key in keys):
@@ -191,6 +189,12 @@ class VMs(Operations):
         request = {"version": 1, "action": "console", "connection": profile["connection"],
                    "profile": profile["id"], "parameters": {"uuids": [domain_id]}}
         args = await self.service.ssh.arguments(node)
-        guard()
-        return args + [CONSOLE_COMMAND], spec.encode({"request": request,
-            "graphics_index": value["graphics"]["graphics_index"]}) + b"\n"
+        try:
+            guard()
+            args.append(CONSOLE_COMMAND)
+            return args, spec.encode({"request": request,
+                "graphics_index": value["graphics"]["graphics_index"]}) + b"\n"
+        except BaseException:
+            from .ssh import SSH
+            SSH.release(args)
+            raise

@@ -49,7 +49,7 @@ def fixture(console, tmp_path, monkeypatch, count):
     return context, preview, provider, checked.digest, grants
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_host_confirmation_and_snapshot_quiescence(console, tmp_path, monkeypatch, count):
     client, service = console
     context, preview, provider, digest, _ = fixture(console, tmp_path, monkeypatch, count)

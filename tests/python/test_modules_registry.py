@@ -1,24 +1,20 @@
 # SPDX-License-Identifier: Apache-2.0
 """Exercise digest-specific authority, rollback, revocation and bounded storage."""
 
-import sqlite3
-import threading
-from types import SimpleNamespace
-
 import pytest
 from test_modules_packages import bundle, package
 
 from ficc.errors import Failure
-from ficc.modules import Registry, initialize, inspect_archive
+from ficc.modules import Registry, inspect_archive
+from ficc.store import Store
 
 
 @pytest.fixture
 def registry(tmp_path):
-    db = sqlite3.connect(":memory:", check_same_thread=False)
-    initialize(db)
-    result = Registry(SimpleNamespace(db=db, lock=threading.RLock()), tmp_path / "modules")
+    store = Store(tmp_path / "state.sqlite3")
+    result = Registry(store, tmp_path / "modules")
     yield result
-    db.close()
+    store.close()
 
 
 def install(registry, **changes):
@@ -26,7 +22,7 @@ def install(registry, **changes):
     return registry.install(inspection, inspection.digest)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_exact_grants_revocation_and_version_rollback(registry, count):
     target_ids = [f"workspace-{i}" for i in range(count)]
     grants = [{"capability": "workspace:read", "target_ids": target_ids}]

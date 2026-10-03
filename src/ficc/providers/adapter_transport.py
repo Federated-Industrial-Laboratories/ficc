@@ -213,9 +213,15 @@ class EndpointTransport:
             raise Failure("adapter_console_changed", "The display process or listener changed after selection.", 409)
         node = self.service.store.node(selected["endpoint_id"])
         arguments = await self.service.ssh.arguments(node)
-        check()
-        return arguments + [CONSOLE_COMMAND], dumps({"binding_id": selected["transport_binding_id"],
-            "display": current["display"], "password": proposal["parameters"]["password"]}) + b"\n"
+        try:
+            check()
+            arguments.append(CONSOLE_COMMAND)
+            return arguments, dumps({"binding_id": selected["transport_binding_id"],
+                "display": current["display"], "password": proposal["parameters"]["password"]}) + b"\n"
+        except BaseException:
+            from ..ssh import SSH
+            SSH.release(arguments)
+            raise
 
     async def console_connection(self, descriptor, check):
         selected, proposal = descriptor["profile"], descriptor["proposal"]

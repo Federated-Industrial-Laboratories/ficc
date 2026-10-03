@@ -110,7 +110,7 @@ async def read(call):
             for target in call.target_ids]
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_broker_batches_and_per_target_refusal(registry, monkeypatch, pipe_runtime, count):
     selected = [f'system-{i}' for i in range(count)]
     digest = install(registry, monkeypatch, selected)
@@ -198,7 +198,7 @@ REAL = pytest.mark.skipif(os.environ.get('FICC_REAL_MODULE_SANDBOX') != '1', rea
 
 
 @REAL
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_real_isolated_broker_exchange(registry, monkeypatch, count):
     selected = [f'system-{i}' for i in range(count)]
     digest = install(registry, monkeypatch, selected)

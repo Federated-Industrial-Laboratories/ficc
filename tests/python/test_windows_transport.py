@@ -96,7 +96,7 @@ def invoke(value):
              'REQUESTS_CA_BUNDLE': '/nonexistent', 'SSL_CERT_FILE': '/nonexistent'})
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_real_tls_pin_hostname_ca_and_channel_binding(tls, count):
     value, state = tls
     result = invoke({**value, 'count': count})

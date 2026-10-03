@@ -40,7 +40,7 @@ def bundle(manifest, files, extra=()):
     return output.getvalue()
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_complete_private_inventory_roundtrip(tmp_path, count):
     manifest, files = package({f"data/item-{i}.txt": str(i).encode() for i in range(count)})
     inspection = inspect_archive(bundle(manifest, files))

@@ -54,7 +54,7 @@ def test_release_cannot_publish_incomplete_or_unbound_bytes(tmp_path, failure):
         validate(tmp_path)
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize('failure', ['missing', 'size', 'digest', 'state', 'duplicate', 'extra'])
 def test_remote_assets_are_checked_individually(count, failure):
     expected = {f'file-{i}': {'size': i + 1, 'digest': f'sha256:{i:064x}'} for i in range(count)}
@@ -77,6 +77,8 @@ def test_remote_assets_are_checked_individually(count, failure):
 def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, monkeypatch, failure, tag):
     import publish_release as module
 
+    # Signature cryptography is exercised separately; this case checks GitHub ordering.
+    monkeypatch.setattr(module, 'verify_signature', lambda *args: None)
     local_release(tmp_path)
     _, assets = validate(tmp_path)
     remote = [{'name': n, 'state': 'uploaded', **v} for n, v in assets.items()]
@@ -116,11 +118,11 @@ def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, 
     monkeypatch.setattr(module, 'gh', ref_gh)
     monkeypatch.setattr(module.subprocess, 'run', fake_run)
     if failure == 'none':
-        assert module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True, tag) == release['html_url']
+        assert module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True, tag, trusted_key=tmp_path / 'trusted.pub') == release['html_url']
         assert len(calls) == 1 and '--draft=false' in calls[0]
     else:
         with pytest.raises(ValueError):
-            module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True, tag)
+            module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True, tag, trusted_key=tmp_path / 'trusted.pub')
         assert not calls and release['draft']
 
 
@@ -131,6 +133,7 @@ def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monk
 
     import publish_release as module
 
+    monkeypatch.setattr(module, 'verify_signature', lambda *args: None)
     local_release(tmp_path)
     _, expected = validate(tmp_path)
     assets = [{'name': n, 'state': 'uploaded', **v} for n, v in list(expected.items())[:3]] if resume else []
@@ -178,7 +181,7 @@ def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monk
         return subprocess.CompletedProcess(command, 0, '', '')
 
     monkeypatch.setattr(module.subprocess, 'run', fake_run)
-    assert module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True, tag) == release['html_url']
+    assert module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True, tag, trusted_key=tmp_path / 'trusted.pub') == release['html_url']
     assert mutations.count('create') == (0 if resume else 1)
     assert mutations.count('upload') == (9 if resume else 12)
     assert mutations[-1] == 'edit' and mutations.count('edit') == 1
@@ -201,4 +204,41 @@ def test_invalid_release_tag_is_refused_before_remote_access(tmp_path, monkeypat
     monkeypatch.setattr(module, 'gh', unexpected)
     monkeypatch.setattr(module.subprocess, 'run', unexpected)
     with pytest.raises(ValueError, match='Release tag'):
-        module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True, tag)
+        module.publish(tmp_path, 'example/ficc', tmp_path / 'notes.md', True, tag, trusted_key=tmp_path / 'trusted.pub')
+
+
+def test_real_release_signature_requires_the_trusted_key_and_exact_bytes(tmp_path, monkeypatch):
+    import subprocess
+
+    import publish_release as publication
+    from release_signatures import sign, verify
+
+    output = tmp_path / 'release'
+    output.mkdir()
+    local_release(output)
+    key = tmp_path / 'publisher'
+    other = tmp_path / 'other'
+    for path in (key, other):
+        subprocess.run(['/usr/bin/ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(path)], check=True)
+    public = key.with_suffix('.pub')
+
+    def unexpected(*args, **kwargs):
+        pytest.fail('Invalid publisher evidence must fail before GitHub access')
+
+    monkeypatch.setattr(publication, 'gh', unexpected)
+    with pytest.raises(ValueError, match='missing'):
+        publication.publish(output, 'example/ficc', tmp_path / 'notes', False, trusted_key=public)
+    fingerprint = sign(output, key, public)
+    assert verify(output, public) == fingerprint and fingerprint.startswith('SHA256:')
+    _, assets = validate(output)
+    assert set(assets) >= {'RELEASE.pub', 'SHA256SUMS.sig'} and len(assets) == 14
+    with pytest.raises(ValueError, match='differs'):
+        publication.publish(output, 'example/ficc', tmp_path / 'notes', False, trusted_key=other.with_suffix('.pub'))
+    original = (output / 'SHA256SUMS').read_bytes()
+    (output / 'SHA256SUMS').write_bytes(original + b'\n')
+    with pytest.raises(ValueError, match='signature is invalid'):
+        verify(output, public)
+    (output / 'SHA256SUMS').write_bytes(original)
+    (output / 'ficc-1.0.0-py3-none-any.whl').write_bytes(b'altered package')
+    with pytest.raises(ValueError, match='changed'):
+        publication.publish(output, 'example/ficc', tmp_path / 'notes', False, trusted_key=public)

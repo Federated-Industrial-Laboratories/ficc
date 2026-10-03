@@ -69,14 +69,12 @@ def disable_restored(db):
         value = spec.decode(raw.encode())
         value.update(enabled=False, revision=value['revision'] + 1)
         endpoint(value)
-        db.execute('UPDATE module_windows_endpoints SET value=? WHERE id=?', (spec.encode(value).decode(), identity))
+        db.execute('UPDATE module_windows_endpoints SET value=:p0 WHERE id=:p1', (spec.encode(value).decode(), identity))
 
 
 class Records:
     def __init__(self, store):
         self.store = store
-        with store.lock, store.db:
-            initialize(store.db)
 
     def all(self):
         with self.store.lock:
@@ -86,7 +84,7 @@ class Records:
     def get(self, identity):
         spec.identity(identity)
         with self.store.lock:
-            row = self.store.db.execute('SELECT value FROM module_windows_endpoints WHERE id=?', (identity,)).fetchone()
+            row = self.store.db.execute('SELECT value FROM module_windows_endpoints WHERE id=:p0', (identity,)).fetchone()
         if row is None:
             raise Failure('windows_endpoint_missing', 'The registered Windows endpoint was not found.', 404)
         return endpoint(spec.decode(row[0].encode()))
@@ -96,19 +94,19 @@ class Records:
         if expected_revision is not None:
             spec.integer(expected_revision, 1, 2**53 - 2)
         with self.store.lock, self.store.db:
-            row = self.store.db.execute('SELECT value FROM module_windows_endpoints WHERE id=?', (value['id'],)).fetchone()
+            row = self.store.db.execute('SELECT value FROM module_windows_endpoints WHERE id=:p0', (value['id'],)).fetchone()
             if row is None:
                 if expected_revision is not None or value['revision'] != 1:
                     raise Failure('windows_endpoint_changed', 'The Windows endpoint revision changed.', 409)
                 if self.store.db.execute('SELECT count(*) FROM module_windows_endpoints').fetchone()[0] >= 64:
                     raise Failure('capacity', 'The Windows endpoint limit was reached.', 409)
-                self.store.db.execute('INSERT INTO module_windows_endpoints VALUES (?,?)',
+                self.store.db.execute('INSERT INTO module_windows_endpoints VALUES (:p0,:p1)',
                                       (value['id'], spec.encode(value).decode()))
             else:
                 prior = endpoint(spec.decode(row[0].encode()))
                 if prior['revision'] != expected_revision or value['revision'] != expected_revision + 1:
                     raise Failure('windows_endpoint_changed', 'The Windows endpoint revision changed.', 409)
-                self.store.db.execute('UPDATE module_windows_endpoints SET value=? WHERE id=?',
+                self.store.db.execute('UPDATE module_windows_endpoints SET value=:p0 WHERE id=:p1',
                                       (spec.encode(value).decode(), value['id']))
 
     def remove(self, identity, expected_revision):
@@ -117,4 +115,6 @@ class Records:
             value = self.get(identity)
             if value['revision'] != expected_revision:
                 raise Failure('windows_endpoint_changed', 'The Windows endpoint revision changed.', 409)
-            self.store.db.execute('DELETE FROM module_windows_endpoints WHERE id=?', (identity,))
+            from .resource_store import Resources
+            Resources(self.store).remove('nodes', identity)
+            self.store.db.execute('DELETE FROM module_windows_endpoints WHERE id=:p0', (identity,))

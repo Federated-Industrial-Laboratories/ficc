@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+# Connect one managed machine to the approved public management hub.
+[Interface]
+Address = NODE_A_PRIVATE_IP/32
+PrivateKey = REPLACE_WITH_LOCAL_PRIVATE_KEY
+
+[Peer]
+PublicKey = REPLACE_WITH_HUB_PUBLIC_KEY
+AllowedIPs = HUB_PRIVATE_IP/32
+Endpoint = 198.51.100.10:51820
+PersistentKeepalive = 25

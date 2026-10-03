@@ -10,7 +10,7 @@ from ficc_node import adapter_display as display
 from ficc.errors import Failure
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_display_attests_real_peer_and_rejects_replaced_inodes(tmp_path, count):
     peers = []
     try:

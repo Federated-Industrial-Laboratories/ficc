@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools==84.0.0", "wheel==0.48.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ficc-artifact-filesystem"
+version = "0.2.5"
+description = "Registered filesystem artifacts for FICC datasets"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+
+[project.entry-points."ficc.artifact"]
+filesystem = "ficc_artifact_filesystem"
+
+[tool.setuptools.packages.find]
+where = ["src"]

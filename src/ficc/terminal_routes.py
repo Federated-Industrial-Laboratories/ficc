@@ -12,9 +12,11 @@ def install(app, service, principal, origins, hosts):
 
     @app.get("/api/v1/terminals")
     async def terminals(request: Request):
-        actor = principal(request, "terminals:read")
-        return {"terminals": [manager.view(v) for v in manager.all()
-                              if actor.node_ids is None or v["node_id"] in actor.node_ids]}
+        with service.store.lock:
+            actor = principal(request, "terminals:read")
+            return {"terminals": [manager.view(v) for v in manager.all(project_id=actor.project_id,
+                                  subject_id=None if actor.local_owner else actor.subject_id)
+                                  if actor.sees_record(v, private=True) and actor.permits("terminals:read", v["node_id"])]}
 
     @app.post("/api/v1/terminals")
     async def create(body: TerminalRequest, request: Request):
@@ -24,7 +26,8 @@ def install(app, service, principal, origins, hosts):
     @app.get("/api/v1/terminals/{terminal_id}")
     async def detail(terminal_id: str, request: Request):
         value = manager.get(terminal_id)
-        principal(request, "terminals:read", value["node_id"])
+        actor = principal(request, "terminals:read", value["node_id"])
+        actor.require_record(value, private=True)
         return manager.view(value)
 
     @app.post("/api/v1/terminals/{terminal_id}/tickets")

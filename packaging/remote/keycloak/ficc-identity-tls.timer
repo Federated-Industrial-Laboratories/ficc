@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+# Check private backend leaf certificates each day and after a missed run.
+[Unit]
+Description=FICC private backend TLS renewal schedule
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=30m
+AccuracySec=1m
+Persistent=true
+Unit=ficc-identity-tls.service
+
+[Install]
+WantedBy=timers.target

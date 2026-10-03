@@ -35,6 +35,12 @@ export function notice(text, kind = 'info') {
 }
 export function announce(text) { document.querySelector('#announcement').textContent = text; }
 export function bytes(value) {
+  if (typeof value === 'string' && /^\d+$/.test(value)) {
+    const exact = BigInt(value), units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB'];
+    let unit = 0, scale = 1n;
+    while (exact >= scale * 1024n && unit < units.length - 1) { scale *= 1024n; unit++; }
+    return unit ? `${exact / scale}.${exact % scale * 10n / scale} ${units[unit]}` : `${exact} B`;
+  }
   if (!Number.isFinite(value)) return 'Unknown';
   const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
   let unit = 0;

@@ -48,7 +48,7 @@ def test_rdp_build_requires_every_runtime_library(tmp_path, missing):
 
 @pytest.mark.skipif(os.environ.get('FICC_VIEWER_RDP_TESTS') != '1',
                     reason='Set FICC_VIEWER_RDP_TESTS=1 with an actual RDP runtime')
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_real_relocated_rdp_decoder_parameters_and_inventory(tmp_path, count):
     source = Path(os.environ['FICC_VIEWER_RUNTIME'])
     target = install(source, tmp_path / 'moved-runtime')

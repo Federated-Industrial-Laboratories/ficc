@@ -13,6 +13,7 @@ import tarfile
 from pathlib import Path, PurePosixPath
 
 from release_lib.common import digest, write_json
+from release_signatures import FILES as SIGNATURE_FILES
 
 
 def required_artifacts(version: str) -> set[str]:
@@ -35,11 +36,15 @@ def verify_original(output: Path, build: dict, arch_name: str) -> None:
     if checksums != {**artifacts, "build.json": digest(output / "build.json")}:
         raise ValueError("Original release checksums differ from the build receipt")
     actual = {p.name for p in output.iterdir() if p.is_file()}
-    if actual - required - {arch_name, "build.json", "SHA256SUMS"}:
+    if actual & SIGNATURE_FILES and not SIGNATURE_FILES <= actual:
+        raise ValueError("Release signature files are incomplete")
+    if actual - required - {arch_name, "build.json", "SHA256SUMS"} - SIGNATURE_FILES:
         raise ValueError("Release directory contains unexpected artifacts")
 
 
 def finalize(output: Path, package: Path) -> None:
+    if any((output / name).exists() or (output / name).is_symlink() for name in SIGNATURE_FILES):
+        raise ValueError("Finalize the release formats before signing its checksums")
     build = json.loads((output / "build.json").read_text())
     expected = f"ficc-bin-{build['version']}-1-x86_64.pkg.tar.zst"
     if package.name != expected:

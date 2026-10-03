@@ -4,13 +4,25 @@ The supported stable release is 0.2.0, published as 0.2.0-stable.
 Report a security issue privately to contact@federatedindustrial.com.
 Do not include credentials, private keys or confidential logs in a public issue.
 
-The current service supports one local Linux account. It listens on loopback
-and requires authentication. Do not expose its port through a public proxy,
-tunnel or network bind. Shared remote access is not supported.
+The supported stable release uses local-mode loopback access. Do not expose
+that release's listener through a public proxy, tunnel or network bind.
+The development controller also provides explicit [remote mode](docs/remote-access.md):
+verified HTTPS, a protected Unix gateway connection, approved external identities
+and current project permissions. Adding a proxy to a local-mode listener does
+not enable secure remote access.
 
 The local account, its SSH configuration and its SSH agent are trusted.
 A process with the same account can control FICC and use that account's keys.
 The service does not isolate applications that share the local account.
+
+Application identities separate project workspaces and operation receipts within that trusted account.
+The owner controls membership and can issue credentials through the private socket.
+The owner assigns project machines, folders and capabilities. Job and file
+receipts remain project-bound; terminals also require their creating identity.
+Job execution and shells have full remote-account authority. Provider and
+installation administration remain owner-only. Remote identity approval is separate
+from membership and cannot assign the local recovery owner.
+See [identities and projects](docs/identities.md) for ownership and recovery limits.
 
 Remote machine data is untrusted. The service validates data before storage.
 The browser treats names, errors and resource labels as text. SSH connections
@@ -98,3 +110,19 @@ Workspace data has local-account file protection, not encryption at rest. Audio
 uses an explicit browser-local file selection and revocable playback leases.
 No module may place provider passwords in workspace state. Treat saved notes,
 operation history and backups as private data.
+
+## Policy packages
+
+Signed policy archives contain Rego and JSON. Exact manifest signatures and
+payload hashes bind them to an explicitly trusted Ed25519 publisher. Ordinary
+workspace modules cannot establish that trust or install a security provider.
+Providers are separately installed trusted Python components with controller
+authority. The OPA provider requires a network-isolated process and verified
+resource controls for both compilation and evaluation.
+
+Policy input contains current host-established authority, with caller labels
+kept separate. An allow can only narrow host grants. Invalid, missing, stale or
+unavailable required decisions deny access. Unrestricted local owner policy
+administration remains available for explicit recovery and generates audit
+events. Restore disables policy execution and publisher trust. See
+[policy operations](docs/policies.md) for the remaining managed-process limits.

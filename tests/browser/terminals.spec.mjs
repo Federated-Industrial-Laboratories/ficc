@@ -134,9 +134,10 @@ test('simulation and missing execution grant do not expose live controls', async
   await expect(page.getByRole('button', { name: 'Stop session' })).toHaveCount(0);
 });
 
-test('terminals without read permission show an explicit denial', async ({ page }) => {
+test('terminals without read permission disable navigation without inventory requests', async ({ page }) => {
+  let reads = 0; page.on('request', req => { if (new URL(req.url()).pathname === '/api/v1/terminals') reads++; });
   await setupTerminals(page, { scopes: terminalScopes.filter(scope => scope !== 'terminals:read') });
-  await expect(page.getByRole('heading', { name: 'Terminal access denied' })).toBeVisible();
+  await expect(page.locator('[data-view=terminals]')).toBeDisabled(); expect(reads).toBe(0);
 });
 
 test('detached ephemeral sessions cannot be recreated by reattach', async ({ page }) => {

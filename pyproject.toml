@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ficc"
-version = "0.2.0"
-description = "Local Linux cluster console with OpenSSH connections."
+version = "0.2.5"
+description = "Linux cluster console with remote access, workloads and modular providers."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-dependencies = ["fastapi==0.141.1", "uvicorn==0.53.0", "httpx==0.28.1", "websockets==17.1"]
+dependencies = ["fastapi==0.141.1", "uvicorn==0.53.0", "httpx==0.28.1", "websockets==17.1", "cryptography==50.0.2"]
 
 [project.optional-dependencies]
 dev = [
@@ -38,7 +38,8 @@ ficc = ["static/**/*", "static/*", "module_packages/*"]
 [tool.pytest.ini_options]
 testpaths = ["tests/python", "tests/tools"]
 asyncio_mode = "auto"
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers -m 'not scale'"
+markers = ["scale: optional expanded batch and repeated recovery coverage"]
 
 [tool.ruff]
 target-version = "py312"
@@ -56,5 +57,5 @@ files = ["src/ficc", "node/ficc_node"]
 exclude = ["static/"]
 
 [[tool.mypy.overrides]]
-module = "pynvml"
+module = ["pynvml", "authlib.oidc.core"]
 ignore_missing_imports = true

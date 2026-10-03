@@ -10,7 +10,8 @@ import pytest
 from test_module_proxmox_protocol import identity, provider
 
 from ficc.errors import Failure
-from ficc.module_proxmox_store import Records, intent, operation, spec, validate_records
+from ficc.module_proxmox_store import Records, initialize, intent, operation, spec, validate_records
+from ficc.state_provider import BoundConnection
 
 
 def profile(index=0):
@@ -33,9 +34,10 @@ def value(size):
     return result
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_exact_failed_task_survives_store_and_backup_validation(size):
-    store = SimpleNamespace(db=sqlite3.connect(":memory:"), lock=threading.RLock())
+    store = SimpleNamespace(db=sqlite3.connect(":memory:", factory=BoundConnection), lock=threading.RLock())
+    initialize(store.db)
     records = Records(store)
     records.save_profile(profile())
     original = value(size)
@@ -60,7 +62,7 @@ def test_exact_failed_task_survives_store_and_backup_validation(size):
         records.get(original["id"])
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("mutation", ["missing", "null", "success", "running", "foreign", "provider", "uri", "digest"])
 def test_failed_task_and_frozen_intent_reject_tampering(size, mutation):
     record = value(size)

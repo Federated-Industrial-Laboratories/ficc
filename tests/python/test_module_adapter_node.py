@@ -107,7 +107,7 @@ def test_package_transfer_refuses_changed_members_without_publish(tmp_path, muta
     assert not (tmp_path / "packages" / parameters["digest"]).exists()
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_node_journal_repeated_apply_never_reexecutes_and_cleanup_is_exact(tmp_path, count):
     selected = bindings()[0]
     selected["resources"] = [{"id": f"{index + 1:032x}", "key": str(index), "birth": "b" * 64,

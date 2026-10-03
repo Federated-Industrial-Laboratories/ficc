@@ -28,7 +28,7 @@ def payload(tmp_path, monkeypatch, count=1):
     return source
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_install_retains_all_bytes_after_mount_removal(tmp_path, monkeypatch, count):
     source = payload(tmp_path, monkeypatch, count)
     command = install(source)
@@ -61,7 +61,7 @@ def test_install_rejects_changed_source(tmp_path, monkeypatch, change):
         install(source)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_existing_runtime_is_not_silently_replaced(tmp_path, monkeypatch, count):
     source = payload(tmp_path, monkeypatch, count)
     command = install(source)
@@ -72,7 +72,7 @@ def test_existing_runtime_is_not_silently_replaced(tmp_path, monkeypatch, count)
     assert changed.read_text() == "changed installed code"
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_install_rejects_changed_last_source_member(tmp_path, monkeypatch, count):
     source = payload(tmp_path, monkeypatch, count)
     name = "python/bin/ficc" if count == 1 else f"module-{count - 1}.py"

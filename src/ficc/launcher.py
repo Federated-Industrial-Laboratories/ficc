@@ -176,10 +176,11 @@ def stop(path: Path) -> dict:
     return {"unit": config.unit, "stopped": True, "remote_jobs_cancelled": False}
 
 
-def open_console(state_dir: Path, print_url: bool = False) -> None:
+def open_console(state_dir: Path, print_url: bool = False, *, subject: str | None = None, project: str | None = None) -> None:
     from .cli import local_request
 
-    grant = local_request(state_dir, {"action": "bootstrap"})
+    grant = local_request(state_dir, {"action": "bootstrap", **({"subject_id": subject} if subject else {}),
+                                      **({"project_id": project} if project else {})})
     url = grant["origin"] + "/#bootstrap=" + quote(grant["credential"], safe="")
     if print_url:
         print(url)

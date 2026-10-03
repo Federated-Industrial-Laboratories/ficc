@@ -60,7 +60,7 @@ def setup(console, tmp_path, monkeypatch):
     return actor, state, call
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_bounded_references_actor_expiry_and_single_use(console, tmp_path, monkeypatch, count):
     client, service = console
     actor, state, call = setup(console, tmp_path, monkeypatch)
@@ -110,7 +110,7 @@ def test_origin_reference_capacity_and_current_authority(console, tmp_path, monk
     assert client.post(route + "/tickets").status_code == 409
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_registered_rdp_endpoint_uses_private_connection_and_current_authority(console, tmp_path, monkeypatch, count):
     client, service = console
     runtime = tmp_path / "runtime"
@@ -165,7 +165,7 @@ def test_registered_rdp_endpoint_uses_private_connection_and_current_authority(c
     assert state["attached"] == count
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_adapter_console_selection_uses_real_endpoint_and_exact_profile(console, tmp_path, monkeypatch, count):
     client, service = console
     actor, _, call = setup(console, tmp_path, monkeypatch)

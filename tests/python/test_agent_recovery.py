@@ -11,7 +11,7 @@ from ficc.api import create_app
 from ficc.settings import Settings
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("boundary", ["deliveries", "agents", "exchange"])
 async def test_agent_poll_recovers_and_health_reports_storage_failure(tmp_path, monkeypatch, count, boundary):
     app = create_app(Settings(state_dir=tmp_path / "state", control=False))

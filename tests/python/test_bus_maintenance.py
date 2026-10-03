@@ -7,6 +7,7 @@ import pytest
 
 from ficc import backup_database, history_state
 from ficc.agent_store import AgentStore
+from ficc.backup_database import SCHEMA
 from ficc.bus_cli import export_run, import_run
 from ficc.bus_schema import portable
 
@@ -55,7 +56,7 @@ def test_closed_bus_rows_survive_credential_erasure(console, tmp_path):
         assert db.execute("SELECT count(*) FROM credentials").fetchone()[0] == 0
         row = db.execute("SELECT value FROM bus_runs WHERE id=?", (run["id"],)).fetchone()
         assert json.loads(row[0])["id"] == run["id"]
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 6
+        assert db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA
 
 
 def test_history_refuses_retained_agent_before_terminal_retirement(console):
@@ -91,7 +92,7 @@ def test_import_validation_is_atomic(console, tmp_path, change):
     assert service.bus.store.all("bus_messages") == []
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_closed_run_archive_checkpoints_bounded_batches(console, monkeypatch, tmp_path, count):
     import asyncio
 

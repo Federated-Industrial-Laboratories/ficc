@@ -10,6 +10,7 @@ import pytest
 from conftest import node
 from starlette.websockets import WebSocketDisconnect
 
+from ficc.backup_database import SCHEMA
 from ficc.errors import Failure
 from ficc.terminal_pty import TerminalPTY
 from ficc.terminal_stream import WINDOW, bridge
@@ -38,7 +39,7 @@ def test_intent_scopes_confirmation_and_dedup(console):
     assert client.post(f"/api/v1/terminals/{first['id']}/tickets").status_code == 409
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_node_grants_and_ticket_replay(console, count):
     client, service = console
     for index in range(count):
@@ -247,7 +248,7 @@ def test_schema_two_preserves_existing_credential_grants(tmp_path):
         assert principal.root_ids is None
         with pytest.raises(Failure):
             principal.require("files:read", "node-0", "any-root")
-        assert store.db.execute("PRAGMA user_version").fetchone()[0] == 6
+        assert store.db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA
     finally:
         store.close()
 

@@ -14,6 +14,7 @@ from ficc_node import file_state, job_state, job_system, terminals
 from test_ssh import ssh_fixture as ssh_fixture
 
 from ficc.errors import Failure
+from ficc.identity_store import LOCAL_OWNER, LOCAL_PROJECT
 from ficc.service import Service
 from ficc.settings import Settings
 from ficc.ssh import PROBE
@@ -27,7 +28,7 @@ def invoke(state, output, config, confirm=False):
     return json.loads(result.stdout)
 
 
-@pytest.mark.parametrize("count", [0, 1, 64])
+@pytest.mark.parametrize("count", [0, 1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_complete_cli_archive_real_ssh_and_systemd_inspection(ssh_fixture, monkeypatch, count):
     transport, home, temporary = ssh_fixture
     node = await transport.preview("fixture-node", "Archive fixture")
@@ -69,6 +70,7 @@ async def test_complete_cli_archive_real_ssh_and_systemd_inspection(ssh_fixture,
                     if path.is_file() and path.name != "controller.json":
                         original[kind + "/" + path.relative_to(base).as_posix()] = path.read_bytes()
             service.jobs.store.insert({"id": identity, "actor": "fixture", "key": "archive-" + identity,
+                                       "subject_id": LOCAL_OWNER, "project_id": LOCAL_PROJECT,
                                        "digest": f"digest-{index}", "targets": [{"node_id": node["id"], "job_id": identity, "state": "succeeded"}]})
     service.close()
     await transport.close()

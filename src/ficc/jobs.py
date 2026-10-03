@@ -91,6 +91,7 @@ class Jobs:
             targets = await asyncio.gather(*(one(node) for node in nodes))
         finally:
             self.preview_pending -= 1
+        self.check(actor, "jobs:execute", request["node_ids"])
         preview: dict = {"preview_id": secrets.token_hex(16), "expires_at": time.time() + 120,
                    "request": copy.deepcopy(request), "targets": targets,
                    "warnings": ["Execution has the full authority of the remote account."]}
@@ -105,6 +106,7 @@ class Jobs:
             old = self.store.existing(actor, key)
             preview = self.previews.get(preview_id)
             if old:
+                self.service.auth.record(actor, old)
                 self.check(actor, "jobs:execute", old["request"]["node_ids"])
                 if preview_id != old["preview_id"] and (preview is None or digest(preview["request"]) != old["digest"]):
                     raise Failure("idempotency_conflict", "This key belongs to another request.", 409)
@@ -129,20 +131,26 @@ class Jobs:
                                       "requested_limits": request["job"]["limits"], "effective_limits": None,
                                       "reservations": request["job"]["gpu_reservations"].get(node["id"], []),
                                       "session_lifetime": None, "node": node} for node in preview["nodes"]]}
-            self.store.insert(operation)
+            with self.service.store.lock, self.service.store.db:
+                self.check(actor, "jobs:execute", request["node_ids"])
+                operation.update(self.service.auth.ownership(actor))
+                self.store.insert(operation)
             self.service.store.audit("job.submit", operation["id"], "queued", actor)
             return operation
 
-    def view(self, operation: dict, actor: Principal) -> dict:
-        result = copy.deepcopy(operation)
-        result["targets"] = [target for target in result["targets"] if actor.node_ids is None or target["node_id"] in actor.node_ids]
+    def view(self, operation: dict, actor: Principal, scope: str = "jobs:read") -> dict:
+        with self.service.store.lock:
+            actor = self.service.auth.current(actor.id)
+            actor.require_record(operation)
+            result = copy.deepcopy(operation)
+            result["targets"] = [target for target in result["targets"] if actor.permits(scope, target["node_id"])]
         ids = [target["node_id"] for target in result["targets"]]
         result["request"]["node_ids"] = ids
         result["request"]["job"]["gpu_reservations"] = {node: reservations for node, reservations in result["request"]["job"]["gpu_reservations"].items() if node in ids}
         for target in result["targets"]:
             for field in ("node", "cancel_actor", "cancel_force", "cancel_status", "cancel_revision", "cancel_error"):
                 target.pop(field, None)
-        return {key: result[key] for key in ("id", "action", "actor", "created_at", "updated_at", "request", "targets")}
+        return {key: result[key] for key in ("id", "action", "actor", "subject_id", "project_id", "created_at", "updated_at", "request", "targets")}
 
     def update(self, operation_id: str, node_id: str, values: dict):
         operation = self.store.get(operation_id)
@@ -162,6 +170,7 @@ class Jobs:
             try:
                 if initial == "queued":
                     def check():
+                        self.service.auth.record(operation["actor"], operation)
                         self.check(operation["actor"], "jobs:execute", [node_id])
                     check()
                     job = copy.deepcopy(operation["request"]["job"])
@@ -173,6 +182,7 @@ class Jobs:
                         current = next(item for item in self.store.get(operation_id)["targets"] if item["node_id"] == node_id)
                         if current["state"] in TERMINAL or current.get("cancel_revision") != target.get("cancel_revision"):
                             raise Failure("cancel_superseded", "A newer cancellation request is pending.", 409)
+                        self.service.auth.record(target["cancel_actor"], operation)
                         self.check(target["cancel_actor"], "jobs:cancel", [node_id])
                     check()
                     payload.update(action="job.cancel", force=target["cancel_force"])
@@ -198,7 +208,8 @@ class Jobs:
                 self.update(operation_id, node_id, values)
                 self.failures.pop(target["job_id"], None)
                 if response["state"] in TERMINAL:
-                    self.service.store.audit("job.result", target["job_id"], response["state"], operation["actor"])
+                    self.service.store.audit("job.result", target["job_id"], response["state"], operation["actor"],
+                                             subject_id=operation["subject_id"], project_id=operation["project_id"])
             except Failure as exc:
                 latest = next(item for item in self.store.get(operation_id)["targets"] if item["node_id"] == node_id)
                 if latest["state"] in TERMINAL or exc.code == "cancel_superseded":
@@ -230,8 +241,9 @@ class Jobs:
 
     async def cancel(self, operation_id: str, nodes: list[str], force: bool, actor: str):
         self.service.live()
-        self.check(actor, "jobs:cancel", nodes)
         operation = self.store.get(operation_id)
+        self.service.auth.record(actor, operation)
+        self.check(actor, "jobs:cancel", nodes)
         if not set(nodes).issubset(target["node_id"] for target in operation["targets"]):
             raise Failure("invalid_nodes", "Select machines in this operation.")
         for target in operation["targets"]:
@@ -251,17 +263,21 @@ class Jobs:
 
     async def logs(self, operation_id: str, node_id: str, stream: str, offset: int, limit: int, actor: str):
         operation = self.store.get(operation_id)
+        self.service.auth.record(actor, operation)
         target = next((item for item in operation["targets"] if item["node_id"] == node_id), None)
         if target is None:
             raise Failure("not_found", "The job target was not found.", 404)
         def check():
+            self.service.auth.record(actor, operation)
             self.check(actor, "jobs:logs", [node_id])
         if self.workers.locked():
             raise Failure("capacity", "The job connection queue is full. Retry the log request.", 429)
         async with self.workers:
             check()
-            return await self.service.ssh.job(target["node"], {"action": "job.logs", "controller_id": self.controller,
-                                               "job_id": target["job_id"], "stream": stream, "offset": offset, "limit": limit}, check=check)
+            result = await self.service.ssh.job(target["node"], {"action": "job.logs", "controller_id": self.controller,
+                                              "job_id": target["job_id"], "stream": stream, "offset": offset, "limit": limit}, check=check)
+            check()
+            return result
 
     async def poll(self):
         if self.service.settings.demo:

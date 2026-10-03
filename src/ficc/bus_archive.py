@@ -84,7 +84,7 @@ async def archive(service, run_id, output):
         with service.store.lock, service.store.db:
             for table, rows in (("agents", agents), ("bus_deliveries", deliveries),
                                 ("bus_messages", service.bus.messages(run_id)), ("bus_runs", [run])):
-                service.store.db.executemany(f"DELETE FROM {table} WHERE id=?", [(row["id"],) for row in rows])
+                service.store.db.executemany(f"DELETE FROM {table} WHERE id=:p0", [(row["id"],) for row in rows])
         service.store.audit("bus.archive", run_id)
         return {"run_id": run_id, "archived": True, "output": str(destination), "nodes": saved}
 

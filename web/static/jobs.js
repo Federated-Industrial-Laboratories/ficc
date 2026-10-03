@@ -50,7 +50,8 @@ export function jobs() {
       const result = await request('/operations');
       if (!active) return;
       operations = result.operations; status.replaceChildren(); draw();
-      document.querySelector('#connection').textContent = demo ? 'Simulation service connected' : 'Local service connected';
+      document.querySelector('#connection').textContent = demo ? 'Simulation service connected' :
+        getSession()?.remote ? 'Secure remote service connected' : 'Local service connected';
     } catch (error) {
       if (!active) return;
       status.replaceChildren(errorPanel(error, load));
@@ -58,7 +59,7 @@ export function jobs() {
       if ([401, 403].includes(error.status)) {
         operations = []; detail?.dispose(); detail = null; inventory.replaceChildren(); selection.replaceChildren();
       }
-      document.querySelector('#connection').textContent = error.status === 0 ? 'Local service disconnected' : 'Request unavailable';
+      document.querySelector('#connection').textContent = error.status === 0 ? 'Service disconnected' : 'Request unavailable';
     } finally {
       loading = false; update.disabled = false;
       if (active) timer = setTimeout(load, 4000);

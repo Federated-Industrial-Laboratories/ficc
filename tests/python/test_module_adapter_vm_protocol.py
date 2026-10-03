@@ -11,7 +11,7 @@ from ficc.errors import Failure
 from ficc.modules.adapter_vm_protocol import result
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("change", ["missing", "duplicate", "birth", "identity", "extra", "name", "cpu", "console"])
 def test_status_requires_exact_birth_and_complete_bounded_rows(count, change):
     resources = [target["resource"] for target in operation(count)["targets"]]
@@ -39,7 +39,7 @@ def test_status_requires_exact_birth_and_complete_bounded_rows(count, change):
         result({"results": rows}, "status", "status", binding)
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("change", ["task", "completion", "refused", "order", "partial"])
 def test_receipt_requires_exact_task_proof_and_complete_order(count, change):
     resources = [target["resource"] for target in operation(count)["targets"]]

@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.mark.parametrize("provider,prefix", [("proxmox", "proxmox"), ("libvirt", "libvirt")])
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("errors", [False, True])
 @pytest.mark.parametrize("per_node", [1, 4])
 def test_actual_module_result_matches_host_table_binding(tmp_path, size, errors, per_node, provider, prefix):

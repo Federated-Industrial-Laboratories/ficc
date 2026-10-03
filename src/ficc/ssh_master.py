@@ -2,6 +2,7 @@
 """Own short-lived observation masters and their private control sockets."""
 
 import asyncio
+import copy
 import os
 import select
 import signal
@@ -16,6 +17,8 @@ from pathlib import Path
 from .errors import Failure
 from .process import ready
 from .settings import MAX_NODES
+from .ssh_trust_connection import Arguments, release
+from .ssh_trust_connection import check as connection_check
 
 LIFETIME = 300
 PROBE_TIMEOUT = 10
@@ -25,7 +28,7 @@ OUTPUT_LIMIT = 16384
 
 
 def options(args: list[str], **changes: str) -> list[str]:
-    result = list(args)
+    result = copy.copy(args)
     for index, value in enumerate(args):
         key, separator, _ = value.partition("=")
         if index > 0 and args[index - 1] == "-o" and separator and key in changes:
@@ -41,6 +44,7 @@ class StartupFailure(Exception):
 class Master:
     def __init__(self, identity: str, args: list[str]):
         self.identity = identity
+        self.args = args
         self.directory = Path(tempfile.mkdtemp(prefix="ficc-ssh-"))
         self.socket = self.directory / "control"
         info = self.directory.stat()
@@ -72,9 +76,21 @@ class Master:
             if self.pidfd >= 0:
                 os.close(self.pidfd)
             self.directory.rmdir()
+            release(args)
             raise Failure("transport_unavailable", "The observation connection could not start.", 503) from exc
         self.reader = asyncio.create_task(self.read())
+        self.trust_watcher = asyncio.create_task(self.guard())
         self.watcher = asyncio.create_task(self.watch())
+
+    async def guard(self) -> None:
+        if not isinstance(self.args, Arguments):
+            return
+        try:
+            while not self.closed:
+                connection_check(self.args)()
+                await asyncio.sleep(1)
+        except Failure:
+            self.stop()
 
     def alive(self) -> bool:
         return (not self.closed and time.monotonic() < self.expires
@@ -117,7 +133,8 @@ class Master:
             self.stop()
             await asyncio.to_thread(self.process.wait)
             self.reader.cancel()
-            await asyncio.gather(self.reader, return_exceptions=True)
+            self.trust_watcher.cancel()
+            await asyncio.gather(self.reader, self.trust_watcher, return_exceptions=True)
             assert self.process.stderr is not None
             self.process.stderr.close()
             os.close(self.pidfd)
@@ -126,6 +143,7 @@ class Master:
                 self.socket.unlink()
             with suppress(OSError):
                 self.directory.rmdir()
+            release(self.args)
 
     def socket_ready(self) -> bool:
         try:

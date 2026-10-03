@@ -14,6 +14,7 @@ import tarfile
 import tomllib
 from pathlib import Path
 
+import runtime_packages
 from viewer_runtime import install as install_viewer
 
 from .common import digest, normalize_sdist, normalize_tree, run, unpack, write_json
@@ -109,16 +110,23 @@ def build(source: Path, work: Path, inputs: dict[str, Path], provenance: dict, l
     normalize_sdist(source / f"dist/ficc-{version}.tar.gz", work, provenance["epoch"])
     wheels = work / "wheels"
     wheels.mkdir()
+    requirements = [str(source / "requirements.lock"), *runtime_packages.locks(source)]
+    requirement_options = [argument for path in requirements for argument in ("-r", path)]
     run([str(python), "-I", "-m", "pip", "download", "--require-hashes", "--only-binary=:all:",
          "--platform", "manylinux_2_28_x86_64", "--platform", "manylinux2014_x86_64",
          "--implementation", "cp", "--python-version", "3.12", "--abi", "cp312",
-         "--dest", str(wheels), "-r", str(source / "requirements.lock")], env=env)
+         "--dest", str(wheels), *requirement_options], env=env)
     run([str(python), "-I", "-m", "pip", "install", "--no-compile", "--no-index", "--require-hashes",
-         "--find-links", str(wheels), "-r", str(source / "requirements.lock")], env=env)
+         "--find-links", str(wheels), *requirement_options], env=env)
     wheel = next((source / "dist").glob("ficc-*.whl"))
     run([str(python), "-I", "-m", "pip", "install", "--no-compile", "--no-index", "--no-deps", str(wheel)], env=env)
+    runtime_wheels = payload / "runtime-packages"
+    providers = runtime_packages.build(source, runtime_wheels, sys.executable, env=env)
+    runtime_packages.install(python, runtime_wheels, providers, env=env)
     (payload / "python/bin/ficc").write_text(CLI)
     (payload / "python/bin/ficc").chmod(0o755)
+    (payload / "python/bin/ficc-audit-collector").write_text(CLI.replace("-m ficc.cli", "-m ficc_audit_https.collector"))
+    (payload / "python/bin/ficc-audit-collector").chmod(0o755)
     (payload / "ficc").write_text(ENTRY)
     (payload / "ficc").chmod(0o755)
     site = payload / "python/lib/python3.12/site-packages"
@@ -137,7 +145,7 @@ def build(source: Path, work: Path, inputs: dict[str, Path], provenance: dict, l
             for name in declarations[section] if declarations.has_section(section) else ():
                 if Path(name).name != name:
                     raise ValueError("Invalid distribution command name")
-                if name != "ficc":
+                if name not in {"ficc", "ficc-audit-collector"}:
                     (payload / "python/bin" / name).unlink(missing_ok=True)
     for item in payload.rglob("__pycache__"):
         shutil.rmtree(item)
@@ -145,6 +153,9 @@ def build(source: Path, work: Path, inputs: dict[str, Path], provenance: dict, l
     for name in ("README.md", "LICENSE", "NOTICE"):
         shutil.copy2(source / name, payload / name)
     shutil.copytree(source / "docs", payload / "docs")
+    shutil.copytree(source / "sdk", payload / "sdk")
+    shutil.copytree(source / "policy-packs", payload / "policy-packs")
+    shutil.copytree(source / "packaging/remote", payload / "remote")
     for name in ("module-sandbox-policy", "power-policy"):
         shutil.copytree(source / "tools" / name, payload / "tools" / name)
     shutil.copytree(source / ".github/assets", payload / ".github/assets")

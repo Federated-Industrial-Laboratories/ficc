@@ -25,7 +25,7 @@ def image(data):
             + instruction("blob", 1, base64.b64encode(data).decode()) + instruction("end", 1))
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("chunk", [1, 7, 32768])
 def test_bounded_frames_and_fragmented_png(count, chunk):
     output = Output()
@@ -87,7 +87,7 @@ def test_repeated_native_timestamps_have_distinct_browser_receipts():
     assert not output.syncs
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("with_state", [False, True])
 def test_remote_cursor_position_preserves_bounded_display_metadata(count, with_state):
     output = Output()

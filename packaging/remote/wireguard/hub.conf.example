@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+# Connect a management hub to two separate private peers.
+[Interface]
+Address = HUB_PRIVATE_IP/32
+ListenPort = 51820
+PrivateKey = REPLACE_WITH_LOCAL_PRIVATE_KEY
+
+[Peer]
+PublicKey = REPLACE_WITH_NODE_A_PUBLIC_KEY
+AllowedIPs = NODE_A_PRIVATE_IP/32
+
+[Peer]
+PublicKey = REPLACE_WITH_NODE_B_PUBLIC_KEY
+AllowedIPs = NODE_B_PRIVATE_IP/32

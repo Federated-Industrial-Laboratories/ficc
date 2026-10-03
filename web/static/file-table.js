@@ -58,7 +58,8 @@ export function fileTable(side, changed, open, filtered) {
     return entries.filter(entry => entry.name.toLocaleLowerCase().includes(query)).sort((a, b) => {
       const value = entry => sort === 'owner' ? `${entry.uid} / ${entry.gid}` : entry[sort];
       const av = value(a), bv = value(b);
-      const order = typeof av === 'number' && typeof bv === 'number' ? av - bv : names.compare(String(av), String(bv));
+      const order = ['size', 'modified_ns'].includes(sort) ? (BigInt(av) < BigInt(bv) ? -1 : BigInt(av) > BigInt(bv) ? 1 : 0) :
+        typeof av === 'number' && typeof bv === 'number' ? av - bv : names.compare(String(av), String(bv));
       const folders = sort === 'name' ? Number(b.kind === 'directory') - Number(a.kind === 'directory') : 0;
       return folders || direction * order || names.compare(a.name, b.name) || a.entry_id.localeCompare(b.entry_id);
     });
@@ -100,7 +101,7 @@ export function fileTable(side, changed, open, filtered) {
       const row = el('tr', { 'data-entry': entry.entry_id, title: entry.name },
         el('td', {}, checkbox), el('td', { class: 'file-name' }, name),
         el('td', {}, entry.kind), el('td', { class: 'numeric' }, entry.kind === 'directory' ? '-' : bytes(entry.size)),
-        el('td', { class: 'file-date' }, dates.format(new Date(entry.modified_ns / 1e6))),
+        el('td', { class: 'file-date' }, dates.format(new Date(Number(BigInt(entry.modified_ns) / 1000000n)))),
         el('td', { class: 'file-owner' }, `${entry.uid} / ${entry.gid}`),
         el('td', { class: 'file-mode' }, Number(entry.mode).toString(8).padStart(3, '0')));
       row.addEventListener('click', event => {

@@ -73,6 +73,7 @@ def submit(client: httpx.Client, args: argparse.Namespace, request: dict) -> dic
 
 def execute(args) -> None:
     from .cli import local_request
+    from .local_client import client as local_client
 
     request = request_file(args.request) if args.command in {"job-preview", "job-submit"} else None
     if args.command == "job-submit" and args.confirm:
@@ -84,8 +85,7 @@ def execute(args) -> None:
     grant = local_request(args.state_dir, {"action": "job-credential" if cancelling else "ephemeral"})
     revoke = not cancelling
     try:
-        with httpx.Client(base_url=grant["origin"], headers={"Authorization": "Bearer " + grant["credential"]},
-                          timeout=90, trust_env=False) as client:
+        with local_client(grant, args.state_dir) as client:
             if request is not None:
                 result = submit(client, args, request)
             elif args.command == "job-list":

@@ -18,9 +18,19 @@ export async function setupFiles(page, options = {}) {
   const state = { entries: options.entries ?? [fileEntry()], previews: [], submissions: [], transfers: options.transfers ?? [],
     operations: options.operations ?? [], mutations: [], reconciliations: [], lists: [], chunks: [], finishes: [], resumes: [], cancellations: [], denied: false, previewDenied: false };
   await page.route('**/api/v1/session', route => route.fulfill({ json: { csrf: 'test-csrf', mode: options.mode ?? 'live', version: 'fixture',
-    principal: { id: 'test', label: 'Test operator', scopes: options.scopes ?? fileScopes, node_ids: null, root_ids: null } } }));
+    principal: { id: 'test', label: 'Test operator', project_id: '1'.repeat(32), scopes: options.scopes ?? fileScopes, node_ids: null, root_ids: null } } }));
+  await page.route('**/api/v1/projects', route => route.fulfill({ json: { projects: [{ id: '1'.repeat(32), label: 'File project', disabled: false }] } }));
+  await page.route('**/api/v1/policy-status', route => route.fulfill({ json: { required: false, revision: 0, ready: true } }));
+  await page.route('**/api/v1/inspection-settings', route => route.fulfill({ json: {
+    configured: false, available: false, provider: null, can_manage: false,
+  } }));
+  await page.route('**/api/v1/datasets/*/safety', route => route.fulfill({ json: {
+    blocked: false, sensitive: false, inspection_required: false, quarantined: false,
+    inherited_count: 0, inspection: null, exempt: false, exemption: null,
+  } }));
   await page.route('**/api/v1/nodes', route => route.fulfill({ json: { nodes: [node()] } }));
   await page.route('**/api/v1/file-roots', route => route.fulfill({ json: { roots } }));
+  await page.route('**/api/v1/datasets', route => route.fulfill({ json: { datasets: [], next_cursor: null, provider_available: true } }));
   await page.route('**/api/v1/files/list', route => {
     const body = route.request().postDataJSON(); state.lists.push(body);
     if (state.denied) return route.fulfill({ status: 403, json: { error: { code: 'denied', message: 'File permission revoked.' } } });
@@ -87,7 +97,10 @@ export async function setupFiles(page, options = {}) {
     record.state = record.items.every(item => item.state === 'cancelled') ? 'cancelled' : record.items[0].state;
     return route.fulfill({ json: record });
   });
-  await page.goto(origin); await page.locator('[data-view=files]').click();
+  await page.goto(origin);
+  await expect(page.getByLabel('Current project', { exact: true })).toHaveValue('1'.repeat(32));
+  if (!(options.scopes ?? fileScopes).includes('files:read')) return state;
+  await page.locator('[data-view=files]').click();
   await expect(page.getByRole('heading', { name: 'Files', exact: true })).toBeVisible();
   return state;
 }

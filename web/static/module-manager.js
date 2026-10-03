@@ -87,7 +87,7 @@ export function moduleManager(workspaces, changed) {
       ...replaced.map(item => packageTable(item, 'Package replaced by activation')));
     for (const capability of module.manifest.capabilities) {
       const spec = catalogue.capabilities[capability];
-      const targets = (spec?.kind === 'workspace' ? workspaces : catalogue.targets[spec?.kind] || [])
+      const targets = (catalogue.targets[spec?.kind] || (spec?.kind === 'workspace' ? workspaces : []))
         .filter(target => !target.capabilities || target.capabilities.includes(capability));
       const optional = (module.manifest.optional_capabilities || []).includes(capability);
       const group = el('fieldset', {}, el('legend', {}, `${capability}${spec ? `: ${spec.label}` : ' (unavailable)'}${optional ? ' (optional)' : ''}`));

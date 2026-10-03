@@ -11,8 +11,6 @@ import sys
 import time
 from contextlib import suppress
 
-import httpx
-
 from .launcher_config import read_private, write_file
 from .settings import private_directory
 
@@ -20,6 +18,7 @@ from .settings import private_directory
 def submit_saved(args, request: dict) -> dict:
     from .cli import local_request
     from .job_cli import reply
+    from .local_client import client as local_client
 
     key = args.idempotency_key or secrets.token_hex(24)
     if not re.fullmatch(r"[\x21-\x7e]{16,128}", key):
@@ -53,8 +52,7 @@ def submit_saved(args, request: dict) -> dict:
                 raise ValueError("The saved submission credential expired. Inspect job-list before any new submission.")
         revoke = bool(saved["operation_id"])
         try:
-            with httpx.Client(base_url=grant["origin"], headers={"Authorization": "Bearer " + grant["credential"]},
-                              timeout=90, trust_env=False) as client:
+            with local_client(grant, args.state_dir) as client:
                 if saved["operation_id"]:
                     operation = reply(client.get("/api/v1/operations/" + saved["operation_id"]))
                 else:

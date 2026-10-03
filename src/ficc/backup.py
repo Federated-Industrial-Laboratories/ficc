@@ -14,7 +14,9 @@ from . import __version__, backup_cli, backup_modules
 from . import backup_database as database
 from . import backup_io as files
 from .modules.archive import recover_stages
+from .operations import save_receipt
 from .state_lock import StateLock
+from .state_provider import backup_source, configuration
 
 
 def unique_object(pairs):
@@ -70,11 +72,12 @@ def export(state_dir: Path, destination: Path):
         return export_locked(state_dir, destination, ownership)
 
 
-def export_locked(state_dir: Path, destination: Path, ownership: StateLock, maintenance=False):
+def export_locked(state_dir: Path, destination: Path, ownership: StateLock, maintenance=False, provider=None):
     state_dir, destination = Path(os.path.abspath(state_dir)), Path(os.path.abspath(destination))
     if destination.is_relative_to(state_dir):
         raise ValueError("Store the backup outside the controller state directory.")
-    with files.directory(state_dir) as source:
+    with files.directory(state_dir) as source, backup_source(
+            state_dir, Path(f"/proc/self/fd/{source}/state.sqlite3"), provider) as database_path:
         if ownership.fd is None:
             raise ValueError("The backup requires current state ownership.")
         owned = os.fstat(ownership.fd)
@@ -82,9 +85,8 @@ def export_locked(state_dir: Path, destination: Path, ownership: StateLock, main
         if (owned.st_dev, owned.st_ino) != (actual.st_dev, actual.st_ino):
             raise ValueError("The backup ownership belongs to another state directory.")
         recover_stages(Path(f"/proc/self/fd/{source}/modules"))
-        names = files.inventory(source, maintenance=maintenance)
+        names = files.inventory(source, maintenance=maintenance, database_required=configuration(state_dir) is None)
         capacity(source, names)
-        database_path = Path(f"/proc/self/fd/{source}/state.sqlite3")
         with closing(database.connect(database_path, readonly=True)) as db:
             controller = database.quiescent(db)
             schema = database.version(db)
@@ -115,6 +117,7 @@ def export_locked(state_dir: Path, destination: Path, ownership: StateLock, main
             if len(raw) > files.MAX_MANIFEST:
                 raise ValueError("The backup manifest exceeds the size limit.")
             files.write(target, "manifest.json", raw)
+    save_receipt(state_dir, "backup", manifest, raw)
     return {"backup": str(destination), "members": len(members), "schema": schema,
             "credentials_removed": True}
 
@@ -169,6 +172,7 @@ def restore(bundle: Path, destination: Path, confirm_remote_idle=False):
                     raise ValueError("The legacy database has unrecorded module payloads.")
             with files.member(target, "state.sqlite3") as fd:
                 os.fsync(fd)
+            save_receipt(folder, "restore", value, files.encode(value), directory_fd=target)
     return {"state_dir": str(destination.absolute()), "schema": value["schema"],
             "credentials_removed": True, "observations_cleared": True, "module_grants_removed": True}
 

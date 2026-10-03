@@ -18,6 +18,7 @@ from .history_transport import archive as archive_node
 from .settings import Settings, default_state_dir
 from .ssh import SSH
 from .state_lock import StateLock
+from .state_provider import ownership as database_ownership
 
 
 def validate(intent, output, ssh_config):
@@ -65,7 +66,7 @@ async def run(state_dir: Path, output: Path, confirm=False, ssh_config=None):
     ssh_config = Path(os.path.abspath(ssh_config)) if ssh_config else None
     if output.is_relative_to(state_dir):
         raise ValueError("Store the history archive outside the controller state directory.")
-    with files.directory(state_dir), StateLock(state_dir) as ownership:
+    with files.directory(state_dir), StateLock(state_dir) as ownership, database_ownership(state_dir) as provider:
         pending = state_dir / state.PENDING
         history_write.recover(pending, state.MAX_INTENT)
         if pending.exists() or pending.is_symlink():
@@ -81,7 +82,7 @@ async def run(state_dir: Path, output: Path, confirm=False, ssh_config=None):
                     state.verify_backup(output / "controller", saved["intent"]["backup_sha256"])
                     return summary(saved["intent"], True)
                 raise ValueError("The history output must be a new directory.")
-            initial = state.inspect(state_dir)
+            initial = state.inspect(state_dir, provider)
             if not confirm:
                 return {"preview": initial["preview"], "archived": False,
                         "note": "Stop all recorded work and pass --confirm to retire this controller epoch and revoke all credentials."}
@@ -95,18 +96,18 @@ async def run(state_dir: Path, output: Path, confirm=False, ssh_config=None):
         local_output(output, intent)
         copied = output / "controller"
         if not copied.exists():
-            backup.export_locked(state_dir, copied, ownership, maintenance=True)
+            backup.export_locked(state_dir, copied, ownership, maintenance=True, provider=provider)
         manifest, signature = state.verify_backup(copied, intent.get("backup_sha256"))
         if manifest["controller_id"] != intent["controller_id"]:
             raise ValueError("The history backup belongs to another controller.")
         intent["backup_sha256"] = signature
-        receipts, signature = state.local_receipts(state_dir, output, manifest)
+        receipts, signature = state.local_receipts(state_dir, output, manifest, provider)
         if intent.get("retirement_sha256", signature) != signature:
             raise ValueError("The local retirement manifest changed.")
         intent["retirement_sha256"] = signature
         state.save(pending, intent)
-        if not state.committed(state_dir, intent):
-            current = state.inspect(state_dir)
+        if not state.committed(state_dir, intent, provider):
+            current = state.inspect(state_dir, provider)
             if current["database_sha256"] != intent["database_sha256"]:
                 raise ValueError("Controller state changed after archival began.")
             transport = SSH(Settings(state_dir=state_dir, ssh_config=ssh_config, control=False))
@@ -117,7 +118,7 @@ async def run(state_dir: Path, output: Path, confirm=False, ssh_config=None):
                         state.save(pending, intent)
             finally:
                 await transport.close()
-            state.commit(state_dir, intent)
+            state.commit(state_dir, intent, provider)
         if len(intent["acknowledgements"]) != len(intent["nodes"]):
             raise ValueError("The controller commit has incomplete node acknowledgements.")
         state.retire(state_dir, output, receipts)

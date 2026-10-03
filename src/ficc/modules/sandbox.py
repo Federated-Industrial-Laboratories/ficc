@@ -165,22 +165,24 @@ async def management(*arguments: str) -> tuple[int, bytes]:
 async def finish_cleanup(operation) -> None:
     """Do not detach cleanup when a second cancellation arrives during service stop."""
     task = asyncio.create_task(operation)
-    cancelled = False
+    cancelled: asyncio.CancelledError | None = None
     while not task.done():
         try:
             await asyncio.shield(task)
-        except asyncio.CancelledError:
-            cancelled = True
+        except asyncio.CancelledError as exc:
+            if cancelled is None:
+                cancelled = exc
     task.result()
-    if cancelled:
-        raise asyncio.CancelledError
+    if cancelled is not None:
+        raise cancelled
 
 
-async def enforcement(unit: str) -> Path:
+async def enforcement(unit: str, *, properties: dict[str, str] | None = None) -> Path:
+    properties = PROPERTIES if properties is None else properties
     required = ("MemoryMax", "MemorySwapMax", "TasksMax", "NoNewPrivileges", "KillMode", "ControlGroup")
     code, data = await management("show", unit, *["--property=" + key for key in required])
     values = dict(line.split("=", 1) for line in data.decode("utf-8").splitlines() if "=" in line)
-    if code or any(values.get(key) != PROPERTIES[key] for key in required[:-1]):
+    if code or any(values.get(key) != properties[key] for key in required[:-1]):
         raise Failure("module_sandbox_unavailable", "The module resource controls are not active.", 503)
     group = values.get("ControlGroup", "")
     if not re.fullmatch(r"/[a-zA-Z0-9_.@:/-]+", group) or ".." in group.split("/"):
@@ -190,8 +192,8 @@ async def enforcement(unit: str) -> Path:
         limits = {name: (root / name).read_text().strip() for name in
                   ("memory.max", "memory.swap.max", "pids.max", "cpu.max")}
         quota, period = limits["cpu.max"].split()
-        if (limits["memory.max"] != str(MEMORY_BYTES) or limits["memory.swap.max"] != "0"
-                or limits["pids.max"] != str(MAX_TASKS) or int(quota) * 2 > int(period)):
+        if (limits["memory.max"] != properties["MemoryMax"] or limits["memory.swap.max"] != properties["MemorySwapMax"]
+                or limits["pids.max"] != properties["TasksMax"] or int(quota) * 2 > int(period)):
             raise ValueError("Resource limits differ")
     except (OSError, ValueError) as exc:
         raise Failure("module_sandbox_unavailable", "The kernel resource controls are unavailable.", 503) from exc

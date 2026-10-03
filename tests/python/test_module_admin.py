@@ -9,11 +9,13 @@ from types import SimpleNamespace
 import pytest
 from ficc_node import admin_rpc, admin_state
 from ficc_node import admin_spec as spec
+from provider_batch_fixtures import batched_service
 
 from ficc.errors import Failure
 from ficc.module_admin import Administration
-from ficc.module_admin_store import retained, validate_records
+from ficc.module_admin_store import initialize, retained, validate_records
 from ficc.modules.broker_protocol import BrokerCall
+from ficc.state_provider import BoundConnection
 
 DIGEST = "a" * 64
 
@@ -66,7 +68,8 @@ async def setup(tmp_path, monkeypatch, size=1, count=1):
     denied = set()
 
     class Store:
-        db = sqlite3.connect(":memory:")
+        db = sqlite3.connect(":memory:", factory=BoundConnection)
+        initialize(db)
         lock = threading.RLock()
         settings = {}
 
@@ -113,6 +116,7 @@ async def setup(tmp_path, monkeypatch, size=1, count=1):
             return 0, spec.encode(data), b""
 
     service = SimpleNamespace(store=Store(), ssh=SSH(), authorize=authorize, modules=SimpleNamespace(require=require), live=lambda: None)
+    batched_service(service)
     host = Administration(service)
     for identity in nodes:
         await host.set_profile("owner", identity, "user")
@@ -133,7 +137,7 @@ def selected(host, size):
     return [spec.resource(profile["id"], {"kind": "service", "id": f"{i:064x}", "name": f"fixture-{i}.service"}) for i in range(size)]
 
 
-@pytest.mark.parametrize("size", [1, 64])
+@pytest.mark.parametrize("size", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_lifecycle_order_receipts_and_idempotence(tmp_path, monkeypatch, size):
     host, provider, _, _ = await setup(tmp_path, monkeypatch, size)
     await inventory(host, ["node-0"])
@@ -157,7 +161,7 @@ async def test_lifecycle_order_receipts_and_idempotence(tmp_path, monkeypatch, s
                      list(host.service.store.db.execute("SELECT * FROM module_admin_operations")), {"node-0"})
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_inventory_budget_status_logs_and_denied_profiles(tmp_path, monkeypatch, count):
     host, _, denied, nodes = await setup(tmp_path, monkeypatch, 64, count)
     rows = await inventory(host, nodes)
@@ -216,7 +220,7 @@ async def test_stale_preview_revoke_disabled_and_cross_instance(tmp_path, monkey
 
 
 @pytest.mark.parametrize("action", ["reboot", "poweroff"])
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_power_acknowledgement_never_proves_completion(tmp_path, monkeypatch, action, count):
     host, provider, _, nodes = await setup(tmp_path, monkeypatch, count=count)
     profiles = host.records.profiles()

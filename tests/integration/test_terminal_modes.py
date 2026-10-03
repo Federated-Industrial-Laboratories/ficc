@@ -35,7 +35,7 @@ async def test_remote_normal_stty_flags_and_crlf_output(ssh_fixture):
         await pty.close()
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_enter_completes_each_remote_line_read(ssh_fixture, count):
     transport, _, _ = ssh_fixture
     program = ("import sys,json,signal;signal.alarm(15);print('LINE_READY',flush=True)\n"

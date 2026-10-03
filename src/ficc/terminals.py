@@ -9,11 +9,12 @@ import time
 
 from .auth import Principal, digest
 from .errors import Failure
+from .resource_store import decode, encode
 from .ssh import PROBE, transport_failure
 
 TERMINAL = {"exited", "interrupted", "stopped"}
 PUBLIC = {"id", "node_id", "node_name", "account", "label", "mode", "state",
-          "created_at", "updated_at", "error"}
+          "created_at", "updated_at", "error", "subject_id", "project_id"}
 
 
 class Terminals:
@@ -27,39 +28,45 @@ class Terminals:
         if self.controller is None:
             self.controller = secrets.token_hex(16)
             self.store.set_setting("terminal_controller", self.controller)
-        with self.store.lock, self.store.db:
-            self.store.db.execute("CREATE TABLE IF NOT EXISTS terminals "
-                                  "(id TEXT PRIMARY KEY,actor TEXT,key TEXT,digest TEXT,value TEXT,"
-                                  "UNIQUE(actor,key))")
         for value in self.all():
             if value["state"] not in TERMINAL and not (value["mode"] == "tmux" and value["state"] == "unknown"):
                 value["state"] = "interrupted" if value["mode"] == "ephemeral" else "detached"
                 self.save(value)
 
-    def all(self) -> list[dict]:
+    def all(self, *, project_id: str | None = None, subject_id: str | None = None) -> list[dict]:
+        conditions: list[str] = []
+        parameters: list[str] = []
+        for column, value in (("project_id", project_id), ("subject_id", subject_id)):
+            if value is not None:
+                conditions.append(f"{column}=:p{len(parameters)}")
+                parameters.append(value)
+        query = "SELECT value,subject_id,project_id FROM terminals"
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
         with self.store.lock:
-            return [json.loads(row[0]) for row in self.store.db.execute(
-                "SELECT value FROM terminals ORDER BY rowid DESC")]
+            return [decode(row) for row in self.store.db.execute(query + " ORDER BY rowid DESC", parameters)]
 
     def get(self, terminal_id: str) -> dict:
         with self.store.lock:
-            row = self.store.db.execute("SELECT value FROM terminals WHERE id=?", (terminal_id,)).fetchone()
+            row = self.store.db.execute("SELECT value,subject_id,project_id FROM terminals WHERE id=:p0", (terminal_id,)).fetchone()
         if row is None:
             raise Failure("not_found", "The terminal was not found.", 404)
-        return json.loads(row[0])
+        return decode(row)
 
     def save(self, value: dict) -> None:
         value["updated_at"] = time.time()
         with self.store.lock, self.store.db:
-            self.store.db.execute("INSERT INTO terminals VALUES (?,?,?,?,?) ON CONFLICT(id) "
+            self.store.db.execute("INSERT INTO terminals (id,actor,key,digest,value,subject_id,project_id) "
+                                  "VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6) ON CONFLICT(id) "
                                   "DO UPDATE SET value=excluded.value", (
-                                      value["id"], value["actor"], value["key"], value["digest"], json.dumps(value)))
+                                      value["id"], value["actor"], value["key"], value["digest"], encode(value),
+                                      value["subject_id"], value["project_id"]))
 
     def view(self, value: dict) -> dict:
         return {key: value[key] for key in PUBLIC}
 
     def check(self, actor: str, scope: str, value: dict) -> Principal:
-        current = self.service.auth.current(actor)
+        current = self.service.auth.record(actor, value, private=True)
         current.require(scope, value["node_id"])
         node = self.store.node(value["node_id"])
         if node["fingerprint"] != value["fingerprint"]:
@@ -118,7 +125,10 @@ class Terminals:
             value = {**request, "id": secrets.token_hex(16), "actor": actor, "key": key,
                      "digest": fingerprint, "node_name": node["name"], "account": node["account"],
                      "fingerprint": node["fingerprint"], "state": "new", "created_at": time.time(), "error": None}
-            self.save(value)
+            with self.store.lock, self.store.db:
+                self.service.authorize(actor, "terminals:execute", request["node_id"])
+                value.update(self.service.auth.ownership(actor))
+                self.save(value)
             self.store.audit("terminal.create", value["id"], "requested", actor)
             if value["mode"] == "tmux":
                 try:
@@ -164,11 +174,16 @@ class Terminals:
                 self.save(value)
                 raise Failure("terminal_closed", "The remote session no longer exists.", 409)
         args = await self.service.ssh.arguments(self.store.node(value["node_id"]), terminal=True)
-        self.check(actor, "terminals:execute", value)
-        if value["mode"] == "tmux":
-            args.append('exec python3 "$HOME/.local/lib/ficc/node.pyz" --attach-terminal '
-                        + self.controller + " " + value["id"])
-        return args
+        try:
+            self.check(actor, "terminals:execute", value)
+            if value["mode"] == "tmux":
+                args.append('exec python3 "$HOME/.local/lib/ficc/node.pyz" --attach-terminal '
+                            + self.controller + " " + value["id"])
+            return args
+        except BaseException:
+            from .ssh import SSH
+            SSH.release(args)
+            raise
 
     async def stop(self, terminal_id: str, actor: str) -> dict:
         self.service.live()

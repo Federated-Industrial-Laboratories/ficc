@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools==84.0.0", "wheel==0.48.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ficc-data-duckdb"
+version = "0.2.5"
+readme = "README.md"
+description = "Optional read-only FICC analytics over approved Arrow and Parquet inputs."
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = ["duckdb==1.5.6", "pyarrow==25.0.1"]
+
+[project.entry-points."ficc.data"]
+duckdb = "ficc_data_duckdb"
+
+[tool.setuptools.packages.find]
+where = ["src"]

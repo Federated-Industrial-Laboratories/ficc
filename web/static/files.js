@@ -5,16 +5,17 @@ import { button, el, errorPanel, heading, notice, panel, state, table } from './
 import { fileAction, transferPreview } from './file-actions.js';
 import { filePane } from './file-pane.js';
 import { fileTransfers } from './file-transfers.js';
+import { datasetPanel } from './datasets.js';
 
 export function files() {
-  let active = true, left, right, transfers, timer, loading = false;
+  let active = true, left, right, transfers, datasets, timer, loading = false;
   const demo = getSession().mode === 'demo';
-  const status = el('div'), locations = el('div'), history = el('div'), transferArea = el('div');
+  const status = el('div'), locations = el('div'), history = el('div'), transferArea = el('div'), datasetArea = el('div');
   const element = el('div', {}, heading('STORAGE / FILES', 'Files', 'Browse registered locations, verify transfers and confirm exact file changes.'),
     demo ? notice('Simulation mode. Live file changes and transfers are unavailable.') : null,
     el('details', { class: 'file-policy' }, el('summary', {}, 'File access boundaries'),
       el('p', {}, 'Registered roots limit API access. Other programs in the same account are trusted; a shell can bypass these limits. An opened object may remain accessible if another program moves it.')),
-    status, locations, transferArea, history);
+    status, locations, transferArea, datasetArea, history);
   function refresh() { left?.refresh(); right?.refresh(); }
   function recorded() { refresh(); operations(); }
   function action(kind, pane) { fileAction(kind, pane, recorded, (record, selected) => transfers.received(record, selected)); }
@@ -42,6 +43,7 @@ export function files() {
           button('Copy left to right', () => copy(left, right), { disabled: demo || !allowed('files:write') }),
           button('Copy right to left', () => copy(right, left), { disabled: demo || !allowed('files:write') })));
       transfers = fileTransfers(demo, refresh); transferArea.replaceChildren(transfers.element); operations();
+      datasets = datasetPanel(side => (side === 'left' ? left : right).value(), demo); datasetArea.replaceChildren(datasets.element);
     } catch (error) { if (active) locations.replaceChildren(errorPanel(error, load)); }
   }
   async function operations() {
@@ -68,5 +70,5 @@ export function files() {
   }
   if (allowed('files:read')) load();
   else locations.append(state('File access denied', 'The files:read grant is required to browse registered locations.'));
-  return { element, dispose() { active = false; clearTimeout(timer); left?.dispose(); right?.dispose(); transfers?.dispose(); } };
+  return { element, dispose() { active = false; clearTimeout(timer); left?.dispose(); right?.dispose(); transfers?.dispose(); datasets?.dispose(); } };
 }

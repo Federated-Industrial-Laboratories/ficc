@@ -2,10 +2,10 @@
   <img src=".github/assets/mark.png" width="720" alt="FICC, Federated Industrial Cluster Commander. Orange-haired systems operator beside a silver wordmark.">
 </p>
 
-<p align="center">A local console for Linux clusters, connected through OpenSSH.</p>
+<p align="center">A modular console for cluster operations, remote teams and compute workloads.</p>
 
 <p align="center">
-  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.2.0-stable | Python 3.12 or later | OpenSSH">
+  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.2.5-stable | Python 3.12 or later | OpenSSH">
 </p>
 
 <p align="center">
@@ -17,10 +17,12 @@
 
 <p align="center"><img src=".github/assets/divider.svg" width="720" alt=""></p>
 
-FICC brings machine status, managed jobs, files, terminals and coding agents into
-one local web interface. A Python service owns the local API and recorded state.
-Approved SSH connections reach small helpers on enrolled machines. Existing SSH
-tools continue to work.
+FICC brings machine status, jobs, files, terminals, coding agents and data workflows
+into one web interface. A Python controller owns the API and recorded state.
+Approved SSH connections reach small helpers on managed machines. Remote teams
+use explicitly configured HTTPS sign-in, project permissions and runtime policies.
+Invited Linux contributors connect over mutual TLS and execute approved workloads
+within their local resource offers.
 
 Runtime modules add saved workspaces, VM and container controls, text editors and
 shared sound. Supplied modules use the same inspected archives and explicit grants
@@ -35,8 +37,9 @@ See [Windows endpoints](docs/windows-endpoints.md) for the qualified environment
 See [provider support](docs/testing.md#runtime-modules-and-providers) for requirements and limits.
 
 The interface uses white and silver panels, orange controls and compact tables.
-All application assets are local, including fonts. The controller listens on
-loopback; shared remote access remains outside this release.
+All application assets are local, including fonts. The desktop controller listens
+on loopback by default. [Remote access](docs/remote-access.md) requires the separate
+authenticated gateway and identity setup; exposing the local listener is unsupported.
 
 ## Overview
 
@@ -44,15 +47,18 @@ loopback; shared remote access remains outside this release.
 | --- | --- |
 | Overview | CPU, memory, storage and network samples; optional NVIDIA reporting; explicit stale and unavailable states. |
 | Jobs | Preview commands, set CPU/RAM limits, follow durable output and reconcile interrupted work. |
-| Files | Registered roots, two-pane tables, explicit file changes and verified transfers. |
+| Contributors and Workloads | Approved managed or voluntary Linux nodes, local resource offers, fair queues, pause/drain and verified results. |
+| Files and Data sources | Registered roots, resumable transfers, immutable datasets, SQL/query templates, CSV, Arrow/Parquet, DuckDB and S3 workflows. |
 | Terminals | Interactive SSH and tmux sessions with machine tabs, adjustable splits, tile zoom and fullscreen. |
 | Agents | Registered OMP, Codex and generic commands with their own managed terminal sessions. |
 | Bus | Host-owned runs, explicit recipients, direct adapters and a tool-readable inbox. |
 | Workspace | Runtime modules, saved docked or floating panels, workspace tiling, separate monitor windows and sound. |
-| Access and Activity | Expiring scoped credentials, node/root restrictions and recorded actions. |
+| Access and Activity | Individual identities, projects, scoped credentials, signed runtime policies and recorded actions. |
+| Operations | Redacted diagnostics, connection and certificate status, backup receipts, durable audit delivery and retained usage. |
 
 > [!NOTE]
-> GPU reservations are advisory. A delivery receipt records transport or runtime
+> Managed SSH job GPU reservations are advisory. Contributor jobs require their
+> separate executor and resource enforcement. A delivery receipt records transport or runtime
 > admission; it does not mean that an agent completed the requested work.
 
 Stopped-controller backups remove credentials. Explicit archives retain completed
@@ -74,6 +80,9 @@ history and node output. No history expires automatically.
 | Coding agents | An installed runtime and its provider sign-in on the selected node. |
 | Program modules | Bubblewrap, a systemd user manager and enforced namespace, syscall and cgroup controls. |
 | VM displays | A separate compatible native viewer runtime and the provider's supported console. |
+| Remote teams | Explicit HTTPS gateway, configured identity provider and approved project memberships. |
+| Contributor workloads | Linux, approved mTLS enrollment, local resource controls and the separately configured Podman executor. |
+| Optional inspection | Separately installed ClamAV engine, approved rules and supported controller-local data. |
 | Build and browser checks | Node.js 22 or later, C/C++ tools, OpenSSL development files and locked dependencies. |
 
 Binary packages bundle Python and need no Node.js. See the

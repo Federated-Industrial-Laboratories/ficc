@@ -26,6 +26,55 @@ async def test_ready_envelope_preserves_following_rfb_and_cleans_up(authenticati
     assert provider.process.poll() is not None
 
 
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
+async def test_ready_checks_bound_chunks_and_rechecks_buffered_authority(count):
+    from ficc.errors import Failure
+
+    for index in range(count):
+        calls, allowed = [], [True]
+
+        def check():
+            calls.append(None)
+            if not allowed[0]:
+                raise Failure("denied", "Display access was revoked.", 403)
+
+        password = f"{index:08x}"
+        payload = b"RFB 003.008\n" + index.to_bytes(4, "big")
+        data = json.dumps({"version": 1, "ready": True, "password": password}).encode() + b"\n" + payload
+        source = ("import os,sys,time;sys.stdin.buffer.readline();os.write(1," + repr(data)
+                  + ");time.sleep(60)")
+        provider = ProviderStream([sys.executable, "-I", "-c", source], check)
+        try:
+            assert await provider.start(b"{}\n", "rfb-password") == password
+            assert len(calls) <= 8
+            assert await provider.read(4) == payload[:4]
+            allowed[0] = False
+            with pytest.raises(Failure, match="Display access was revoked"):
+                await provider.read()
+        finally:
+            await provider.close()
+        assert provider.process.poll() is not None
+
+
+async def test_split_ready_and_oversized_response_keep_the_stream_bound():
+    data = b'{"version":1,"ready":true}\nRFB 003.008\n'
+    source = ("import os,sys,time;sys.stdin.buffer.readline();os.write(1," + repr(data[:9])
+              + ");time.sleep(.05);os.write(1," + repr(data[9:]) + ");time.sleep(60)")
+    provider = ProviderStream([sys.executable, "-I", "-c", source])
+    try:
+        assert await provider.start(b"{}\n") is None
+        assert await provider.read() == b"RFB 003.008\n"
+    finally:
+        await provider.close()
+    source = "import os,sys,time;sys.stdin.buffer.readline();os.write(1,b' '*1024+b'\\n');time.sleep(60)"
+    provider = ProviderStream([sys.executable, "-I", "-c", source])
+    try:
+        with pytest.raises(ValueError, match="exceeds its limit"):
+            await provider.start(b"{}\n")
+    finally:
+        await provider.close()
+
+
 @pytest.mark.parametrize("data,authentication", [
     (b'{"version":1,"ready":true,"password":"Test1234"}', "none"),
     (b'{"version":1,"ready":true,"password":"Test1234"}', "rfb"),
@@ -66,7 +115,7 @@ def rdp_config(index=0):
             "password": f"Secret-{index}-\u00e9;4.name,1.a;", "domain": "LAB", "certificate_sha256": f"{index:064x}"}
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_private_vmconnect_config_keeps_exact_identity_and_unicode(count):
     from ficc.viewer.wire import instruction, parse
 

@@ -13,7 +13,7 @@ from .errors import Failure
 from .module_broker import handler
 from .module_bundle import available as supplied_modules
 from .module_bundle import read as read_supplied
-from .module_capabilities import catalogue, require_target
+from .module_capabilities import catalogue, project_modules, require_action, require_target
 from .module_fetch import fetch_package
 from .modules import inspect_archive
 from .modules.sandbox import require_runtime
@@ -78,8 +78,10 @@ def install(app, service, principal):
 
     @app.get("/api/v1/modules")
     async def modules(request: Request):
-        actor(request, "modules:read")
-        return {"modules": service.modules.list()}
+        owner = actor(request, "modules:read")
+        value = service.auth.current(owner)
+        modules = service.modules.list() if value.local_owner else project_modules(service, value)
+        return {"modules": modules}
 
     @app.get("/api/v1/modules/sandbox")
     async def sandbox(request: Request):
@@ -88,7 +90,8 @@ def install(app, service, principal):
 
     @app.get("/api/v1/module-targets")
     async def available_targets(request: Request):
-        owner = actor(request, "modules:manage")
+        value = principal(request)
+        owner = actor(request, "modules:manage" if value.local_owner else "modules:read")
         return catalogue(service, owner)
 
     @app.get("/api/v1/supplied-modules")
@@ -197,23 +200,18 @@ def install(app, service, principal):
     async def invoke(body: Invocation, request: Request):
         owner = actor(request, "modules:execute")
         service.live()
-        service.authorize(owner, "workspaces:read")
-        workspace = service.workspaces.get(body.workspace_id)
-        instance = next((item for item in workspace["instances"] if item["id"] == body.instance_id), None)
-        if instance is None:
-            raise Failure("not_found", "The module instance was not found.", 404)
+        instance = service.auth.resources.module_instance(service.auth.current(owner), body.workspace_id, body.instance_id)
         allowed = instance.get("targets") or [body.workspace_id]
         if len(set(body.targets)) != len(body.targets) or set(body.targets) - set(allowed):
             raise Failure("module_target_denied", "The request exceeds this panel's selected targets.", 403)
 
         def check():
-            service.authorize(owner, "modules:execute")
-            service.authorize(owner, "workspaces:read")
-            current = service.workspaces.get(body.workspace_id)
-            if not any(item["id"] == body.instance_id and item["digest"] == instance["digest"]
-                       and (item.get("targets") or [body.workspace_id]) == allowed
-                       for item in current["instances"]):
+            caller = service.auth.current(owner)
+            current = service.auth.resources.module_instance(caller, body.workspace_id, body.instance_id,
+                                                              digest=instance["digest"])
+            if (current.get("targets") or [body.workspace_id]) != allowed:
                 raise Failure("instance_changed", "The module instance changed.", 409)
+            require_action(service, caller, body.workspace_id, current, body.action, body.targets)
 
         return await service.module_runtime.invoke(instance["digest"], body.action, body.targets,
                                                    body.parameters, check, broker=handler(service, owner, body.instance_id))

@@ -19,9 +19,10 @@
 
 </details>
 
-The browser and CLI use the same authenticated local HTTP API. Connect to the
-exact configured host and port on `127.0.0.1`. The service rejects CORS and does
-not trust proxy headers. Remote proxy deployment is unsupported.
+The browser and CLI use the same authenticated HTTP API. Local mode binds the
+configured port on `127.0.0.1`. [Remote mode](remote-access.md) binds a protected
+Unix socket behind the configured HTTPS gateway. Arbitrary proxy headers and
+CORS do not grant access. Owner CLI requests remain local.
 
 ## Authentication
 
@@ -34,6 +35,45 @@ Browser mutations require the session's X-CSRF-Token value and allowed Origin.
 API clients use `Authorization: Bearer TOKEN`. Read tokens from protected files
 or stdin. Do not expose them in process arguments. Each request checks expiry,
 current grants and node/root scope.
+
+Credentials also name a durable user and selected project. Current membership
+limits their original scopes. Session responses include the public identity and
+project records. Browser requests send `X-FICC-Project` and `X-FICC-Session`;
+an outdated window receives `409 project_changed` or `409 session_changed`.
+These headers supplement authentication and do not grant access.
+
+Session responses also include `expires_at` as Unix seconds and the `remote`
+mode flag. Remote cookies use the `__Host-ficc_session` name with Secure and
+HttpOnly attributes. External access tokens are not FICC bearer credentials.
+`GET /api/v1/login` reports remote identity readiness without requiring a login.
+`POST /auth/start` requires the exact configured origin. `GET /auth/callback`
+consumes browser-bound one-use state. Only this callback permits cross-site
+navigation. Normal origin and CSRF checks remain in force elsewhere.
+
+Owner-only `GET /api/v1/external-identities` lists approvals and provider status.
+`PUT /api/v1/external-identities` accepts `issuer`, `external_subject`, `subject_id`,
+`disabled` and `revision`. Revision zero creates a mapping. Later edits require
+its current revision. Mapping the local recovery owner is refused.
+
+`GET /api/v1/projects` lists the caller's projects. `POST /api/v1/session/project`
+accepts `project_id` and rotates a browser session without extending its expiry.
+Bearer tokens cannot switch projects. Owner identity administration uses
+`GET/POST /api/v1/identities`, `POST /api/v1/projects`, and
+`PUT /api/v1/identities/{id}` or `/api/v1/projects/{id}` with label, disabled and revision.
+`GET /api/v1/projects/{id}/members` lists memberships;
+`PUT /api/v1/projects/{id}/members/{subject}` accepts scopes and revision.
+These administration routes require `identities:manage` and local owner authority.
+Owner resource administration uses `GET /api/v1/project-resource-options` and
+`GET/PUT /api/v1/projects/{id}/resources`. The PUT body contains `node_ids`,
+`root_ids` and `revision`. It replaces the project selection. Remote folders
+require their machine assignment. Stale revisions return `409 revision_conflict`.
+The permissions and session responses report effective machine and folder lists;
+project switching preserves the original credential limits separately.
+Job, file-operation, transfer and terminal responses include durable `subject_id`
+and `project_id` fields. Cross-project object access returns `404`; lists include
+only the selected project. Terminals also require their subject, except for the
+local recovery owner within that project.
+See [identities and projects](identities.md) for the current capability boundary.
 
 ## Controller and job routes
 
@@ -65,7 +105,9 @@ current grants and node/root scope.
 
 The available scopes are nodes:read, nodes:write, resources:read, tokens:manage
 and audit:read, plus jobs:read, jobs:execute, jobs:cancel and jobs:logs.
-Files add files:read, files:write, files:mode and files:delete. Terminals add
+Files add files:read, files:write, files:mode and files:delete. Data sources add
+data:read, data:export, data:write and data:manage; see the
+[source API and provider contract](../sdk/data-sources.md). Terminals add
 terminals:read, terminals:execute and terminals:stop. Existing
 credentials do not gain new scopes during an upgrade.
 
@@ -327,3 +369,28 @@ Current authority remains checked during the stream. See [remote displays](viewe
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 [Contents](README.md) | [Project README](../README.md) | [Previous: History archives](history.md) | [Next: Testing](testing.md)
+
+## Runtime policy administration
+
+Policy administration requires an unrestricted local owner credential with
+`policies:manage`. It remains available for recovery when normal policy decisions
+fail. It cannot be delegated through project membership.
+
+| Route | Method | Result |
+| --- | --- | --- |
+| `/api/v1/policy-status` | GET | Current revision and enforcement availability for the caller |
+| `/api/v1/policies` | GET | Owner inspection of state, publishers and installed manifests |
+| `/api/v1/policy-publishers` | PUT | Explicit trust update with ID, public key, enabled state and revision |
+| `/api/v1/policy-packages` | POST | Verify and install `archive_base64`; no activation |
+| `/api/v1/policy-packages/{digest}` | GET | Download the verified signed archive |
+| `/api/v1/policy-activation` | POST | Prepare and activate a digest with the expected global revision |
+| `/api/v1/projects/{id}/policy-roles` | GET | Current project role bindings |
+| `/api/v1/projects/{id}/policy-roles/{subject}` | PUT | Replace roles with an expected binding revision |
+| `/api/v1/policy-preview` | POST | Compare host, policy and effective permission for 1 to 64 requests |
+
+Preview requests contain an action and optional node_id, root_id and labels.
+An optional digest selects an installed candidate. Only the local owner can
+select a candidate or supply subject_id/project_id for another identity's
+membership ceiling. A normal preview uses the authenticated credential.
+The runtime decision contract is documented in [the policy SDK](../sdk/policies.md).
+See [policy operations](policies.md) for revocation, rollback and restore.

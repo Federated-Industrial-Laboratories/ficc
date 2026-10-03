@@ -39,7 +39,7 @@ def systems(service, count):
     return values
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_broker_filters_private_fields_and_checks_each_current_target(console, count):
     _, service = console
     values = systems(service, count)
@@ -95,7 +95,7 @@ def test_instance_scope_uses_each_capability_target_type(console):
 
 
 @pytest.mark.skipif(os.environ.get("FICC_MODULE_HOST_TESTS") != "1", reason="Requires the actual module sandbox")
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_status_package_installs_grants_and_runs_in_real_sandbox(console, count):
     client, service = console
     values = systems(service, count)

@@ -87,7 +87,7 @@ def test_restore_refuses_invalid_bundle_without_destination(tmp_path, bundle, ch
 def test_restore_removes_added_credentials_again(tmp_path, bundle):
     token, csrf = "synthetic-restored-token", "synthetic-restored-csrf"
     with sqlite3.connect(bundle / "state.sqlite3") as db:
-        db.execute("INSERT INTO credentials VALUES (?,?,?,?,?,?,?,?,?)", (
+        db.execute("INSERT INTO credentials(id,digest,kind,label,scopes,nodes,expires,csrf,roots) VALUES (?,?,?,?,?,?,?,?,?)", (
             "synthetic-id", digest(token), "token", "Restore fixture", '["nodes:read"]', "null",
             time.time() + 3600, csrf, "null"))
     rehash(bundle)

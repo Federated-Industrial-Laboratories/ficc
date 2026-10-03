@@ -16,7 +16,7 @@ from ficc.providers import adapter_transport
 def transport(monkeypatch):
     monkeypatch.setattr(adapter_transport, 'LOCAL_IPC_QUALIFIED', True)
     service = SimpleNamespace(store=SimpleNamespace(node=lambda _identity: {'id': '1' * 32}),
-        ssh=SimpleNamespace(arguments=AsyncMock(return_value=['ssh', '-T', 'registered-alias'])))
+        ssh=SimpleNamespace(arguments=AsyncMock(side_effect=lambda node: ['ssh', '-T', 'registered-alias'])))
     value = adapter_transport.EndpointTransport(service)
     value.rpc = AsyncMock(return_value={'socket_path': '/run/user/1000/display.sock', 'device': 1,
         'inode': 2, 'uid': 1000, 'pid': 1234, 'start': '456'})
@@ -30,7 +30,7 @@ def selection():
     return selected, proposal
 
 
-@pytest.mark.parametrize('count', [1, 64])
+@pytest.mark.parametrize('count', [1, pytest.param(64, marks=pytest.mark.scale)])
 async def test_selected_unix_peer_and_private_header_do_not_expose_credentials(transport, count):
     for index in range(count):
         selected, proposal = selection()

@@ -61,8 +61,9 @@ From the clone, run:
 ```
 
 The installer verifies pinned Python and Node downloads, installs hash-locked
-Python dependencies, builds the frontend with the npm lockfile and installs a
-wheel. No system Python packages are changed. Internet access is required for
+Python dependencies, builds the frontend with the npm lockfile and installs the
+host wheel followed by the separate runtime provider wheels declared in
+`packaging/providers.json`. No system Python packages are changed. Internet access is required for
 downloads. Python and Node need not be installed at the application's required
 versions beforehand. Bootstrap Python must include maintained tar extraction
 filters; apply distribution security updates if this check fails.
@@ -100,6 +101,13 @@ uninstalled and disabled until inspected and granted through the module manager.
 Program modules require Bubblewrap and a usable systemd user manager, including
 on a command-only controller. Unavailable containment refuses module execution.
 
+The installed infrastructure providers support identity, state, policies,
+contributors, data sources, secrets, audit and optional local inspection. Their
+external services, credentials and grants require explicit setup. Follow
+[remote access](remote-access.md), [contributor execution](execution.md) and
+[data sources](data-sources.md) for those workflows. The default desktop
+installation still listens only on loopback.
+
 For VM displays, add `--viewer-runtime /path/to/verified-runtime` to the source
 installer. It copies the separate runtime into the private installation. The
 controller verifies its platform and complete file inventory before using it.
@@ -124,7 +132,7 @@ to delete recorded data. See [package removal](releases.md#upgrade-and-remove).
 
 ## Development environment
 
-For editable development with Python 3.12 or later and Node.js 20 or later:
+For editable development with Python 3.12 or later and Node.js 22 or later:
 
 ```sh
 python3 -m venv .venv
@@ -133,10 +141,14 @@ python -m pip install --require-hashes -r requirements-dev.lock
 npm ci --prefix web
 npm run build --prefix web
 python -m pip install --no-deps --no-build-isolation -e .
+python tools/runtime_packages.py --output /tmp/ficc-runtime-wheels --install
 ```
 
 For a distributable package, run `python -m build --no-isolation` after building
 the web assets. Install the wheel with requirements.lock in a clean environment.
+Then install the separately built provider wheels needed by that deployment.
+The runtime package command requires a new output directory; retain its inventory
+for installed package identification. Installing a provider does not activate it.
 Keep state, credentials and captures outside the source directory.
 
 ## Try the interface

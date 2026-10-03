@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools==84.0.0", "wheel==0.48.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ficc-data-arrow"
+version = "0.2.5"
+readme = "README.md"
+description = "FICC arrow data runtime provider."
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = ["pyarrow==25.0.1"]
+
+[project.entry-points."ficc.data"]
+arrow = "ficc_data_arrow"
+
+[project.entry-points."ficc.format"]
+arrow = "ficc_data_arrow"
+parquet = "ficc_data_arrow"
+
+[tool.setuptools.packages.find]
+where = ["src"]

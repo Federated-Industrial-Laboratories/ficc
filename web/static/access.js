@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Display effective permissions, credential revocation and audit records.
-import { allowed, request } from './api.js';
+import { projectAccess } from './project-access.js';
+import { policyAccess } from './policy-access.js';
+import { externalAccess } from './external-access.js';
+import { allowed, getSession, request } from './api.js';
 import { announce, button, confirmation, details, el, errorPanel, heading, panel, state, table, time } from './components.js';
 
 function rootScope(ids) {
@@ -10,7 +13,7 @@ function rootScope(ids) {
 }
 
 export function access() {
-  let active = true;
+  let active = true, projects, policies, external;
   const content = el('div');
   const element = el('div', {}, heading('AUTHORITY / ACCESS', 'Access and credentials',
     'Inspect effective permissions and revoke API credentials.'), content);
@@ -19,12 +22,25 @@ export function access() {
     try {
       const permissions = await request('/permissions');
       if (!active) return;
-      const grants = panel('Effective permissions', details([
+      const grants = panel('Host permission grants', [el('p', {},
+        'Policy decisions can further restrict these grants. Use the effective access preview below.'), details([
         ['Capabilities', permissions.scopes.length ? el('ul', { class: 'scope-list' }, permissions.scopes.map(scope => el('li', {}, scope))) : 'No capabilities'],
         ['Machine scope', permissions.node_ids === null ? 'All enrolled machines' : permissions.node_ids.join(', ') || 'No machines'],
         ['File root scope', rootScope(permissions.root_ids)],
-      ]));
+        ['Session expires', time(getSession().expires_at)],
+        ...(getSession().remote ? [['Organisation access', 'External access is checked again within 30 seconds.']] : []),
+      ])]);
+      projects?.dispose();
+      policies?.dispose();
+      external?.dispose();
       content.replaceChildren(grants);
+      policies = policyAccess(getSession()?.principal.local_owner && permissions.scopes.includes('policies:manage')
+        && permissions.node_ids === null && permissions.root_ids === null);
+      content.append(policies.element);
+      if (allowed('identities:manage')) {
+        projects = projectAccess(); external = externalAccess();
+        content.append(projects.element, external.element);
+      }
       if (!allowed('tokens:manage')) { content.append(state('Credential access denied', 'This account cannot list or revoke API credentials.')); return; }
       const { tokens } = await request('/tokens');
       if (!active) return;
@@ -41,10 +57,10 @@ export function access() {
         'Create scoped credentials with the local command line. Secret values are never displayed here.'),
       tokens.length ? table(['Credential', 'Capabilities', 'Machines', 'File roots', 'Expires', 'Action'], rows, 'API credentials') :
         state('No API credentials', 'No active API credentials are available to revoke.')]));
-    } catch (error) { if (active) content.replaceChildren(errorPanel(error, load)); }
+    } catch (error) { if (active) content.append(errorPanel(error, load)); }
   }
   load();
-  return { element, dispose() { active = false; } };
+  return { element, dispose() { active = false; projects?.dispose(); policies?.dispose(); external?.dispose(); } };
 }
 
 export function activity() {

@@ -129,8 +129,6 @@ def validate_records(profiles, operations, node_ids):
 class Records:
     def __init__(self, store):
         self.store = store
-        with store.lock, store.db:
-            initialize(store.db)
 
     def profiles(self):
         with self.store.lock:
@@ -146,10 +144,10 @@ class Records:
         profile(value)
         with self.store.lock, self.store.db:
             count = self.store.db.execute("SELECT count(*) FROM module_vm_profiles").fetchone()[0]
-            exists = self.store.db.execute("SELECT 1 FROM module_vm_profiles WHERE node_id=?", (value["node_id"],)).fetchone()
+            exists = self.store.db.execute("SELECT 1 FROM module_vm_profiles WHERE node_id=:p0", (value["node_id"],)).fetchone()
             if count >= 64 and not exists:
                 raise Failure("vm_capacity", "The VM profile limit is full.", 409)
-            self.store.db.execute("INSERT INTO module_vm_profiles VALUES (?,?) ON CONFLICT(node_id) DO UPDATE SET value=excluded.value",
+            self.store.db.execute("INSERT INTO module_vm_profiles VALUES (:p0,:p1) ON CONFLICT(node_id) DO UPDATE SET value=excluded.value",
                                   (value["node_id"], spec.encode(value).decode()))
 
     def all(self):
@@ -159,14 +157,14 @@ class Records:
     def get(self, operation_id):
         spec.identity(operation_id)
         with self.store.lock:
-            row = self.store.db.execute("SELECT value FROM module_vm_operations WHERE id=?", (operation_id,)).fetchone()
+            row = self.store.db.execute("SELECT value FROM module_vm_operations WHERE id=:p0", (operation_id,)).fetchone()
         if row is None:
             raise Failure("not_found", "The VM operation was not found.", 404)
         return operation(spec.decode(row[0].encode()))
 
     def existing(self, actor, key):
         with self.store.lock:
-            row = self.store.db.execute("SELECT value FROM module_vm_operations WHERE actor=? AND key=?", (actor, key)).fetchone()
+            row = self.store.db.execute("SELECT value FROM module_vm_operations WHERE actor=:p0 AND key=:p1", (actor, key)).fetchone()
         return operation(spec.decode(row[0].encode())) if row else None
 
     def insert(self, value):
@@ -174,14 +172,14 @@ class Records:
         with self.store.lock, self.store.db:
             if self.store.db.execute("SELECT count(*) FROM module_vm_operations").fetchone()[0] >= 1024:
                 raise Failure("vm_capacity", "The retained VM operation limit is full.", 409)
-            self.store.db.execute("INSERT INTO module_vm_operations VALUES (?,?,?,?,?)", (
+            self.store.db.execute("INSERT INTO module_vm_operations VALUES (:p0,:p1,:p2,:p3,:p4)", (
                 *[value[key] for key in ("id", "actor", "key", "digest")], spec.encode(value).decode()))
 
     def save(self, value):
         value["updated_at"] = time.time()
         operation(value)
         with self.store.lock, self.store.db:
-            self.store.db.execute("UPDATE module_vm_operations SET value=? WHERE id=?", (spec.encode(value).decode(), value["id"]))
+            self.store.db.execute("UPDATE module_vm_operations SET value=:p0 WHERE id=:p1", (spec.encode(value).decode(), value["id"]))
 
     def retained(self, node_id):
         return any(item["node_id"] == node_id for item in self.profiles()) or any(
@@ -189,8 +187,8 @@ class Records:
 
     def remove(self, operation_id):
         with self.store.lock, self.store.db:
-            self.store.db.execute("DELETE FROM module_vm_operations WHERE id=?", (operation_id,))
+            self.store.db.execute("DELETE FROM module_vm_operations WHERE id=:p0", (operation_id,))
 
     def remove_profile(self, node_id):
         with self.store.lock, self.store.db:
-            self.store.db.execute("DELETE FROM module_vm_profiles WHERE node_id=?", (node_id,))
+            self.store.db.execute("DELETE FROM module_vm_profiles WHERE node_id=:p0", (node_id,))

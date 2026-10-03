@@ -12,6 +12,8 @@ from ficc_node.job_state import digest
 
 from . import transfer_work
 from .errors import Failure
+from .file_numbers import integer
+from .file_schema import TransferLimits
 from .file_store import FileStore, key_check
 from .settings import private_directory
 
@@ -27,24 +29,40 @@ class Transfers:
         self.workers = asyncio.Semaphore(4)
         private_directory(service.settings.state_dir / "downloads")
 
-    def check(self, actor, item, kind):
+    def limits(self):
+        return TransferLimits.model_validate(self.service.store.get_setting("transfer_limits", {})).model_dump()
+
+    def check(self, actor, item, kind, *, retained=True):
+        if item.get("workload_source"):
+            self.service.workloads.artifacts.check(actor, item["workload_source"], retained=retained and item["state"] not in {"succeeded", "cancelled"})
         if item.get("source"):
             self.files.check(actor, "files:read", item["source"]["root"])
         if kind != "download":
             self.files.check(actor, "files:write", item["destination"]["root"])
 
-    async def destination(self, operation, item, action, data=b"", timeout=15, **values):
+    async def destination(self, operation, item, action, data=b"", timeout=15, retain_source=True, **values):
+        if action == "transfer.begin":
+            timeout = None
+        def check():
+            self.service.auth.record(operation["actor"], operation)
+            self.check(operation["actor"], item, operation["kind"], retained=retain_source and action != "transfer.cancel")
         result, binary = await self.files.transport.call(item["destination"]["root"],
-            {"action": action, "transfer_id": item["id"], **values}, data=data,
-            check=lambda: self.check(operation["actor"], item, operation["kind"]), timeout=timeout)
+            {"action": action, "transfer_id": item["id"], "limits": self.limits(), **values}, data=data,
+            check=check, timeout=timeout)
         if binary:
             raise Failure("invalid_file_response", "The destination returned unexpected file bytes.", 502)
         return result
 
     async def source(self, operation, item, action, timeout=15, **values):
+        if item.get("workload_source"):
+            self.check(operation["actor"], item, operation["kind"])
+            return await self.service.workloads.artifacts.source(operation, item, action, **values)
+        def check():
+            self.service.auth.record(operation["actor"], operation)
+            self.check(operation["actor"], item, operation["kind"])
         return await self.files.transport.call(item["source"]["root"],
             {"action": action, "entry": item["source"]["reference"], **values},
-            check=lambda: self.check(operation["actor"], item, operation["kind"]), timeout=timeout)
+            check=check, timeout=timeout)
 
     async def preview(self, body, actor):
         self.service.live()
@@ -74,14 +92,16 @@ class Transfers:
                     raw_name = new_name(name)
                 except (FileError, UnicodeError) as exc:
                     raise Failure("invalid_name", "Enter a valid upload name.") from exc
-                if type(size) is not int or not 0 <= size <= MAX_FILE:
-                    raise Failure("file_limit", "Each file must be no larger than 16 GiB.")
+                try:
+                    size = integer(size)
+                except ValueError as exc:
+                    raise Failure("file_limit", "The file size is outside the filesystem offset range.") from exc
                 saved_source, name_b64 = None, None
             else:
                 root, ref = self.files.resolve(source.get("root_id"), source.get("entry_id"), actor)
                 info = await self.files.stat(root, ref, actor)
                 if info["kind"] != "file" or info["size"] > MAX_FILE:
-                    raise Failure("unsupported_file", "Select regular files no larger than 16 GiB.")
+                    raise Failure("unsupported_file", "Select regular files within the filesystem offset range.")
                 saved_source = {"root": root, "reference": ref}
                 name, size, name_b64 = info["name"], info["size"], ref["parts"][-1]
                 raw_name = name_b64.encode()
@@ -93,6 +113,16 @@ class Transfers:
             item = {"id": item_id, "name": name, "size": size, "offset": 0, "source": saved_source,
                     "destination": copy.deepcopy(destination), "spec": spec, "state": "queued", "sha256": None, "error": None,
                     "cleanup_pending": False, "actor": actor}
+            if kind == "upload":
+                spec["source_manifest"] = source.get("source_manifest")
+                spec["source_identity"] = {"name": name, "size": size, "last_modified": source.get("last_modified", 0)}
+            else:
+                assert saved_source is not None
+                spec["source_identity"] = saved_source["reference"]["identity"]
+                hashed, _ = await self.files.call(saved_source["root"],
+                    {"action": "file.hash", "entry": saved_source["reference"]}, actor, timeout=None)
+                spec["source_manifest"] = {"algorithm": "sha256", "digest": hashed["sha256"]}
+                item["sha256"] = hashed["sha256"]
             self.check(actor, item, kind)
             existing, _ = await self.files.transport.call(destination["root"],
                 {"action": "file.destination", "parent": destination["reference"], **{key: spec[key] for key in ("name", "name_b64")}},
@@ -103,6 +133,9 @@ class Transfers:
                 if existing.get("kind") != "file":
                     raise Failure("destination_conflict", "The destination is not a regular file.", 409)
             items.append(item)
+        with self.service.store.lock:
+            for item in items:
+                self.check(actor, item, kind)
         self.previews = {key: value for key, value in self.previews.items() if value["expires_at"] > time.time()}
         if len(self.previews) >= 64:
             raise Failure("capacity", "The transfer preview limit was reached.", 429)
@@ -121,6 +154,7 @@ class Transfers:
         async with self.admission:
             old = self.store.existing(actor, key)
             if old:
+                self.service.auth.record(actor, old)
                 if old["preview_id"] != preview_id:
                     raise Failure("idempotency_conflict", "This key belongs to another transfer.", 409)
                 for item in old["items"]:
@@ -133,14 +167,20 @@ class Transfers:
                 raise Failure("overwrite_required", "Confirm replacement of the listed destination files.", 409)
             active = [item for op in self.store.iterate() for item in op["items"] if item["state"] not in {"succeeded", "cancelled"}
                       or item.get("cleanup_pending") or (op["kind"] == "download" and item["state"] == "succeeded")]
-            if len(active)+len(preview["items"]) > 64 or sum(item["size"] for item in active+preview["items"]) > 64*1024**3:
+            quota = self.limits()["retained_bytes"]
+            retained = sum(item["size"] + (item["spec"].get("expected") or {}).get("size", 0) for item in active+preview["items"])
+            if len(active)+len(preview["items"]) > 64 or (quota is not None and retained > quota):
                 raise Failure("capacity", "The retained transfer quota is full.", 409)
             for item in preview["items"]:
                 self.check(actor, item, preview["kind"])
             value = {**copy.deepcopy(preview), "id": secrets.token_hex(16), "key": key,
                      "created_at": time.time(), "updated_at": time.time(), "state": "queued", "created_by": actor,
                      "policy_revision": 1}
-            self.store.insert(value)
+            with self.service.store.lock, self.service.store.db:
+                for item in value["items"]:
+                    self.check(actor, item, value["kind"])
+                value.update(self.service.auth.ownership(actor))
+                self.store.insert(value)
             self.service.store.audit("transfer." + value["kind"], value["id"], "queued", actor)
             if value["kind"] != "upload":
                 for item in value["items"]:
@@ -153,6 +193,9 @@ class Transfers:
         async def work():
             async with self.workers:
                 await transfer_work.run(self, operation_id, item_id)
+                operation = self.store.get(operation_id)
+                if operation.get("workload_publication"):
+                    await self.service.workloads.artifacts.complete(operation_id, item_id)
         task = asyncio.create_task(work())
         self.tasks[item_id] = task
         task.add_done_callback(lambda _: self.tasks.pop(item_id, None))
@@ -165,12 +208,13 @@ class Transfers:
             "unknown" if "unknown" in states else "running" if states & {"running", "queued", "committing"} else "interrupted")
         self.store.save(current)
 
-    def selected(self, operation_id, item_id, actor):
+    def selected(self, operation_id, item_id, actor, *, retained=True):
         operation = self.store.get(operation_id)
+        self.service.auth.record(actor, operation)
         item = next((value for value in operation["items"] if value["id"] == item_id), None)
         if item is None:
             raise Failure("not_found", "The transfer item was not found.", 404)
-        self.check(actor, item, operation["kind"])
+        self.check(actor, item, operation["kind"], retained=retained)
         return operation, item
 
     async def upload(self, operation_id, item_id, actor, offset, data, sha256):
@@ -200,22 +244,38 @@ class Transfers:
                 raise Failure("invalid_action", "This transfer is not a browser upload.")
             if item["state"] == "succeeded":
                 return self.view(operation, actor, mutation_ids=[item_id])
+            if item["state"] not in {"queued", "running"}:
+                raise Failure("transfer_state", "Resume or reconcile this upload before finishing.", 409)
             if item.get("replay_offset", 0) < item.get("replay_until", 0):
                 raise Failure("source_verification_required", "Verify the accepted source prefix before finishing.", 409)
             operation["actor"] = actor
-            await self.destination(operation, item, "transfer.begin", spec=item["spec"])
-            result = await self.destination(operation, item, "transfer.verify", timeout=300)
-            if result["offset"] != item["size"]:
-                raise Failure("incomplete_transfer", "Upload every file chunk before finishing.", 409)
-            item.update(sha256=result["prefix_sha256"], offset=result["offset"])
-            await transfer_work.finish(self, operation, item)
+            task = asyncio.current_task()
+            if task is not None:
+                self.tasks[item_id] = task
+            try:
+                await self.destination(operation, item, "transfer.begin", spec=item["spec"])
+                result = await self.destination(operation, item, "transfer.verify", timeout=None)
+                if result["offset"] != item["size"]:
+                    raise Failure("incomplete_transfer", "Upload every file chunk before finishing.", 409)
+                item.update(sha256=result["prefix_sha256"], offset=result["offset"])
+                await transfer_work.finish(self, operation, item)
+            except (Failure, asyncio.CancelledError) as exc:
+                if not isinstance(exc, Failure) or exc.code != "incomplete_transfer":
+                    item.update(state="unknown" if item["state"] == "committing" else "interrupted",
+                                error={"code": exc.code if isinstance(exc, Failure) else "interrupted",
+                                       "message": exc.message if isinstance(exc, Failure) else "Upload verification was interrupted."})
+                    self.save_item(operation, item)
+                raise
+            finally:
+                if self.tasks.get(item_id) is task:
+                    self.tasks.pop(item_id, None)
             return self.view(self.store.get(operation_id), actor, mutation_ids=[item_id])
 
     async def change(self, operation_id, item_ids, actor, resume=False, discard=False):
         if len(set(item_ids)) != len(item_ids):
             raise Failure("invalid_items", "Select distinct transfer items.")
         for item_id in item_ids:
-            self.selected(operation_id, item_id, actor)
+            self.selected(operation_id, item_id, actor, retained=resume)
         self.service.store.audit("transfer.resume" if resume else "transfer.cancel", operation_id, "requested", actor)
         for item_id in item_ids:
             task = self.tasks.get(item_id)
@@ -224,7 +284,7 @@ class Transfers:
                 with suppress(asyncio.CancelledError):
                     await task
             async with self.locks.setdefault(item_id, asyncio.Lock()):
-                operation, item = self.selected(operation_id, item_id, actor)
+                operation, item = self.selected(operation_id, item_id, actor, retained=resume)
                 operation["actor"] = actor
                 if item["state"] == "succeeded" and (operation["kind"] == "download" or item.get("cleanup_pending")) and discard and not resume:
                     result = await self.destination(operation, item, "transfer.cancel", discard_partial=True)
@@ -239,17 +299,29 @@ class Transfers:
                         raise Failure("outcome_unknown", "Reconcile the uncertain commit before cleanup.", 409)
                     status = await self.destination(operation, item, "transfer.status")
                     if status["state"] == "committing":
-                        status = await self.destination(operation, item, "transfer.commit", sha256=item["sha256"], timeout=300)
+                        status = await self.destination(operation, item, "transfer.commit", sha256=item["sha256"], timeout=None)
                     if status["state"] == "succeeded":
                         item.update(state="succeeded", offset=status["offset"], sha256=status["sha256"], error=None,
                                     cleanup_pending=status.get("cleanup_pending", False))
+                        transfer_work.record_artifact(operation, item, status)
                         self.save_item(operation, item)
                         continue
                     if status["state"] != "running":
                         raise Failure("outcome_unknown", "The destination still requires manual recovery.", 409)
-                await self.destination(operation, item, "transfer.begin", spec=item["spec"], prepare=resume)
+                    if (item.get("error") or {}).get("code") == "destination_changed":
+                        item["state"] = "interrupted"
+                        self.save_item(operation, item)
+                        continue
+                if resume and operation["kind"] == "upload" and item["offset"] and not item["spec"].get("source_manifest"):
+                    raise Failure("source_manifest_required", "Start a new upload with its original source digest before resuming accepted bytes.", 409)
+                await self.destination(operation, item, "transfer.begin", spec=item["spec"], prepare=resume, retain_source=resume)
                 result = await self.destination(operation, item, "transfer.resume" if resume else "transfer.cancel",
-                                                **({} if resume else {"discard_partial": discard}), timeout=300)
+                                                **({} if resume else {"discard_partial": discard}), timeout=None)
+                if resume and operation["kind"] == "upload" and result["offset"] and not item["spec"].get("source_manifest"):
+                    item.update(state="interrupted", offset=result["offset"], error={"code": "source_manifest_required",
+                        "message": "Start a new upload with its original source digest before resuming accepted bytes."})
+                    self.save_item(operation, item)
+                    raise Failure("source_manifest_required", item["error"]["message"], 409)
                 item.update(state="running" if resume else result["state"], offset=result["offset"], error=None)
                 item["actor"] = actor
                 if resume and operation["kind"] == "upload":
@@ -257,9 +329,13 @@ class Transfers:
                 self.save_item(operation, item)
                 if resume and operation["kind"] != "upload":
                     self.start(operation_id, item_id)
+        if self.store.get(operation_id).get("workload_publication") and resume:
+            for item_id in item_ids:
+                await self.service.workloads.artifacts.complete(operation_id, item_id, actor)
         return self.view(self.store.get(operation_id), actor, mutation_ids=item_ids)
 
     def view(self, operation, actor, mutation_ids=None):
+        self.service.auth.record(actor, operation)
         visible = []
         for item in operation["items"]:
             if mutation_ids is not None and item["id"] not in mutation_ids:
@@ -276,11 +352,13 @@ class Transfers:
                 continue
             visible.append({**{key: item[key] for key in ("id", "name", "size", "offset", "state", "sha256", "error")},
                             "cleanup_pending": item.get("cleanup_pending", False),
+                            "source_manifest": item["spec"].get("source_manifest"),
+                            "artifact": item.get("artifact"),
                             "resumable": item["state"] == "interrupted" or (
                                 operation["kind"] == "upload" and item["state"] in {"queued", "running"})})
         if not visible:
             raise Failure("not_found", "The transfer was not found.", 404)
-        return {**{key: operation[key] for key in ("id", "kind", "state", "created_at", "updated_at")}, "items": visible}
+        return {**{key: operation[key] for key in ("id", "kind", "state", "subject_id", "project_id", "created_at", "updated_at")}, "items": visible}
 
     def active(self, node_id=None, root_id=None):
         return any((item["state"] not in {"succeeded", "cancelled"} or item.get("cleanup_pending") or

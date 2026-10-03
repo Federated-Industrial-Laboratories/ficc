@@ -50,7 +50,7 @@ def test_power_probe_is_bounded_read_only(monkeypatch, response, code, expected)
     assert value.power_access() == dict.fromkeys(spec.POWER, "na") and len(calls) == 2
 
 
-@pytest.mark.parametrize("count", [1, 64])
+@pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 @pytest.mark.parametrize("permission", ["challenge", "no", "unavailable", None])
 async def test_preview_denial_keeps_all_targets_unchanged(tmp_path, monkeypatch, count, permission):
     host, source, _, nodes = await setup(tmp_path, monkeypatch, count=count)
