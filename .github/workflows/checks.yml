@@ -18,12 +18,24 @@ jobs:
         with:
           node-version: '22'
       - run: python -m pip install --require-hashes -r requirements-dev.lock
-      - run: sudo apt-get update && sudo apt-get install -y bubblewrap build-essential libssl-dev openssh-server tmux zstd squashfs-tools
+      - run: sudo apt-get update && sudo apt-get install -y bubblewrap build-essential libssl-dev openssh-server tmux zstd squashfs-tools dbus-user-session apparmor
       - run: npm ci --prefix web && npm run build --prefix web
       - run: python tools/build-modules.py defaults --fetch --output src/ficc/module_packages
       - run: python -m pip install --no-deps --no-build-isolation -e .
       - name: Install declared runtime providers after the host
         run: python tools/runtime_packages.py --output "$RUNNER_TEMP/ficc-runtime-wheels" --install
+      - name: Prepare the data-worker sandbox
+        run: |
+          sudo loginctl enable-linger "$(id -un)"
+          sudo systemctl start "user@$(id -u).service"
+          probe_sandbox() {
+            python -c 'import asyncio; from ficc.modules.sandbox import Sandbox; status = asyncio.run(Sandbox().probe()); print(status.reason); raise SystemExit(0 if status.available else 1)'
+          }
+          if ! probe_sandbox; then
+            test "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns)" = 1
+            sudo bash tools/module-sandbox-policy/install.sh install
+            probe_sandbox
+          fi
       - name: Check policy and identity provider contracts
         run: |
           python -m pytest policy-providers/opa/tests
