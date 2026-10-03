@@ -28,8 +28,10 @@ explicit paths. Run the tests with the development environment's Python:
 /path/to/environment/bin/python -m pytest -q --tb=short tests/integration/test_contributor_tls*.py
 ```
 
-The cases run serially, with one controller, authority, and gateway at a time.
-They create 1 or 64 distinct node keys and certificates. A node has a five-second
+Missing fixture paths produce explicit skips in the general integration suite.
+Invalid configured fixtures still fail. The cases run serially, with one
+controller, authority, and gateway at a time. Normal runs create one node;
+`-m scale` selects the optional 64-node cases. A node has a five-second
 lease and sends a heartbeat each second. The automatic rotation case uses
 60-second certificates. Other cases use one-hour certificates.
 

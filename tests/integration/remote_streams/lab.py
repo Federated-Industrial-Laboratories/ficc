@@ -19,7 +19,6 @@ from contributor_tls.authority import port, private, stop
 
 from .display import Display
 from .gateway import Gateway
-from .identity import Identity
 from .policy import Policy
 
 SCOPES = ["nodes:read", "resources:read", "terminals:read", "terminals:execute", "terminals:stop",
@@ -29,6 +28,8 @@ SCOPES = ["nodes:read", "resources:read", "terminals:read", "terminals:execute",
 
 class Lab:
     def __init__(self, directory, host, display=False):
+        from .identity import Identity
+
         self.directory, self.host = directory, host
         self.state = directory / "state"
         self.state.mkdir(mode=0o700)
@@ -197,8 +198,16 @@ class Lab:
 
 @contextlib.contextmanager
 def laboratory(*, display=False):
+    import pytest
+
     import ficc
 
+    required = ["FICC_TEST_HOST_SOURCE", "FICC_TEST_CADDY"]
+    if display:
+        required += ["FICC_TEST_OPA", "FICC_TEST_VIEWER_RUNTIME"]
+    missing = [name for name in required if not os.environ.get(name)]
+    if missing:
+        pytest.skip("Select the remote-stream fixtures: " + ", ".join(missing))
     host = Path(os.environ["FICC_TEST_HOST_SOURCE"]).resolve()
     assert Path(ficc.__file__).is_relative_to(host / "src")
     entry = list(importlib.metadata.entry_points(group="ficc.identity", name="oidc"))

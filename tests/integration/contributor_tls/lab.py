@@ -161,8 +161,15 @@ class Lab:
 
 @contextlib.contextmanager
 def laboratory(*, certificate_seconds=3600, server_address="localhost"):
+    import pytest
+
     import ficc
 
+    required = ("FICC_TEST_HOST_SOURCE", "FICC_TEST_CERTIFICATE_SOURCE",
+                "FICC_TEST_STEP", "FICC_TEST_STEP_CA", "FICC_TEST_CADDY")
+    missing = [name for name in required if not os.environ.get(name)]
+    if missing:
+        pytest.skip("Select the contributor TLS fixtures: " + ", ".join(missing))
     host = Path(os.environ["FICC_TEST_HOST_SOURCE"]).resolve()
     assert Path(ficc.__file__).is_relative_to(host / "src")
     entry = list(importlib.metadata.entry_points(group="ficc.certificates", name="smallstep"))

@@ -22,9 +22,11 @@ Set these paths before running a check:
 | `FICC_REQUIRE_SSH` | `1` to fail if the server is absent |
 | `FICC_STREAM_LOG_DIRECTORY` | Optional private destination for bounded process logs |
 
-Run the HTTP and terminal cases with `python -m pytest -q
-tests/integration/test_remote_streams.py`. Each case runs with one and 64 distinct
-project users, plus a healthy control. The 64 case uses bounded cohorts within
+Missing fixture paths produce explicit skips in the general integration suite.
+Invalid configured fixtures still fail. Run the HTTP and terminal cases with
+`python -m pytest -q tests/integration/test_remote_streams.py`. Normal runs use
+one project user and a healthy control; `-m scale` selects the optional 64-user
+cases. The 64-user case uses bounded cohorts within
 the shipped terminal limits. It does not claim 64 simultaneous SSH shells.
 The cases use actual polling, binary terminal input/output, terminal resize,
 one-use tickets, streamed downloads, file digests and persisted workspaces.
