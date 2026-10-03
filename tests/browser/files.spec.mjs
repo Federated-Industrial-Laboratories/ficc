@@ -240,8 +240,11 @@ test('simulation prevents mutations and empty roots explain local registration',
 });
 
 test('missing file read scope does not request or show root data', async ({ page }) => {
+  let reads = 0; page.on('request', req => { if (new URL(req.url()).pathname === '/api/v1/file-roots') reads++; });
   const state = await setupFiles(page, { scopes: fileScopes.filter(scope => scope !== 'files:read') });
-  await expect(page.getByRole('heading', { name: 'File access denied' })).toBeVisible(); expect(state.lists).toHaveLength(0);
+  await expect(page.locator('[data-view=files]')).toBeDisabled();
+  expect(reads).toBe(0); expect(state.lists).toHaveLength(0);
+  await expect(page.getByText('Local work', { exact: true })).toHaveCount(0);
 });
 
 test('empty roots provide an actionable local setup message', async ({ page }) => {

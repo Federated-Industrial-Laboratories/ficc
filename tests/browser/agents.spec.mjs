@@ -64,10 +64,10 @@ test('agent permission loss clears retained workspace and runtime identities', a
   await expect(page.getByText('/work/project-1', { exact: true })).toHaveCount(0);
 });
 
-test('missing agent read scope makes no agent inventory request', async ({ page }) => {
+test('missing agent read scope disables navigation without inventory requests', async ({ page }) => {
   let reads = 0; page.on('request', req => { if (new URL(req.url()).pathname === '/api/v1/agents') reads++; });
   await setupAgents(page, { scopes: agentScopes.filter(scope => scope !== 'agents:read') });
-  await expect(page.getByRole('heading', { name: 'Agent access denied' })).toBeVisible(); expect(reads).toBe(0);
+  await expect(page.locator('[data-view=agents]')).toBeDisabled(); expect(reads).toBe(0);
 });
 
 test('launch control requires bus send authority for run enrollment', async ({ page }) => {

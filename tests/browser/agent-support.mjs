@@ -12,6 +12,9 @@ export function agent(index = 1, extra = {}) {
     created_at: 1000, updated_at: 1001, last_contact: 1001, error: null, ...extra };
 }
 export async function setupAgents(page, options = {}) {
+  const project = { id: '1'.repeat(32), label: 'Agent project', disabled: false };
+  const principal = { id: 'operator', label: 'Test operator', subject_id: '2'.repeat(32), project_id: project.id,
+    local_owner: false, scopes: options.scopes ?? agentScopes, node_ids: null, root_ids: null };
   const agents = options.agents ?? [agent()];
   const runs = options.runs ?? [{ id: 'run-1', name: 'Sample run', state: 'open', agent_ids: agents.filter(a => a.run_id === 'run-1').map(a => a.id), message_count: 0, created_at: 1000 }];
   const profiles = agents.map(a => ({ id: a.profile_id, name: `Profile ${a.id}`, node_id: a.node_id, adapter: a.adapter,
@@ -20,7 +23,10 @@ export async function setupAgents(page, options = {}) {
     sends: [], creations: [], closes: [], denied: false, lists: [], deliveries: options.deliveries ?? [] };
   const denied = route => route.fulfill({ status: 403, json: { error: { code: 'denied', message: 'Permission revoked.' } } });
   await page.route('**/api/v1/session', route => route.fulfill({ json: { csrf: 'test-csrf', mode: options.mode ?? 'live', version: 'fixture',
-    principal: { id: 'operator', label: 'Test operator', scopes: options.scopes ?? agentScopes, node_ids: null, root_ids: null } } }));
+    principal } }));
+  await page.route('**/api/v1/projects', route => route.fulfill({ json: { projects: [project] } }));
+  await page.route('**/api/v1/permissions', route => route.fulfill({ json: principal }));
+  await page.route('**/api/v1/policy-status', route => route.fulfill({ json: { required: false, ready: true, revision: 0 } }));
   await page.route('**/api/v1/nodes', route => route.fulfill({ json: { nodes: [node()] } }));
   await page.route('**/api/v1/agent-profiles', route => route.fulfill({ json: { profiles: options.noProfiles ? [] : state.profiles } }));
   await page.route('**/api/v1/agent-previews', route => {
@@ -65,7 +71,10 @@ export async function setupAgents(page, options = {}) {
   await page.route('**/api/v1/bus/deliveries?*', route => route.fulfill({ json: { deliveries: state.deliveries } }));
   await page.route('**/api/v1/bus/runs/*/close', route => { state.closes.push({ path: new URL(route.request().url()).pathname, body: route.request().postDataJSON() }); return route.fulfill({ json: state.runs[0] }); });
   await page.route('**/api/v1/terminals', route => route.fulfill({ json: { terminals: [] } }));
-  await page.goto(origin); await page.locator(`[data-view=${options.view ?? 'agents'}]`).click();
+  await page.goto(origin);
+  await expect(page.getByLabel('Current project', { exact: true })).toHaveValue(project.id);
+  if (!principal.scopes.includes(options.view === 'bus' ? 'bus:read' : 'agents:read')) return state;
+  await page.locator(`[data-view=${options.view ?? 'agents'}]`).click();
   await expect(page.getByRole('heading', { name: options.view === 'bus' ? 'Agent bus' : 'Coding agents', exact: true })).toBeVisible();
   return state;
 }

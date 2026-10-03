@@ -5,11 +5,12 @@ import { chmod, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createServer } from 'node:net';
-import { expect } from '../../web/node_modules/@playwright/test/index.mjs';
+import { test, expect } from '../../web/node_modules/@playwright/test/index.mjs';
 
 export async function fixture(page, count = 1) {
   const python = process.env.FICC_WORKLOAD_PYTHON;
-  if (!python) throw new Error('Set FICC_WORKLOAD_PYTHON to the explicit virtual-environment Python path.');
+  test.skip(!python || !process.env.FICC_TEST_OPA,
+    'Requires an explicit FICC_WORKLOAD_PYTHON and qualified FICC_TEST_OPA evaluator.');
   const root = resolve(new URL('../../', import.meta.url).pathname);
   const directory = await mkdtemp(join(tmpdir(), 'ficc-workload-browser-'));
   const reservation = createServer();

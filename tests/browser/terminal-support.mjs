@@ -10,9 +10,15 @@ export function terminalRecord(index = 1, extra = {}) {
     created_at: Date.now() / 1000, updated_at: Date.now() / 1000, error: null, ...extra };
 }
 export async function setupTerminals(page, options = {}) {
+  const project = { id: '1'.repeat(32), label: 'Terminal project', disabled: false };
+  const principal = { id: 'test', label: 'Test operator', subject_id: '2'.repeat(32), project_id: project.id,
+    local_owner: false, scopes: options.scopes ?? terminalScopes, node_ids: null, root_ids: null };
   const state = { terminals: options.terminals ?? [terminalRecord()], creations: [], tickets: [], stops: [], reconciliations: [], sockets: [], connections: [], frames: [], ticketRequests: [], denied: false };
   await page.route('**/api/v1/session', route => route.fulfill({ json: { csrf: 'test-csrf', mode: options.mode ?? 'live', version: 'fixture',
-    principal: { id: 'test', label: 'Test operator', scopes: options.scopes ?? terminalScopes, node_ids: null, root_ids: null } } }));
+    principal } }));
+  await page.route('**/api/v1/projects', route => route.fulfill({ json: { projects: [project] } }));
+  await page.route('**/api/v1/permissions', route => route.fulfill({ json: principal }));
+  await page.route('**/api/v1/policy-status', route => route.fulfill({ json: { required: false, ready: true, revision: 0 } }));
   await page.route('**/api/v1/nodes', route => route.fulfill({ json: { nodes: options.nodes ?? [node(1, { capabilities: { terminals_ephemeral: true, terminals_tmux: true } })] } }));
   await page.route('**/api/v1/terminals', route => {
     if (route.request().method() === 'POST') {
@@ -51,7 +57,10 @@ export async function setupTerminals(page, options = {}) {
       if (Buffer.isBuffer(message) && options.echo !== false) socket.send(message);
     });
   });
-  await page.goto(origin); await page.locator('[data-view=terminals]').click();
+  await page.goto(origin);
+  await expect(page.getByLabel('Current project', { exact: true })).toHaveValue(project.id);
+  if (!principal.scopes.includes('terminals:read')) return state;
+  await page.locator('[data-view=terminals]').click();
   await expect(page.getByRole('heading', { name: 'Terminals', exact: true })).toBeVisible();
   return state;
 }

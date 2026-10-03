@@ -9,7 +9,12 @@ import { confirmFiles } from './file-support.mjs';
 import { capture, cli, login, origin } from './support.mjs';
 
 test('project members copy real files and lose revoked folder access', async ({ page, browser }) => {
+  test.skip(process.env.FICC_TEST_LIVE_RESOURCES !== '1',
+    'Requires FICC_TEST_LIVE_RESOURCES=1 and an isolated live service in FICC_URL, FICC_STATE_DIR and FICC_CLI. Demo mode refuses root registration and real file changes.');
   test.setTimeout(60000);
+  await login(page);
+  const session = await page.evaluate(async () => (await fetch('/api/v1/session')).json());
+  expect(session.mode, 'The explicitly selected file-resource fixture must run in live mode.').toBe('live');
   const label = randomUUID().slice(0, 8), folder = await mkdtemp(join(tmpdir(), 'ficc-project-files-'));
   const source = join(folder, 'source'), destination = join(folder, 'destination');
   const faults = [], roots = [], contexts = [];
@@ -30,7 +35,6 @@ test('project members copy real files and lose revoked folder access', async ({ 
     }
     cli(['project-resources-set', '--project', control.id, '--revision', '0', '--root', roots[0].id]);
     expect(JSON.parse(cli(['project-resources', '--project', project.id])).root_ids).toEqual([]);
-    await login(page);
     await page.locator('[data-view=access]').click();
     await page.getByLabel('Resource project').selectOption(project.id);
     for (const name of ['Source', 'Destination']) {

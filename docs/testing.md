@@ -145,6 +145,16 @@ FICC_STATE_DIR=/tmp/ficc-browser-state FICC_URL=http://127.0.0.1:8171 \
   npm test --prefix web
 ```
 
+The actual contributor-workload fixture also requires `FICC_WORKLOAD_PYTHON`
+and the qualified `FICC_TEST_OPA` evaluator. Its Python path must include
+`src`, `node` and `tests/python`. Without these explicit fixture settings, the
+checks report a skip. A configured fixture that fails still fails the check.
+
+Set `FICC_TEST_LIVE_RESOURCES=1` to run the real project-folder workflow against
+an isolated live service. It requires live mode; the ordinary demo service cannot
+register or copy real files. Remote stream checks require the explicit lab
+configuration described in [the remote stream fixture](../tests/integration/remote_streams/README.md).
+
 Browser checks are headless by default. For a visible check, set `FICC_HEADED=1`.
 Set `FICC_BROWSER_WINDOW_POSITION=x,y` to place its windows on another monitor.
 Use a separate X server, such as `xvfb-run`, for unattended checks that require

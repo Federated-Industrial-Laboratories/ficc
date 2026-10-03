@@ -6,13 +6,18 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 test.afterEach(async ({ page }, info) => {
-  if (info.status !== info.expectedStatus) {
+  if (info.status !== info.expectedStatus && process.env.FICC_STREAM_DIRECTORY) {
     writeFileSync(`${process.env.FICC_STREAM_DIRECTORY}/browser-failure.txt`, await page.locator('body').ariaSnapshot());
     await page.screenshot({ path: `${process.env.FICC_STREAM_DIRECTORY}/browser-failure.png` });
   }
 });
 
 test('remote project browser keeps data and closes revoked streams', async ({ page, context }) => {
+  test.skip(!['FICC_STREAM_SEED', 'FICC_STREAM_DIRECTORY', 'FICC_STREAM_STATE'].some(name => process.env[name]),
+    'Requires the explicitly selected private HTTPS remote-stream fixture.');
+  for (const name of ['FICC_STREAM_SEED', 'FICC_STREAM_DIRECTORY', 'FICC_STREAM_STATE', 'FICC_PYTHON', 'FICC_URL']) {
+    expect(process.env[name], `The selected remote-stream fixture requires ${name}.`).toBeTruthy();
+  }
   const seed = JSON.parse(readFileSync(process.env.FICC_STREAM_SEED, 'utf8'));
   const faults = [], polls = [], streams = [];
   page.on('pageerror', error => faults.push(error.message));

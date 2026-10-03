@@ -68,7 +68,7 @@ for (const count of [1, 64]) {
     await expect(page.getByRole('button', { name: /^(Pause|Drain|Stop) contributor/ })).toHaveCount(0);
     await selectWorkload(page, `Retained computation ${String(count).padStart(2, '0')}`);
     await expect(page.getByText('Execution outcome is unknown.', { exact: false })).toBeVisible();
-    expect(await page.locator('.workloads').innerText()).not.toMatch(/^null$/m);
+    expect(await page.locator('.workloads').innerText()).not.toMatch(/^(?:null)+$/m);
     await expect(page.getByRole('button', { name: 'Retry workload', exact: true })).toBeDisabled();
     const response = page.waitForResponse(value => value.url().endsWith('/output'));
     await page.getByRole('button', { name: 'Read from start', exact: true }).click();

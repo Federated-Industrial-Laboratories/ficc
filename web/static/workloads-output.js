@@ -101,8 +101,8 @@ export function workloadOutput(job, send, valid) {
       published.replaceChildren(el('h4', {}, 'Published outputs and recovery'),
         rows.length ? table(['Destination file', 'State', 'Progress', 'Verified result', 'Actions'], rows, 'Workload publications') :
           el('p', { class: 'muted' }, 'No output publications on this page.'),
-        before ? button('Latest publications', () => loadPublications()) : null,
-        result.next_cursor ? button('Older publications', () => loadPublications(result.next_cursor)) : null);
+        ...(before ? [button('Latest publications', () => loadPublications())] : []),
+        ...(result.next_cursor ? [button('Older publications', () => loadPublications(result.next_cursor))] : []));
     } catch (error) { if (active && valid()) publicationErrors.replaceChildren(errorPanel(error)); }
     finally {
       publicationLoading = false;
