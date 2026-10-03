@@ -14,10 +14,9 @@ import pytest
 from test_ssh import ssh_fixture  # noqa: F401
 
 from ficc import ssh as ssh_module
-from ficc.auth import Auth
 from ficc.errors import Failure
-from ficc.settings import MAX_NODES
-from ficc.store import Store
+from ficc.service import Service
+from ficc.settings import MAX_NODES, Settings
 
 
 @pytest.fixture
@@ -237,10 +236,10 @@ async def test_real_observation_pool_lifecycle(observer, count):
 
     owners = list(transport.masters.current.values())
     pids = owned_processes(owners)
-    store = Store(root / "credentials" / "state.sqlite3")
+    service = Service(Settings(state_dir=root / "credentials", control=False))
+    service.ssh = transport
     try:
-        auth = Auth(store)
-        auth.on_revoke = transport.reset
+        auth = service.auth
         token, principal = auth.issue("token")
         assert auth.resolve(token).id == principal.id
         auth.revoke(principal.id)
@@ -251,7 +250,7 @@ async def test_real_observation_pool_lifecycle(observer, count):
         await assert_reaped(owners, pids)
         assert not transport.masters.watchers
     finally:
-        store.close()
+        service.close()
 
     for node in nodes:
         assert (await transport.probe(node))["version"] == "1"
