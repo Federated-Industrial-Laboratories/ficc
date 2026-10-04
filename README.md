@@ -184,6 +184,12 @@ explicit recipients. FICC does not install runtimes, copy provider credentials,
 select a model or automatically reply. See [coding agents](docs/agents.md) and
 [the bus](docs/bus.md) for registration, grants, receipts and retained history.
 
+The separate [ficc-harness](https://github.com/Federated-Industrial-Laboratories/ficc-harness)
+companion supplies portable skills, agent templates
+and optional session hooks for assisted setup and operation. See
+[external agent assistance](docs/agents.md#external-agent-assistance) for its
+relationship to FICC permissions and native adapters.
+
 <p align="center"><img src=".github/assets/divider.svg" width="720" alt=""></p>
 
 ## Layout

@@ -12,6 +12,7 @@
 - [Register and launch an agent](#register-and-launch-an-agent)
 - [Runtime adapters](#runtime-adapters)
 - [Authority and limits](#authority-and-limits)
+- [External agent assistance](#external-agent-assistance)
 
 </details>
 
@@ -148,6 +149,26 @@ an explicit retained node archive, freeing current spool capacity. The node keep
 up to 8,192 archived agent namespaces. Nothing expires or disappears automatically.
 Agents on the same Unix account share that account's authority; private files
 protect against other accounts, not a hostile process running as the owner.
+
+## External agent assistance
+
+The separate [ficc-harness](https://github.com/Federated-Industrial-Laboratories/ficc-harness)
+companion provides portable skills, agent templates
+and optional session hooks for coding agents that assist an operator with FICC
+setup and operation. It includes local and remote administration guidance for
+Codex, Claude Code, Gemini CLI, GitHub Copilot and Cursor. Consult the README,
+provider guide and compatibility table shipped with the companion for supported
+versions, installation methods and runtime qualification.
+
+These instructions use FICC's existing CLI and browser interfaces. They do not
+install coding-agent runtimes, grant system access or extend FICC's version-specific
+native direct adapters. Controller-owner CLI access and scoped browser access
+have different authority. Remote assistance preserves SSH host verification,
+FICC's HTTPS gateway and individual sign-in requirements.
+
+The companion is versioned separately. Its documentation and compatibility record
+are reviewed with each FICC release. Download its source and provider archives from
+[GitHub Releases](https://github.com/Federated-Industrial-Laboratories/ficc-harness/releases/latest).
 
 
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>

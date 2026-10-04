@@ -113,6 +113,7 @@ Follow the relevant workflow guide before enabling a provider.
 | Start from the application menu | [User service](operations.md#user-service) |
 | Open several terminals | [Terminal workspace](terminals.md) |
 | Register a coding agent | [Coding agents](agents.md) |
+| Assist with FICC from an external coding agent | [External agent assistance](agents.md#external-agent-assistance) |
 | Contact another agent | [Agent bus](bus.md) |
 | Prepare a controller upgrade | [Operation](operations.md#state-copy-and-upgrades) and [backup](backup.md) |
 | Reclaim retained capacity | [History archives](history.md) and [closed bus runs](bus.md#portable-runs-and-explicit-archival) |
