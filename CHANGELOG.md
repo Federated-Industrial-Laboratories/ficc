@@ -8,6 +8,7 @@
 - Improve narrow navigation, panel alignment, toolbar wrapping and form control sizing.
 - Preserve floating-panel positions when restoring a workspace before its layout is measured.
 - Replace the README character header with a professional text treatment on a silver grid.
+- Remove unused dependency launchers with temporary build paths from Linux packages.
 
 ## 0.2.5
 

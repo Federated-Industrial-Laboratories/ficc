@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
 from release_lib.common import archive_tree, fetch, snapshot, unpack  # noqa: E402
-from release_lib.payload import repair_records  # noqa: E402
+from release_lib.payload import repair_records, retain_commands  # noqa: E402
 
 
 @pytest.mark.parametrize("kind", ["parent", "absolute", "escape-link", "device"])
@@ -110,6 +110,23 @@ def test_distribution_record_cannot_escape_payload(tmp_path):
     record.write_text("../../outside,,\n")
     with pytest.raises(ValueError, match="escapes"):
         repair_records(site, tmp_path)
+
+
+def test_dependency_legacy_scripts_are_removed_with_their_records(tmp_path):
+    commands = tmp_path / "python/bin"
+    commands.mkdir(parents=True)
+    for name in ("python3", "pydoc3", "ficc", "ficc-audit-collector", "jp.py", "uvicorn"):
+        (commands / name).write_text("#!/temporary/build/python3\n")
+    site = tmp_path / "python/lib/python3.12/site-packages"
+    record = site / "jmespath.dist-info/RECORD"
+    record.parent.mkdir(parents=True)
+    (site / "jmespath.py").write_text("distribution library")
+    record.write_text("../../../bin/jp.py,,\njmespath.py,,\njmespath.dist-info/RECORD,,\n")
+    retain_commands(commands, {"python3", "pydoc3"})
+    repair_records(site, tmp_path)
+    assert {item.name for item in commands.iterdir()} == {"python3", "pydoc3", "ficc", "ficc-audit-collector"}
+    assert "jp.py" not in record.read_text()
+    assert "jmespath.py" in record.read_text()
 
 
 def test_privacy_audit_reads_nested_archive_members():

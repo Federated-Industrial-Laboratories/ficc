@@ -2,7 +2,6 @@
 """Assemble a relocatable runtime, notices and a source-bound inventory."""
 
 import base64
-import configparser
 import csv
 import hashlib
 import json
@@ -67,6 +66,14 @@ def python_notices(archive: Path, target: Path) -> dict:
     return metadata
 
 
+def retain_commands(directory: Path, original: set[str]) -> None:
+    """Remove dependency utilities, including legacy wheel scripts."""
+    retained = original | {"ficc", "ficc-audit-collector"}
+    for item in directory.iterdir():
+        if item.name not in retained:
+            item.unlink()
+
+
 def repair_records(site: Path, payload: Path) -> None:
     for record in site.glob("*.dist-info/RECORD"):
         rows = []
@@ -95,6 +102,7 @@ def build(source: Path, work: Path, inputs: dict[str, Path], provenance: dict, l
         verify_windows_sources(windows_runtime, provenance['files'])
     payload = work / f"ficc-{version}-linux-x86_64"
     unpack(inputs["python"], payload)
+    original_commands = {item.name for item in (payload / "python/bin").iterdir()}
     python = payload / "python/bin/python3"
     metadata = python_notices(inputs["python-metadata"], payload / "licenses/python")
     if metadata["python_version"] != lock["python"] or metadata["target_triple"] != "x86_64-unknown-linux-gnu":
@@ -138,15 +146,7 @@ def build(source: Path, work: Path, inputs: dict[str, Path], provenance: dict, l
         shutil.rmtree(item)
     for item in (payload / "python/bin").glob("pip*"):
         item.unlink()
-    for entry in site.glob("*.dist-info/entry_points.txt"):
-        declarations = configparser.ConfigParser()
-        declarations.read(entry)
-        for section in ("console_scripts", "gui_scripts"):
-            for name in declarations[section] if declarations.has_section(section) else ():
-                if Path(name).name != name:
-                    raise ValueError("Invalid distribution command name")
-                if name not in {"ficc", "ficc-audit-collector"}:
-                    (payload / "python/bin" / name).unlink(missing_ok=True)
+    retain_commands(payload / "python/bin", original_commands)
     for item in payload.rglob("__pycache__"):
         shutil.rmtree(item)
     repair_records(site, payload)
