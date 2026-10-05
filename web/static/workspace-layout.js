@@ -12,7 +12,7 @@ export const identity = () => crypto.randomUUID().replaceAll('-', '');
 export function workspaceLayout({ workspace, viewId = identity(), modules, audio, changed, error, drafts = new Map() }) {
   let value = workspace, revision = 0, ready = false, disposed = false, timer, saving = Promise.resolve(), zoom;
   const element = el('div', { class: 'workspace-dock' }), components = new Map(), subscriptions = [];
-  let pending = 0;
+  let pending = 0, initialView;
   function moduleFor(item) { return modules.find(candidate => candidate.digest === item.digest); }
   function queue(change, panelId) {
     pending++;
@@ -133,18 +133,33 @@ export function workspaceLayout({ workspace, viewId = identity(), modules, audio
   }
   subscriptions.push(api.onDidLayoutChange(saveSoon));
   subscriptions.push(api.onDidMaximizedGroupChange(() => { if (zoom && !api.hasMaximizedGroup()) queueMicrotask(restoreZoom); }));
-  const observer = new ResizeObserver(() => {
-    for (const group of api.groups) if (group.api.location.type === 'floating') {
-      group.api.setSize({ width: Math.min(group.width, api.width), height: Math.min(group.height, api.height) });
+  function resize() {
+    const width = element.clientWidth, height = element.clientHeight;
+    if (disposed || !width || !height) return;
+    // Nested tiles must have real bounds before Dockview restores floating positions.
+    api.layout(width, height);
+    if (initialView) {
+      const saved = initialView; initialView = null; revision = saved.revision;
+      if (saved.layout?.grid) {
+        try { api.fromJSON(saved.layout); } catch { api.clear(); for (const item of value.instances) add(item); }
+      } else for (const item of value.instances) add(item);
+      ready = true;
     }
-  }); observer.observe(element);
+    for (const group of api.groups) if (group.api.location.type === 'floating') {
+      const frame = group.element.closest('.dv-resize-container'), size = {};
+      if (frame?.offsetWidth > width) size.width = width;
+      if (frame?.offsetHeight > height) {
+        const headerHeight = frame.querySelector(':scope > .dv-floating-titlebar')?.offsetHeight || 0;
+        size.height = Math.max(1, height - headerHeight);
+      }
+      // Group dimensions exclude the window border; avoid shrinking unchanged windows.
+      if (Object.keys(size).length) group.api.setSize(size);
+    }
+  }
+  const observer = new ResizeObserver(resize); observer.observe(element);
   void request(`/workspaces/${value.id}/views/${viewId}`).then(saved => {
     if (disposed) return;
-    revision = saved.revision;
-    if (saved.layout?.grid) {
-      try { api.fromJSON(saved.layout); } catch { api.clear(); for (const item of value.instances) add(item); }
-    } else for (const item of value.instances) add(item);
-    ready = true;
+    initialView = saved; resize();
   }).catch(error);
   return { element, get workspace() { return value; }, get viewId() { return viewId; },
     get dirty() { return [...drafts.values()].some(value => Object.keys(value).length); },

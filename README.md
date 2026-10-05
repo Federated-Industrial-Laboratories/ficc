@@ -1,11 +1,11 @@
 <p align="center">
-  <img src=".github/assets/mark.png" width="720" alt="FICC, Federated Industrial Cluster Commander. Orange-haired systems operator beside a silver wordmark.">
+  <img src=".github/assets/header.png" width="720" alt="FICC, Federated Industrial Cluster Commander. Graphite wordmark on a silver engineering grid.">
 </p>
 
 <p align="center">A modular console for cluster operations, remote teams and compute workloads.</p>
 
 <p align="center">
-  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.2.5-stable | Python 3.12 or later | OpenSSH">
+  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.2.6 | Python 3.12 or later | OpenSSH">
 </p>
 
 <p align="center">
@@ -36,8 +36,10 @@ See [Windows endpoints](docs/windows-endpoints.md) for the qualified environment
 
 See [provider support](docs/testing.md#runtime-modules-and-providers) for requirements and limits.
 
-The interface uses white and silver panels, orange controls and compact tables.
-All application assets are local, including fonts. The desktop controller listens
+The interface defaults to white and silver panels, orange controls and compact tables.
+[Appearance and themes](docs/themes.md) adds Classic Dark with the PRISM Graphite
+palette, 24 named alternatives, flat materials and portable JSON themes with custom
+vector logos. All application assets are local, including fonts. The desktop controller listens
 on loopback by default. [Remote access](docs/remote-access.md) requires the separate
 authenticated gateway and identity setup; exposing the local listener is unsupported.
 
@@ -183,6 +185,12 @@ the generic inbox tool. Direct delivery can start model work and always needs
 explicit recipients. FICC does not install runtimes, copy provider credentials,
 select a model or automatically reply. See [coding agents](docs/agents.md) and
 [the bus](docs/bus.md) for registration, grants, receipts and retained history.
+
+The separate [ficc-harness](https://github.com/Federated-Industrial-Laboratories/ficc-harness)
+companion supplies portable skills, agent templates
+and optional session hooks for assisted setup and operation. See
+[external agent assistance](docs/agents.md#external-agent-assistance) for its
+relationship to FICC permissions and native adapters.
 
 <p align="center"><img src=".github/assets/divider.svg" width="720" alt=""></p>
 

@@ -127,7 +127,8 @@ test('the primary text palette meets the normal text contrast threshold', async 
   function luminance(color) {
     const values = color.match(/[\d.]+/g).map(Number);
     expect(values.length === 3 || values[3] === 1, `Opaque color: ${color}`).toBeTruthy();
-    const channels = values.slice(0, 3).map(value => value / 255)
+    const scale = color.startsWith('color(srgb ') ? 1 : 255;
+    const channels = values.slice(0, 3).map(value => value / scale)
       .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
     return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
   }

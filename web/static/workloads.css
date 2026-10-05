@@ -1,26 +1,26 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* Keep contributor queue controls and offer tables within the console frame. */
 .workloads, .workloads > div, .workload-offer-detail, .workload-output { min-width: 0; }
-.workloads .table-scroll { max-height: 390px; border: 1px solid #a3acb4; background: linear-gradient(#fff, #f1f3f5); }
+.workloads .table-scroll { max-height: 390px; border: 1px solid var(--line); background: var(--control); }
 .workloads table { min-width: 580px; }
 .workloads thead { position: sticky; top: 0; background: var(--metal); z-index: 1; }
-.workloads tr[aria-selected='true'] { background: #fff0df; box-shadow: inset 3px 0 var(--orange); }
+.workloads tr[aria-selected='true'] { background: var(--orange-light); box-shadow: inset 3px 0 var(--orange); }
 .workloads td { max-width: 340px; overflow-wrap: anywhere; }
 .workloads .cell-note { overflow-wrap: anywhere; }
 .workloads code, .workload-dialog dd { overflow-wrap: anywhere; }
-.workload-offer-detail { margin-top: 18px; border-top: 3px double #abb3ba; padding-top: 8px; }
+.workload-offer-detail { margin-top: 18px; border-top: 3px double var(--line); padding-top: 8px; }
 .workload-dialog { width: min(880px, calc(100vw - 32px)); }
 .workload-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
 .workload-dialog .actions { margin: 12px 0; }
-.workload-candidates { max-height: 240px; overflow: auto; border: 1px solid #939fa9; margin: 12px 0; background: #f4f6f8; padding: 0 12px; }
-.workload-candidates label + label { border-top: 1px solid #cbd1d7; padding-top: 12px; }
+.workload-candidates { max-height: 240px; overflow: auto; border: 1px solid var(--frame); margin: 12px 0; background: var(--surface); padding: 0 12px; }
+.workload-candidates label + label { border-top: 1px solid var(--line); padding-top: 12px; }
 .workload-candidates .cell-note { overflow-wrap: anywhere; }
 .workload-limit-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 15px; }
 .workload-limit-grid label { min-width: 0; }
-.workload-output { margin-top: 20px; border-top: 3px double #abb3ba; padding-top: 10px; }
+.workload-output { margin-top: 20px; border-top: 3px double var(--line); padding-top: 10px; }
 .workload-output .muted { overflow-wrap: anywhere; }
 .workload-output .job-log-controls { gap: 10px; }
 .workload-output .job-output { max-height: 320px; margin: 12px 0; }
-.workload-api { display: block; padding: 12px; white-space: pre-wrap; border: 1px inset #a3adb5; background: #eef1f3; }
+.workload-api { display: block; padding: 12px; white-space: pre-wrap; border: 1px inset var(--line); background: var(--surface); }
 @media (max-width: 640px) { .workload-limit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 400px) { .workload-limit-grid { grid-template-columns: minmax(0, 1fr); } }

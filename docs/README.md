@@ -22,6 +22,7 @@ page contents, command copying and a search index that runs in your browser.
 3. Try the [demonstration console](install.md#try-the-interface) with separate state.
 4. [Connect a machine](install.md#connect-a-machine) and inspect its pinned identity.
 5. Set up [normal startup and maintenance](operations.md).
+6. Choose [appearance and themes](themes.md), or design and share a custom theme.
 
 The v0.2.5 source installer and binary payload supply 17 separately built
 [provider wheels](dependencies.md#supplied-runtime-providers). Their presence
@@ -113,6 +114,7 @@ Follow the relevant workflow guide before enabling a provider.
 | Start from the application menu | [User service](operations.md#user-service) |
 | Open several terminals | [Terminal workspace](terminals.md) |
 | Register a coding agent | [Coding agents](agents.md) |
+| Assist with FICC from an external coding agent | [External agent assistance](agents.md#external-agent-assistance) |
 | Contact another agent | [Agent bus](bus.md) |
 | Prepare a controller upgrade | [Operation](operations.md#state-copy-and-upgrades) and [backup](backup.md) |
 | Reclaim retained capacity | [History archives](history.md) and [closed bus runs](bus.md#portable-runs-and-explicit-archival) |
