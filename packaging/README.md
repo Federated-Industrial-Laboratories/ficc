@@ -20,7 +20,8 @@ Native module dependencies use their declared hashes and a separate cache subdir
 publication candidate. A source archive includes release-source.json and can
 be rebuilt with this same command after extracting it and installing build tools.
 
-Runtime downloads use exact lengths and SHA-256 digests. Continuous AppImage
+Runtime downloads use exact lengths and SHA-256 digests. AppImage assembly uses
+the numbered appimagetool 1.9.1 release. Continuous AppImage
 upstream assets can be replaced. The pinned runtime is preserved in the published
 FICC 0.1.0 AppImage. Assembly reads its bounded runtime prefix and clears the
 embedded AppImage checksum field before checking the original runtime SHA-256.
