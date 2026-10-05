@@ -29,6 +29,11 @@ The v0.2.5 source installer and binary payload supply 17 separately built
 does not configure external services, enroll contributors or grant access.
 Follow the relevant workflow guide before enabling a provider.
 
+The v0.2.5 source installer and binary payload supply 17 separately built
+[provider wheels](dependencies.md#supplied-runtime-providers). Their presence
+does not configure external services, enroll contributors or grant access.
+Follow the relevant workflow guide before enabling a provider.
+
 ## Manual library
 
 | Order | Manual | Subject |
