@@ -4,6 +4,7 @@ import { Terminal } from './vendor/xterm/xterm.mjs';
 import { FitAddon } from './vendor/addon-fit/addon-fit.mjs';
 import { request } from './api.js';
 import { button, el, notice } from './components.js';
+import { terminalTheme } from './theme.js';
 
 const INPUT_FRAME = 16384, INPUT_BUFFER = 65536, OUTPUT_BUFFER = 262144;
 
@@ -25,7 +26,9 @@ export function terminalStream(record, changed, select = () => {}) {
     fontFamily: 'JetBrains, monospace', minimumContrastRatio: 4.5, screenReaderMode: true,
     cursorBlink: false, smoothScrollDuration: 0, allowProposedApi: false,
     windowOptions: {}, disableStdin: true, logLevel: 'off',
-    linkHandler: { activate() {} }, theme: { background: '#242a31', foreground: '#f6f4ef', cursor: '#f3a94e' } });
+    linkHandler: { activate() {} }, theme: terminalTheme() });
+  const recolor = () => { term.options.theme = terminalTheme(); };
+  window.addEventListener('ficc-theme-changed', recolor);
   for (const code of [0, 1, 2, 8, 52]) term.parser.registerOscHandler(code, () => true);
   const fit = new FitAddon(); term.loadAddon(fit);
   host.addEventListener('pointerdown', () => { if (visible) select(false); });
@@ -140,6 +143,6 @@ export function terminalStream(record, changed, select = () => {}) {
     if (!active) return;
     active = false; ended = true; attached = false; clearTimeout(resizeTimer); observer.disconnect();
     if (socket && socket.readyState < WebSocket.CLOSING) socket.close();
-    term.dispose();
+    window.removeEventListener('ficc-theme-changed', recolor); term.dispose();
   } };
 }

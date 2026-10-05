@@ -14,6 +14,7 @@ import { containerProfiles } from './container-profiles.js';
 import { adminProfiles } from './admin-profiles.js';
 import { adapterProfiles } from './adapter-profiles.js';
 import { windowsEndpoints } from './windows-endpoints.js';
+import { openAppearance } from './theme-controls.js';
 
 export function workspaces() {
   const query = new URLSearchParams(location.search), valid = value => /^[a-f0-9]{32}$/.test(value || '');
@@ -126,7 +127,7 @@ export function workspaces() {
       const child = window.open(url, '_blank');
       if (child) child.opener = null;
       else message.replaceChildren(notice('The browser blocked the workspace window.'), el('a', { href: url, target: '_blank', rel: 'noopener' }, 'Open workspace window'));
-    }), expand, full,
+    }), expand, full, button('Workspace appearance', openAppearance),
     button('Recover panels', () => selected()?.recover()), button('Show hidden panels', () => selected()?.showAll()),
     button('Reload saved workspace', () => { void selected()?.reload().catch(fail); }),
     button('Saved layouts', manageLayouts),

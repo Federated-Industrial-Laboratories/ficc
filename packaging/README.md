@@ -20,7 +20,8 @@ Native module dependencies use their declared hashes and a separate cache subdir
 publication candidate. A source archive includes release-source.json and can
 be rebuilt with this same command after extracting it and installing build tools.
 
-Runtime downloads use exact lengths and SHA-256 digests. Continuous AppImage
+Runtime downloads use exact lengths and SHA-256 digests. AppImage assembly uses
+the numbered appimagetool 1.9.1 release. Continuous AppImage
 upstream assets can be replaced. The pinned runtime is preserved in the published
 FICC 0.1.0 AppImage. Assembly reads its bounded runtime prefix and clears the
 embedded AppImage checksum field before checking the original runtime SHA-256.
@@ -49,7 +50,7 @@ docker run --rm --network=none \
     cp *.pkg.tar.zst /release/
   '
 python tools/finalize_release.py --output /tmp/ficc-release \
-  --arch-package /tmp/ficc-release/ficc-bin-0.2.5-1-x86_64.pkg.tar.zst
+  --arch-package /tmp/ficc-release/ficc-bin-0.2.6-1-x86_64.pkg.tar.zst
 ```
 
 ## Qualification
@@ -179,5 +180,5 @@ After review, repeat with `--publish` to publish the verified draft. Repository
 visibility is unchanged. Published versions cannot be replaced by this command.
 CI artifacts are temporary qualification output; they are not release downloads.
 
-For `0.2.5-stable`, package metadata uses `0.2.5`.
-Pass `--tag v0.2.5-stable` to `publish_release.py` for the stable release tag.
+For `0.2.6-stable`, package metadata uses `0.2.6`.
+Pass `--tag v0.2.6-stable` to `publish_release.py` for the stable release tag.

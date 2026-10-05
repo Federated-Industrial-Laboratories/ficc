@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "id": "beacon-custom",
+  "name": "Beacon Custom",
+  "description": "A flat night palette with a replacement geometric beacon logo.",
+  "scheme": "dark",
+  "colors": {
+    "canvas": "#111927",
+    "white": "#172233",
+    "paper": "#1e2b3e",
+    "surface": "#26354a",
+    "rail": "#202e42",
+    "ink": "#eef4fc",
+    "muted": "#bacbdf",
+    "orange": "#e1b96e",
+    "accent": "#f0cc8d",
+    "orange-light": "#343329",
+    "line": "#566d87",
+    "frame": "#7089a5",
+    "brand": "#d9e9ff",
+    "dark": "#0e1622",
+    "highlight": "#566a83",
+    "on-accent": "#29200f",
+    "terminal-bg": "#0c1420",
+    "terminal-ink": "#e8f1ff",
+    "status-ink": "#e8f1ff",
+    "focus": "#f0cc8d",
+    "terminal-cursor": "#e1b96e",
+    "shadow": "#00000077",
+    "overlay": "#070b12b3"
+  },
+  "materials": {
+    "enabled": false,
+    "grid": {
+      "enabled": false
+    }
+  },
+  "logo": {
+    "type": "paths",
+    "color": "orange",
+    "secondary": "brand",
+    "viewBox": [
+      0,
+      0,
+      64,
+      64
+    ],
+    "paths": [
+      {
+        "d": "M32 4 L60 32 L32 60 L4 32 Z",
+        "fill": "none",
+        "stroke": "orange",
+        "strokeWidth": 3
+      },
+      {
+        "d": "M32 17 L45 42 L32 35 L19 42 Z",
+        "fill": "brand",
+        "stroke": "none"
+      },
+      {
+        "d": "M32 44 V51 M13 32 H20 M44 32 H51",
+        "fill": "none",
+        "stroke": "orange",
+        "strokeWidth": 2
+      }
+    ]
+  }
+}

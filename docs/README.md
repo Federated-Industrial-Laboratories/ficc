@@ -22,8 +22,9 @@ page contents, command copying and a search index that runs in your browser.
 3. Try the [demonstration console](install.md#try-the-interface) with separate state.
 4. [Connect a machine](install.md#connect-a-machine) and inspect its pinned identity.
 5. Set up [normal startup and maintenance](operations.md).
+6. Choose [appearance and themes](themes.md), or design and share a custom theme.
 
-The v0.2.5 source installer and binary payload supply 17 separately built
+The v0.2.6 source installer and binary payload supply 17 separately built
 [provider wheels](dependencies.md#supplied-runtime-providers). Their presence
 does not configure external services, enroll contributors or grant access.
 Follow the relevant workflow guide before enabling a provider.

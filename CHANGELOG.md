@@ -1,5 +1,14 @@
 # Changes
 
+## 0.2.6
+
+- Add browser-local appearance controls with Classic Light, PRISM Graphite Classic Dark and 24 named themes.
+- Add versioned JSON theme import/export, configurable material gradients, flat materials and replaceable vector logos.
+- Apply themes across panels, dialogs, tables, workspaces, audio controls and terminal surfaces.
+- Improve narrow navigation, panel alignment, toolbar wrapping and form control sizing.
+- Preserve floating-panel positions when restoring a workspace before its layout is measured.
+- Replace the README character header with a professional text treatment on a silver grid.
+
 ## 0.2.5
 
 - Add durable identities, project membership and resource assignments, with SQLite and PostgreSQL support through controller schema 15.

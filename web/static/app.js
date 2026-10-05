@@ -15,6 +15,11 @@ import { contributors } from './contributors.js';
 import { workloads } from './workloads.js';
 import { sources } from './sources.js';
 import { operations } from './operations.js';
+import { initializeAppearance } from './theme.js';
+import { openAppearance } from './theme-controls.js';
+
+void initializeAppearance();
+document.querySelector('#appearance-open').addEventListener('click', openAppearance);
 
 const main = document.querySelector('#main');
 const nav = [...document.querySelectorAll('[data-view]')];

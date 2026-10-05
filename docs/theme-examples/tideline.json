@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "id": "tideline-custom",
+  "name": "Tideline Custom",
+  "description": "A sea-glass theme with editable diagonal materials and a fine background grid.",
+  "scheme": "light",
+  "colors": {
+    "canvas": "#dbe9ec",
+    "white": "#f0f8f9",
+    "paper": "#fbfeff",
+    "surface": "#e3eff1",
+    "rail": "#dde9ed",
+    "ink": "#193942",
+    "muted": "#41606a",
+    "orange": "#77c3d4",
+    "accent": "#175b70",
+    "orange-light": "#e1f3f8",
+    "line": "#98b6c1",
+    "frame": "#7195a3",
+    "brand": "#22596c",
+    "dark": "#203c46",
+    "highlight": "#ffffff",
+    "on-accent": "#113641",
+    "terminal-bg": "#1b3038",
+    "terminal-ink": "#e9f7fa",
+    "status-ink": "#e9f7fa",
+    "focus": "#175b70",
+    "terminal-cursor": "#77c3d4",
+    "shadow": "#171e2828",
+    "overlay": "#20283280"
+  },
+  "materials": {
+    "enabled": true,
+    "metal": {
+      "angle": 110,
+      "stops": [
+        {
+          "color": "paper",
+          "at": 0
+        },
+        {
+          "color": "#dde9ed",
+          "at": 42
+        },
+        {
+          "color": "surface",
+          "at": 64
+        },
+        {
+          "color": "paper",
+          "at": 100
+        }
+      ]
+    },
+    "control": {
+      "angle": 180,
+      "stops": [
+        {
+          "color": "paper",
+          "at": 0
+        },
+        {
+          "color": "surface",
+          "at": 100
+        }
+      ]
+    },
+    "masthead": {
+      "angle": 120,
+      "stops": [
+        {
+          "color": "rail",
+          "at": 0
+        },
+        {
+          "color": "paper",
+          "at": 48
+        },
+        {
+          "color": "surface",
+          "at": 100
+        }
+      ]
+    },
+    "grid": {
+      "enabled": true,
+      "size": 32,
+      "color": "#175b700c"
+    }
+  },
+  "logo": {
+    "type": "orbit",
+    "color": "orange",
+    "secondary": "brand"
+  }
+}
