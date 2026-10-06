@@ -24,6 +24,10 @@ Validated on native macOS:
 - Installed agent runtime probes and the existing agent protocol.
   Runtime versions outside the explicitly qualified direct-adapter versions
   retain inbox delivery. Provider sign-in and trust prompts remain native.
+- Codex 0.160.1 native app-server/TUI integration with an actual model turn:
+  direct session inclusion, shell/file tools, inbox list/read, addressed replies,
+  retry deduplication and clean stop. Its background title generation preserves
+  the registered session binding.
 
 Resource-limited managed jobs still require Linux systemd/cgroups. The safe file
 adapter still requires Linux openat2 and related kernel operations. These
@@ -75,3 +79,24 @@ The test creates an isolated controller and temporary Mac workspace, launches
 a deterministic fixture agent, checks file/process tools, inbox reads, reply
 deduplication and terminal attachment, then stops the agent and removes its
 remote namespaces. It does not contact a model provider.
+
+To qualify an installed, signed-in Codex 0.160.1 with real model calls, opt in
+explicitly:
+
+```sh
+FICC_MACOS_PROFILE=mac-test FICC_MACOS_REAL_CODEX=1 PYTHONPATH=src:node \
+  python -m pytest -q -s tests/integration/test_macos_codex.py
+```
+
+This uses the runtime's configured model and sign-in. Set `FICC_MACOS_CODEX` if
+its executable is outside `~/.local/bin/codex`. Before dispatching work, the test
+permits writes to its temporary workspace, FICC namespace and standard temporary
+directories for that thread; it preserves the
+approval policy and does not change global runtime configuration. It submits the
+operator's tool instructions through the native TUI separately from the bus
+note, which remains participant testimony. The agent and temporary namespaces
+are stopped and removed after the check.
+Recorded successful Codex command executions and their returned JSON establish
+inbox list/read, both sends and an empty rejection list; a model-written success
+summary alone cannot pass the test. Unconfirmed termination retains the remote
+workspace and namespaces for diagnosis.

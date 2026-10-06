@@ -67,7 +67,12 @@ def reconcile(rpc, controller, agent, thread, revision=0):
             break
     for event in rpc.events:
         if event.get("method") == "thread/started":
-            identity = event.get("params", {}).get("thread", {}).get("id")
+            started = event.get("params", {}).get("thread", {})
+            # Codex 0.160.1 announces its background title-generation thread on
+            # this connection. It is not a change of the user's active thread.
+            if started.get("ephemeral") is True and started.get("threadSource") == "thread_title":
+                continue
+            identity = started.get("id")
             if identity and identity != thread:
                 adapter.dispatch(controller, agent, "suspend", {"session_id": identity,
                     "expected_session_id": thread, "binding_revision": revision})
