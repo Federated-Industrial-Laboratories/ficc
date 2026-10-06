@@ -74,9 +74,13 @@ before starting the program. It refuses missing required controls and reports
 stricter ancestor limits when present. Runtime is finite, at most 86400 seconds.
 
 One managed job is admitted per node. A running or unknown job prevents a
-conflicting launch. GPU choices use device UUIDs and declared memory need.
+conflicting launch. CUDA GPU choices use NVIDIA device UUIDs and declared memory need.
 Fresh capacity is checked before launch, but another program can still allocate
 the device.
+
+Generic AMDGPU readings are observation-only. They do not appear in CUDA
+reservation controls and cannot be admitted as CUDA reservation targets.
+CPU jobs remain available on machines with AMD GPUs.
 
 Reservations coordinate FICC jobs; they do not enforce VRAM limits
 or exclusive use. CUDA_VISIBLE_DEVICES is set from the reservation and is empty

@@ -94,6 +94,12 @@ configure an evaluator, restore trust and activate before resuming member access
 
 ## Presets and limits
 
+The supplied presets include `agent-observer` for the
+[agent observation interface](agent-observations.md). It permits
+`observations:read` and `observations:resources` within existing host grants.
+Assign it explicitly after approving disclosure to the receiving agent.
+Other roles and older credentials do not gain observation disclosure permission.
+
 | Package | Role | Purpose within host grants |
 | --- | --- | --- |
 | Managed | Observer | Read assigned machines, files, workspaces and operation records |

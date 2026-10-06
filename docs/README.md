@@ -40,6 +40,8 @@ Follow the relevant workflow guide before enabling a provider.
 | 05 | [Files](files.md) | Registered roots, explorer tables, file changes and transfers. |
 | 06 | [Terminals](terminals.md) | Interactive SSH, tmux, tiling, fullscreen and session lifetime. |
 | 07 | [Coding agents](agents.md) | Runtime profiles, native adapters, inbox tools and authority. |
+| 07a | [Agent observations](agent-observations.md) | Scoped inventory and resource readings for existing agent sessions. |
+| 07b | [GPU observations](gpu-observations.md) | NVIDIA readings, generic AMDGPU readings and hardware qualification limits. |
 | 08 | [Agent bus](bus.md) | Run membership, explicit delivery, receipts and portable history. |
 | 09 | [Backup and restore](backup.md) | Consistent private state bundles and verified restore. |
 | 10 | [History archives](history.md) | Explicit retention, export and capacity recovery. |

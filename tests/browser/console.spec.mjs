@@ -4,7 +4,24 @@ import { test, expect } from '../../web/node_modules/@playwright/test/index.mjs'
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { capture, cli, login, origin } from './support.mjs';
+import { capture, cli, login, mockNodes, node, origin } from './support.mjs';
+
+test('AMD observations show partial readings without CUDA capability claims', async ({ page }) => {
+  const sample = node();
+  sample.resources.gpu_status = 'available';
+  sample.resources.gpus = [{ uuid: 'AMD-PCI-0000:03:00.0', name: 'AMD GPU (0000:03:00.0)',
+    memory_total_bytes: 8589934592, memory_used_bytes: 1073741824,
+    utilization_percent: 27, temperature_c: null }];
+  await mockNodes(page, [sample]);
+  await login(page);
+  await page.getByRole('button', { name: sample.name, exact: true }).click();
+  const card = page.locator('.gpu-card');
+  await expect(card).toContainText('AMD GPU (0000:03:00.0)');
+  await expect(card).toContainText('AMDGPU sysfs / observation only');
+  await expect(card).toContainText('27.0%');
+  await expect(card).toContainText('Temperature unknown');
+  await capture(page, 'amd-generic-observations');
+});
 
 for (const width of [390, 768, 1280, 1920]) {
   test(`authenticated layout at ${width} pixels`, async ({ page }) => {

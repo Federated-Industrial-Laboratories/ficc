@@ -34,8 +34,10 @@ managed source and wheel installations need Python 3.12 or later.
 All controllers
 need Linux, OpenSSH and GNU coreutils `timeout`. Nodes require
 OpenSSH server and Python 3.12 or later. NVIDIA reporting uses a bounded,
-structured nvidia-smi query when available. Missing GPU support does
-not prevent CPU and memory observation.
+structured nvidia-smi query when available. Generic AMDGPU observation reads the
+kernel's sysfs and hwmon attributes without ROCm or elevated privileges.
+Missing GPU support does not prevent CPU and memory observation.
+See [GPU observations](gpu-observations.md) for supported readings and qualification limits.
 
 Node.js 22 or later is a build and browser-test dependency. It is not needed
 to run an installed wheel. The [package guide](releases.md) lists native controller formats.

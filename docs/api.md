@@ -77,6 +77,11 @@ See [identities and projects](identities.md) for the current capability boundary
 
 ## Controller and job routes
 
+The separate [agent observation endpoints](agent-observations.md#http-endpoints)
+provide an explicit disclosure permission, limited inventory fields and
+attributed observation access. They use the same authenticated identities,
+project resources and current policy checks.
+
 | Method and path | Result |
 | --- | --- |
 | GET /api/v1/health | Minimal service status; no authentication required |
@@ -130,7 +135,11 @@ treat an old sample as current capacity or a connection failure as zero use.
 The helper response contract is [node-v1.json](../schemas/node-v1.json).
 Generate it with `python tools/export_schema.py schemas/node-v1.json`.
 The current collector reports the root filesystem and cumulative network counters.
-GPU measurements use a bounded structured nvidia-smi query when supported.
+GPU measurements use a bounded structured nvidia-smi query and generic AMDGPU
+sysfs/hwmon reads when available. AMD observation IDs use AMD-PCI- followed by
+the current PCI address; they are not CUDA reservation UUIDs. The existing GPU
+fields and sample schema remain compatible with older NVIDIA-only helpers.
+See [GPU observations](gpu-observations.md) for sources, units and qualification limits.
 
 See [managed jobs](jobs.md) for the typed request and lifetime rules. A job preview
 expires after 120 seconds and belongs to its credential. Submit `{"preview_id":"ID"}`

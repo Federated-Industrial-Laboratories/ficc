@@ -128,6 +128,18 @@ def test_gpu_conflicts_capacity_and_controller_namespace(remote, monkeypatch):
         jobs.dispatch(body("f" * 32))
 
 
+def test_amd_observation_is_refused_before_a_cuda_job_intent(remote, monkeypatch):
+    base, starts = remote
+    item = body()
+    item["job"]["gpu_reservations"] = {
+        "node-0": [{"uuid": "AMD-PCI-0000:03:00.0", "memory_bytes": 1}]}
+    monkeypatch.setattr(jobs, "gpu_metrics", lambda: pytest.fail("Invalid reservation reached collection"))
+    with pytest.raises(ValueError, match="GPU UUID"):
+        jobs.dispatch(item)
+    assert starts == []
+    assert not (base / item["job_id"] / "request.json").exists()
+
+
 def test_effective_limit_verification_checks_ancestors(tmp_path, monkeypatch):
     root = tmp_path / "cgroup"
     group = root / "user" / "job"

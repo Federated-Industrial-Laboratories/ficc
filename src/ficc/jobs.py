@@ -9,7 +9,7 @@ import time
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
-from ficc_node.job_spec import TERMINAL
+from ficc_node.job_spec import CUDA_UUID, TERMINAL
 from ficc_node.job_state import digest
 
 from .auth import Principal
@@ -61,7 +61,8 @@ class Jobs:
             reservations = job["gpu_reservations"].get(node["id"], [])
             if reservations:
                 sample = await self.service.ssh.probe(node, check=check)
-                gpus = {gpu["uuid"]: gpu for gpu in sample["resources"]["gpus"]} if sample else {}
+                gpus = {gpu["uuid"]: gpu for gpu in sample["resources"]["gpus"]
+                        if CUDA_UUID.fullmatch(gpu["uuid"])} if sample else {}
                 for item in reservations:
                     gpu = gpus.get(item["uuid"])
                     if (not gpu or gpu["memory_total_bytes"] is None or gpu["memory_used_bytes"] is None

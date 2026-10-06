@@ -113,6 +113,7 @@ function nodeDetail(node, disconnected, refresh) {
       body.append(el('p', { class: 'muted' }, `GPU metrics ${resources.gpu_status}. No capacity is inferred.`));
     } else {
       for (const gpu of resources.gpus) body.append(el('div', { class: 'gpu-card' }, el('strong', {}, gpu.name),
+        gpu.uuid.startsWith('AMD-PCI-') ? el('small', { class: 'cell-note' }, 'AMDGPU sysfs / observation only') : null,
         metric('GPU use', percent(gpu.utilization_percent), gpu.utilization_percent,
           `${bytes(gpu.memory_used_bytes)} / ${bytes(gpu.memory_total_bytes)} memory`),
         el('small', {}, gpu.temperature_c == null ? 'Temperature unknown' : `${gpu.temperature_c} °C`)));

@@ -49,6 +49,8 @@ The local recovery owner retains installation administration and cannot be disab
 | `modules:execute` | Invoke installed panel actions with current project, resource, package and sandbox checks. |
 | `audio:playback` | Use workspace audio leases and the user's sound preferences. |
 | `nodes:read`, `resources:read` | Read assigned machines and their resource measurements. |
+| `observations:read` | Release limited machine inventory through the agent observation interface, within current machine assignments and credential limits. |
+| `observations:resources` | Release saved resource readings for a permitted machine; also requires `observations:read`. |
 | `jobs:read`, `jobs:logs` | Read project jobs and logs on permitted machines. |
 | `jobs:execute`, `jobs:cancel` | Submit managed jobs or cancel permitted project jobs. |
 | `files:read`, `files:write`, `files:delete`, `files:mode` | Use the selected actions within assigned registered folders. |

@@ -12,6 +12,7 @@ LOCAL_PROJECT = "00000000000000000000000000000002"
 # These are implemented project boundaries, not a default permission policy.
 PROJECT_SCOPES = frozenset({"workspaces:read", "workspaces:write", "modules:read",
                             "modules:execute", "audio:playback", "nodes:read", "resources:read",
+                            "observations:read", "observations:resources",
                             "jobs:read", "jobs:execute", "jobs:cancel", "jobs:logs",
                             "files:read", "files:write", "files:delete", "files:mode",
                             "data:read", "data:export", "data:write", "data:manage",

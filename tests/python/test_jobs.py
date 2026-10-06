@@ -370,3 +370,22 @@ def test_serialized_unicode_and_batch_envelopes_are_refused_before_intent(consol
         for node in body["node_ids"]}
     with pytest.raises(ValueError, match="64 KiB"):
         JobRequest.model_validate(body)
+
+
+def test_amd_observation_cannot_admit_a_cuda_reservation(console, monkeypatch):
+    client, service, remote, actor = prepare(console, monkeypatch)
+    body = request()
+    body["job"]["gpu_reservations"] = {
+        "node-0": [{"uuid": "AMD-PCI-0000:03:00.0", "memory_bytes": 1}]}
+    response = client.post("/api/v1/operation-previews", json=body)
+    assert response.status_code == 422
+    assert remote.calls == [] and service.jobs.store.all() == []
+
+    async def probe(node, check=None):
+        check()
+        return {"resources": {"gpus": [{"uuid": "AMD-PCI-0000:03:00.0",
+                 "memory_total_bytes": 1000, "memory_used_bytes": 0}]}}
+    monkeypatch.setattr(service.ssh, "probe", probe)
+    target = asyncio.run(service.jobs.ready(service.store.node("node-0"), body["job"], actor))
+    assert target["ready"] is False
+    assert target["errors"] == ["The requested GPU capacity is unavailable."]

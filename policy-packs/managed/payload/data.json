@@ -1,5 +1,9 @@
 {
   "roles": {
+    "agent-observer": [
+      "observations:read",
+      "observations:resources"
+    ],
     "observer": [
       "nodes:read",
       "resources:read",

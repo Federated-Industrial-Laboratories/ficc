@@ -1,5 +1,7 @@
 # Contributing
 
+See [contributors](CONTRIBUTORS.md) for acknowledged project contributions.
+
 Use a working branch for each coherent change. Submit a pull request to master.
 Do not update master directly after the initial repository setup. Keep each pull
 request focused on a complete change and include its validation evidence.
@@ -36,7 +38,7 @@ Use small modules, explicit limits and typed API contracts. Target fewer than
 SPDX identifier to source files. Keep third-party code and license notices intact.
 Use short technical sentences and consistent terms in product text.
 
-Test batched contracts with one and 64 distinct items. Include denied access,
+Select test sizes for the behavior and protocol limits under test. Include denied access,
 stale state and interrupted connections. SSH integration tests use a real
 isolated server. A mock response cannot establish remote connection behavior.
 
