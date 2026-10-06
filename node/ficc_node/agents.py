@@ -36,7 +36,7 @@ def probe(value):
     if checked["adapter"] != "generic":
         from .agent_process import version as runtime_version
         version = runtime_version(checked["argv"])
-        expected = ({"omp/18.1.12", "omp v18.1.12", "omp 18.1.12"} if checked["adapter"] == "omp"
+        expected = ({"omp/18.1.12", "omp v18.1.12", "omp 18.1.12", "18.1.12"} if checked["adapter"] == "omp"
                     else {"codex-cli 0.156.1", "codex-cli 0.160.1"})
         if version in expected:
             method = "direct"
