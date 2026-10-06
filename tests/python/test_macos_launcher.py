@@ -2,6 +2,7 @@
 """Check native launcher identity, quoting and bounded readiness failures."""
 
 import json
+import os
 import plistlib
 import subprocess
 import sys
@@ -33,7 +34,11 @@ def installed(tmp_path, monkeypatch):
     args = SimpleNamespace(name="ficc", launcher_config=tmp_path / "private config/launcher.json",
         state_dir=tmp_path / "state", port=8170, profile=["rack-01"], ssh_config=None,
         demo=False, autostart=False)
-    mac.install(args)
+    mask = os.umask(0o002)
+    try:
+        mac.install(args)
+    finally:
+        os.umask(mask)
     config = load(args.launcher_config)
     calls.clear()
     return args.launcher_config, config, calls, output

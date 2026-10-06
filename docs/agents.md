@@ -11,13 +11,14 @@
 
 - [Register and launch an agent](#register-and-launch-an-agent)
 - [Runtime adapters](#runtime-adapters)
+- [Linux and macOS requirements](#linux-and-macos-requirements)
 - [Authority and limits](#authority-and-limits)
 - [External agent assistance](#external-agent-assistance)
 
 </details>
 
 Use Agents to launch a registered command in its own managed tmux terminal on
-an enrolled Linux machine. Its native interface appears in Terminals. The
+an enrolled Linux or macOS SSH machine. Its native interface appears in Terminals. The
 controller records the agent identity, run membership and message deliveries.
 Launch creates a dedicated session; FICC never types the launch command into
 an existing shell.
@@ -44,7 +45,8 @@ explicit interpreter is also supported:
 The JSON array is passed as command arguments; message text never becomes shell
 syntax. Keep adapter arguments compatible with the agent's native subcommands.
 The profile preview shows the exact executable, arguments, account, workspace,
-version and delivery method. Changed versions require a newly registered profile.
+version and delivery method. Changed versions or delivery methods require a newly
+registered profile.
 A missing executable produces a registration error rather than installing it.
 Remove an unused profile with `ficc agent-profile-remove PROFILE_ID` after its
 retained runs have been archived.
@@ -60,6 +62,19 @@ upgrade refuse active or uncertain agent work.
 
 ## Runtime adapters
 
+The same profile types and bus contract apply on Linux and macOS:
+
+| Profile | Inbox and explicit reply tools | Native direct delivery |
+| --- | --- | --- |
+| `generic` | Yes, through the helper CLI | No |
+| `omp` | Yes, including the registered `ficc_bus` tool at the supported version | OMP 18.1.12 only |
+| `codex` | Yes, through the helper CLI described in thread instructions at supported versions | Codex 0.156.1 and 0.160.1 only |
+
+An unsupported OMP or Codex version retains the helper CLI inbox baseline. It does
+not load the native adapter or receive its tool registration/thread instructions.
+Other coding agents use `generic`; their provider, model, login and native tool
+compatibility remain the installed runtime's responsibility.
+
 OMP 18.1.12 loads one packaged FICC extension through an explicit extension
 argument. Its `ficc_bus` tool reads the registered inbox and submits explicitly
 addressed replies. Direct messages use visible custom messages labelled with
@@ -67,6 +82,10 @@ sender, run, message and delivery IDs. The extension records submission separate
 from an observed custom message inclusion event. Switching or branching a session
 suspends direct admission until the operator explicitly rebinds the observed
 session identity. Pending messages are not silently replayed after an interruption.
+OMP 18.1.12 can print either a named or bare version when command flags are used;
+both forms support the same native adapter. After upgrading the node helper,
+re-register a profile previously recorded as inbox-only for this version. FICC
+retains its existing runs and refuses a changed profile at the next launch preview.
 
 Codex 0.156.1 and 0.160.1 use an owned private Unix app-server and attach the native TUI to
 the exact thread returned by `thread/start`. The bridge uses a bounded WebSocket
@@ -129,6 +148,25 @@ node refusal receipts eight at a time, with `--after` for another page, and
 OMP exposes these same actions
 in its bus tool. Corrected content requires a new request key. Transient capacity
 errors and expired or revoked launch grants leave pending messages in place.
+
+## Linux and macOS requirements
+
+Install Python 3.12 or later, OpenSSH and tmux on the SSH node. On macOS, use a
+current Homebrew Python; the system Python is insufficient. The SSH environment
+must find both Python and tmux. See [macOS](macos.md) for installation and node
+limits. Register the actual absolute runtime executable and workspace; Linux
+`/home/operator` examples are not macOS installation paths. Interpreter-based profiles
+must also name an installed absolute interpreter. FICC does not add Linux-only
+runtime flags or change provider credentials, model settings or approval policy.
+
+The portable agent contract covers managed launch, terminal identity, inbox
+list/read, explicit replies with retry keys, receipts, confirmed stop and archive.
+Native adapter checks additionally cover their pinned protocol and session
+binding. The native OMP integration test uses the real extension/RPC loop with
+scripted local model output and an empty runtime home. It verifies bus tools and
+direct admission without contacting a model provider. This is not qualification
+of every provider or model. The opt-in real Codex macOS test requires separate
+operator authorisation because it uses the configured provider.
 
 ## Authority and limits
 

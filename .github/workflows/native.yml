@@ -1,0 +1,80 @@
+name: Native platforms
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  controller-and-agents:
+    name: Native (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      TMPDIR: /tmp
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            omp: omp-linux-x64
+            sha256: f5431008f71d2f3971617205cfce9cb227c1d135665930088244c76d86b2fb42
+          - os: macos-15
+            omp: omp-darwin-arm64
+            sha256: 7cfd90e0b3f3ff6e4a949314b01045f19cb25f2f2d9d85c3c64bce4704be867d
+          - os: macos-15-intel
+            omp: omp-darwin-x64
+            sha256: f35b56ec39c894c7f437a2d13a8ee5ac51a9fc65ef2c4a33bbc4ec9c63339cb5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install Linux transport tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y tmux openssh-server
+      - name: Install macOS transport tools
+        if: runner.os == 'macOS'
+        run: brew install tmux coreutils
+      - name: Install pinned native agent runtimes
+        env:
+          OMP_ASSET: ${{ matrix.omp }}
+          OMP_SHA256: ${{ matrix.sha256 }}
+        run: |
+          curl --fail --location --retry 3 --max-time 180 \
+            "https://github.com/can1357/oh-my-pi/releases/download/v18.1.12/$OMP_ASSET" \
+            --output "$RUNNER_TEMP/omp"
+          python -c 'import hashlib,os,pathlib; p=pathlib.Path(os.environ["RUNNER_TEMP"])/"omp"; assert hashlib.sha256(p.read_bytes()).hexdigest() == os.environ["OMP_SHA256"]; p.chmod(0o700)'
+          npm install --prefix "$RUNNER_TEMP/agent-runtimes" --ignore-scripts @openai/codex@0.160.1
+          echo "FICC_TEST_OMP=$RUNNER_TEMP/omp" >> "$GITHUB_ENV"
+          echo "FICC_TEST_CODEX=$RUNNER_TEMP/agent-runtimes/node_modules/.bin/codex" >> "$GITHUB_ENV"
+      - run: python -m pip install --require-hashes -r requirements-dev.lock
+      - run: npm ci --prefix web && npm run build --prefix web
+      - name: Build and install the controller wheel
+        run: |
+          python -m build --wheel --no-isolation
+          python -m pip install --no-deps dist/*.whl
+          ficc --version
+      - name: Check native process, credential and agent contracts
+        env:
+          FICC_REQUIRE_AGENT_RUNTIMES: '1'
+        run: |
+          python -m pytest -q tests/python/test_macos.py tests/python/test_macos_launcher.py \
+            tests/python/test_process.py tests/python/test_ssh_master.py \
+            tests/python/test_agent*.py tests/python/test_omp_versions.py \
+            tests/integration/test_agent_runtime.py
+      - name: Check helper installation, SSH terminals and inbox transport
+        env:
+          FICC_REQUIRE_SSH: '1'
+        run: |
+          export FICC_TEST_EXTRA_PATH="$(dirname "$(command -v python)"):$PATH"
+          python -m pytest -q tests/integration/test_ssh.py \
+            tests/integration/test_terminal_transport.py tests/integration/test_agent_transport.py
+      - name: Check native launchd controller lifecycle
+        if: runner.os == 'macOS'
+        run: python -m pytest -q tests/integration/test_macos_controller.py

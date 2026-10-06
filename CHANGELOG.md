@@ -1,5 +1,17 @@
 # Changes
 
+## 0.2.6r2
+
+- Add native macOS resource observations, process supervision, SSH terminals and launchd controller startup.
+- Check shared agent workflows, including OMP and Codex, on Linux and native Apple Silicon and Intel macOS runners.
+- Recognize OMP 18.1.12 version output when launch flags are present.
+- Create safe launcher directories under group-writable account defaults while refusing unsafe existing directories.
+- Preserve an acknowledged Codex stop during runner cleanup.
+- Support agent process probes on macOS Python 3.12 and atomic agent archiving with native Darwin rename operations.
+- Keep source workers functional when their runtime is installed under `/tmp`, without exposing other temporary files.
+- Keep Linux-only job, file and module capability boundaries explicit.
+- Use package version 0.2.6.post2 with release tag v0.2.6r2-stable.
+
 ## 0.2.6r1
 
 - Add a scoped agent observation API and JSON CLI for enrolled Linux SSH inventory and saved resource readings.

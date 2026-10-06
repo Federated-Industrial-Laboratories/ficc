@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ficc"
-version = "0.2.6.post1"
-description = "Linux cluster console with remote access, workloads and modular providers."
+version = "0.2.6.post2"
+description = "Cluster console with remote access, workloads and modular providers."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

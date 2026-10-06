@@ -16,6 +16,47 @@ from ficc.posix_host import kill_group, peer_uid, process_descriptor
 from ficc.process import run
 
 
+@pytest.mark.parametrize("directory", [False, True])
+def test_atomic_archive_rename_preserves_existing_destination(tmp_path, directory):
+    from ficc_node.file_access import rename
+
+    source, target = tmp_path / "source", tmp_path / "target"
+    if directory:
+        source.mkdir()
+        target.mkdir()
+    else:
+        source.write_bytes(b"source")
+        target.write_bytes(b"target")
+    original, existing = source.stat().st_ino, target.stat().st_ino
+    descriptor = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        with pytest.raises(FileExistsError):
+            rename(descriptor, b"source", descriptor, b"target")
+        assert source.stat().st_ino == original and target.stat().st_ino == existing
+        if directory:
+            target.rmdir()
+        else:
+            target.unlink()
+        rename(descriptor, b"source", descriptor, b"target")
+        assert not source.exists() and target.stat().st_ino == original
+    finally:
+        os.close(descriptor)
+
+
+def test_atomic_exchange_preserves_both_objects(tmp_path):
+    from ficc_node.file_access import rename
+
+    first, second = tmp_path / "first", tmp_path / "second"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+    descriptor = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        rename(descriptor, b"first", descriptor, b"second", 2)
+        assert first.read_bytes() == b"second" and second.read_bytes() == b"first"
+    finally:
+        os.close(descriptor)
+
+
 def test_memory_available_uses_page_size_without_double_counting_purgeable():
     sample = """Mach Virtual Memory Statistics: (page size of 16384 bytes)
 Pages free: 10.

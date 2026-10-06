@@ -8,23 +8,35 @@ import subprocess
 import time
 from contextlib import suppress
 
-from ficc.posix_host import kill_group
+from ficc.posix_host import kill_group, process_descriptor
 
 
 def alive(process):
-    return os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None
+    if process.returncode is not None:
+        return False
+    descriptor = process_descriptor(process.pid)
+    try:
+        with selectors.DefaultSelector() as selector:
+            selector.register(descriptor, selectors.EVENT_READ)
+            return not selector.select(0)
+    finally:
+        os.close(descriptor)
 
 
 def stop_group(process):
+    if process.returncode is not None:
+        return
     # The child leader remains unreaped, so its group identifier cannot be reused.
-    with suppress(ProcessLookupError):
-        kill_group(process.pid, signal.SIGTERM)
-    deadline = time.monotonic() + 2
-    while alive(process) and time.monotonic() < deadline:
-        time.sleep(0.02)
-    with suppress(ProcessLookupError):
-        kill_group(process.pid)
-    process.wait(timeout=3)
+    try:
+        with suppress(ProcessLookupError):
+            kill_group(process.pid, signal.SIGTERM)
+        deadline = time.monotonic() + 2
+        while alive(process) and time.monotonic() < deadline:
+            time.sleep(0.02)
+    finally:
+        with suppress(ProcessLookupError):
+            kill_group(process.pid)
+        process.wait(timeout=3)
 
 
 def version(argv):
@@ -46,19 +58,19 @@ def version(argv):
                     raise ValueError("The agent version output exceeds capacity.")
         else:
             raise ValueError("The agent version check timed out.")
-        result = None
         while time.monotonic() < deadline:
-            result = os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
-            if result is not None:
+            if not alive(process):
                 break
             time.sleep(0.02)
-        if result is None:
+        else:
             raise ValueError("The agent version process did not exit.")
-        if result.si_code != os.CLD_EXITED or result.si_status != 0:
-            raise ValueError("The agent version check failed.")
-        return output.decode("utf-8", "replace").strip()
     finally:
-        stop_group(process)
-        selector.close()
-        if process.stdout:
-            process.stdout.close()
+        try:
+            stop_group(process)
+        finally:
+            selector.close()
+            if process.stdout:
+                process.stdout.close()
+    if process.returncode != 0:
+        raise ValueError("The agent version check failed.")
+    return output.decode("utf-8", "replace").strip()

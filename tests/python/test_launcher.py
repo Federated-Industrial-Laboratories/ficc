@@ -44,6 +44,23 @@ def test_configuration_is_private_and_round_trips(tmp_path):
         load(path)
 
 
+def test_startup_directories_ignore_group_writable_umask_but_refuse_existing(tmp_path):
+    path = tmp_path / "Applications/Example.app/Contents/launcher"
+    mask = os.umask(0o002)
+    try:
+        write_file(path, "owned launcher")
+    finally:
+        os.umask(mask)
+    for directory in path.parents:
+        if directory == tmp_path:
+            break
+        assert directory.stat().st_mode & 0o022 == 0
+    path.parent.chmod(0o775)
+    with pytest.raises(ValueError, match="directory is not safe"):
+        write_file(path, "replacement")
+    assert path.read_text() == "owned launcher"
+
+
 def test_configuration_rejects_links_and_unknown_versions(tmp_path):
     path, _ = configured(tmp_path)
     original = path.with_name("original.json")

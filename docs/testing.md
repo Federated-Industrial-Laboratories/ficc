@@ -413,3 +413,14 @@ workspace, rollback and publisher recovery. Capture outside the repository.
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 [Contents](README.md) | [Project README](../README.md) | [Previous: Local API](api.md) | [Next: Dependencies](dependencies.md)
+
+## Native platform CI
+
+The `Native platforms` workflow checks an installed wheel on Ubuntu 24.04,
+Apple Silicon macOS 15 and Intel macOS 15. It covers process and credential
+contracts, SSH helper installation, terminals, generic agents and the pinned
+OMP/Codex runtimes. macOS also exercises a real isolated launchd controller.
+See [native macOS](macos.md#shared-agent-and-ci-checks) for the exact scope.
+Linux sandbox, workload and package checks remain separate; macOS does not
+claim Linux-only capabilities. Provider model calls and physical GPU
+qualification require their separate explicitly configured checks.

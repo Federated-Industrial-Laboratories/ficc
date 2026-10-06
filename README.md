@@ -5,7 +5,7 @@
 <p align="center">A modular console for cluster operations, remote teams and compute workloads.</p>
 
 <p align="center">
-  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.2.6r1 | Python 3.12 or later | OpenSSH">
+  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.2.6r2 | Python 3.12 or later | OpenSSH">
 </p>
 
 <p align="center">
@@ -76,7 +76,7 @@ history and node output. No history expires automatically.
 
 | Role | Requirements |
 | --- | --- |
-| Controller | Linux, Python 3.12 or later, OpenSSH and GNU coreutils `timeout`. |
+| Controller | Linux or [macOS](docs/macos.md), Python 3.12 or later, OpenSSH and GNU coreutils `timeout`. |
 | Nodes | OpenSSH server and Python 3.12 or later. |
 | Managed jobs | A usable systemd user manager and the controls shown in the job preview. |
 | Persistent terminals | tmux on the selected node. |
@@ -94,8 +94,7 @@ Controller and node qualification are separate; nodes still need Python and SSH.
 prevent CPU and memory observation.
 
 Generic AMDGPU observation follows documented kernel interfaces and is checked
-with synthetic fixtures. Direct AMD hardware qualification remains pending for
-0.2.6r2. See [GPU observations](docs/gpu-observations.md) for details.
+with synthetic fixtures. Direct AMD hardware qualification remains pending. See [GPU observations](docs/gpu-observations.md) for details.
 
 See [installation](docs/install.md) and [testing](docs/testing.md).
 See [modules](docs/modules.md) for grants and [native viewer installation](docs/viewer-runtime.md) for display requirements.
@@ -110,6 +109,9 @@ Download AppImage, Debian, Arch Linux or portable packages from
 [GitHub Releases](https://github.com/Federated-Industrial-Laboratories/ficc/releases/latest),
 then follow [Linux packages](docs/releases.md). Native packages add
 **FICC Cluster Commander** to the application menu. This release targets x86_64.
+
+For macOS, follow the [native Mac source installation](docs/macos.md#mac-controller)
+and its capability limits. The downloadable binary formats remain Linux x86_64.
 
 ### Install a source checkout
 

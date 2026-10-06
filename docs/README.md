@@ -2,7 +2,7 @@
 
 # Documentation
 
-Install and operate a console for Linux clusters. FICC connects to approved
+Install and operate a console for Linux clusters and managed Mac nodes. FICC connects to approved
 SSH profiles and contributors, with project access, workload queues and dataset
 pipelines. The controller retains identities, approvals and operation receipts.
 Remote browser access requires explicit HTTPS and identity-service configuration.
@@ -18,7 +18,8 @@ page contents, command copying and a search index that runs in your browser.
 ## Start here
 
 1. Read the [architecture](architecture.md) and [security model](../SECURITY.md).
-2. Choose a [Linux package](releases.md) or [source installation](install.md).
+2. Choose a [Linux package](releases.md), [Linux source installation](install.md),
+   or [native macOS installation](macos.md).
 3. Try the [demonstration console](install.md#try-the-interface) with separate state.
 4. [Connect a machine](install.md#connect-a-machine) and inspect its pinned identity.
 5. Set up [normal startup and maintenance](operations.md).
