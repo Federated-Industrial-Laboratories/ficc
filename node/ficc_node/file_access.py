@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Acquire registered Linux objects without following links or crossing mounts."""
+"""Acquire registered Linux objects and atomically rename private spool entries."""
 
 import base64
 import ctypes
@@ -45,8 +45,16 @@ def opened(parent, path, flags, beneath=True):
 
 
 def rename(source_fd, source, destination_fd, destination, flags=1):
-    result = LIBC.renameat2(ctypes.c_int(source_fd), ctypes.c_char_p(source),
-                            ctypes.c_int(destination_fd), ctypes.c_char_p(destination), ctypes.c_uint(flags))
+    if platform.system() == "Darwin":
+        # Linux NOREPLACE/EXCHANGE map to Darwin EXCL/SWAP, not identical bits.
+        if flags not in (0, 1, 2):
+            raise OSError(errno.EINVAL, "Unsupported atomic rename flags.")
+        flags = {0: 0, 1: 4, 2: 2}[flags]
+        function = LIBC.renameatx_np
+    else:
+        function = LIBC.renameat2
+    result = function(ctypes.c_int(source_fd), ctypes.c_char_p(source),
+                      ctypes.c_int(destination_fd), ctypes.c_char_p(destination), ctypes.c_uint(flags))
     if result:
         error = ctypes.get_errno()
         raise OSError(error, os.strerror(error))
