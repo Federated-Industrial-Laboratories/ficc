@@ -19,6 +19,30 @@ from ficc.inspection_store import backfill, validate_records
 from ficc.sources import Sources
 
 
+async def test_runtime_below_tmp_survives_private_temporary_mount(tmp_path, monkeypatch):
+    from ficc import source_runtime
+
+    runtime = tmp_path / "runtime" / "ficc"
+    runtime.mkdir(parents=True)
+    (runtime / "__init__.py").touch()
+    secret = tmp_path / "outside-runtime"
+    secret.write_text("must remain hidden")
+    (runtime / "data_worker.py").write_text(
+        "import json,sys\nfrom pathlib import Path\n"
+        "json.loads(sys.stdin.readline())\n"
+        f"assert not Path({str(secret)!r}).exists()\n"
+        'print(json.dumps({"kind":"receipt","runtime_loaded":True,"other_tmp_hidden":True}))\n')
+    monkeypatch.setattr(source_runtime, "__file__", str(runtime / "source_runtime.py"))
+    received = []
+
+    async def receive(event):
+        received.append(event)
+
+    await source_runtime.execute({"provider": "sqlite"},
+        {"memory_bytes": 536870912, "seconds": 15}, lambda: None, receive)
+    assert received == [{"kind": "receipt", "runtime_loaded": True, "other_tmp_hidden": True}]
+
+
 async def source(service, actor, root, name, provider, configuration=None):
     entry = next(item for item in (await listing(service, actor, root))["entries"] if item["name"] == name)
     service.datasets = Datasets(service)

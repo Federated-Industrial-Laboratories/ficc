@@ -1,7 +1,9 @@
 # Native macOS port
 
-This port was tested on Apple Silicon, macOS 26.5.2, with Homebrew
-Python 3.14.7. No VM is needed. Support is limited to the capabilities below.
+The initial contribution was tested on Apple Silicon, macOS 26.5.2, with
+Homebrew Python 3.14.7. The native CI workflow runs shared contracts on Linux,
+Apple Silicon macOS 15 and Intel macOS 15. Support is limited to the
+capabilities below; CI does not qualify every Mac or model provider.
 
 ## Managed Mac node
 
@@ -16,7 +18,7 @@ changing shell startup files. CPU uses Mach counters; memory, boot identity,
 disk and network use native macOS interfaces. Available memory is the sum of
 free, inactive and speculative pages, excluding duplicate purgeable counts.
 
-Validated on native macOS:
+The initial native macOS qualification covered:
 
 - Live CPU, load, memory, disk, uptime and network reporting.
 - Ephemeral SSH shells and persistent tmux terminals, including FICC WebSocket
@@ -41,12 +43,30 @@ compatible with this source.
 
 ## Mac controller
 
-The controller also runs natively. Build a wheel with the normal frontend build
-and install it in a private Python 3.12+ virtual environment with dependencies
-from `requirements.lock`. Use `requirements-build.lock` for build tools. A Mac
-controller also needs Homebrew coreutils for GNU `timeout`.
+Install Homebrew Python 3.12 or later, Node.js 22 or later, coreutils and tmux.
+From a source checkout, build the frontend and host wheel, then install it in a
+separate private runtime. For example, with Homebrew Python 3.12:
 
-Run the virtual environment's `ficc install-launcher`, then `ficc start`.
+```sh
+brew install python@3.12 node@22 coreutils tmux
+export PATH="$(brew --prefix node@22)/bin:$PATH"
+"$(brew --prefix python@3.12)/bin/python3.12" -m venv .venv-build
+.venv-build/bin/python -m pip install --require-hashes -r requirements-build.lock
+npm ci --prefix web
+npm run build --prefix web
+.venv-build/bin/python -m build --wheel --no-isolation
+"$(brew --prefix python@3.12)/bin/python3.12" -m venv "$HOME/.local/share/ficc/macos-runtime"
+"$HOME/.local/share/ficc/macos-runtime/bin/python" -m pip install --require-hashes -r requirements.lock
+"$HOME/.local/share/ficc/macos-runtime/bin/python" -m pip install --no-deps dist/ficc-0.2.6.post2-py3-none-any.whl
+"$HOME/.local/share/ficc/macos-runtime/bin/ficc" install-launcher
+"$HOME/.local/share/ficc/macos-runtime/bin/ficc" start
+```
+
+This installs the host without Linux executable module bundles. Use a logged-in
+Mac desktop account for its per-user launchd GUI domain. Provider credentials
+are configured separately in each agent runtime. Stop an existing controller
+before updating its private runtime.
+
 `~/Applications/FICC Cluster Commander.app` opens the authenticated local
 console. `ficc status` checks readiness and `ficc stop` unloads its launchd job.
 The generated `~/Library/LaunchAgents/ficc.plist` starts on demand by default;
@@ -63,6 +83,29 @@ Local credential checks use `getpeereid`; child exit monitoring uses kqueue.
 Children remain unreaped until their owned process groups are cleaned up.
 Darwin's EPERM response for zombie-only groups is accepted only after checking
 that no live group members remain.
+
+## Shared agent and CI checks
+
+OMP, Codex and generic profiles use the same host-owned sessions, inbox, tools,
+terminal attachment and stop/archive workflow on both platforms. Qualified
+versions add direct delivery; see [coding agents](agents.md) for exact versions
+and fallbacks. Other command-line agents use the generic profile unless an
+explicit native adapter is documented.
+
+The `Native platforms` workflow builds and installs the controller wheel on
+Ubuntu, Apple Silicon macOS and Intel macOS. It checks native peer credentials,
+child cleanup, helper installation, SSH/tmux transport and the shared agent
+protocol. Pinned OMP 18.1.12 exercises its real extension and RPC interface with
+a scripted response stream; pinned Codex 0.160.1 exercises native startup and
+session binding without requesting model inference. Missing required runtimes
+fail CI. Mac jobs also start, authenticate, repeat-start and stop an isolated
+real launchd controller. Linux sandbox, executable module and package checks
+remain in the Linux workflows.
+
+These tests use native operating-system interfaces. They do not emulate macOS
+from Linux, require provider credentials, or claim live-model qualification for
+all supported clients. The separately opted-in model test below retains that
+additional boundary.
 
 ## Run the native harness check
 

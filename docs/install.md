@@ -21,8 +21,8 @@
 </details>
 
 Install FICC, open a separate demonstration console, then connect a trusted
-Linux machine. Choose a [Linux package](releases.md) for a bundled runtime or use
-the source installer below. Store live state and credentials outside the source
+Linux or Mac machine. Choose a [Linux package](releases.md) for a bundled runtime,
+use the Linux source installer below, or follow [native macOS installation](macos.md). Store live state and credentials outside the source
 checkout.
 
 ## Requirements
@@ -31,8 +31,7 @@ Binary packages include Python. The source installer downloads a private Python
 and requires an updated system Python 3.10 or later to bootstrap it. Manually
 managed source and wheel installations need Python 3.12 or later.
 
-All controllers
-need Linux, OpenSSH and GNU coreutils `timeout`. Nodes require
+Controllers need Linux or macOS, OpenSSH and GNU coreutils `timeout`. Nodes require
 OpenSSH server and Python 3.12 or later. NVIDIA reporting uses a bounded,
 structured nvidia-smi query when available. Generic AMDGPU observation reads the
 kernel's sysfs and hwmon attributes without ROCm or elevated privileges.

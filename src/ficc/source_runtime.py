@@ -22,7 +22,8 @@ def command(packet, limits, unit):
     network = packet.get("endpoint") is not None
     if network:
         properties["RestrictAddressFamilies"] = "AF_UNIX AF_INET AF_INET6 AF_NETLINK"
-    isolated = ["/usr/bin/bwrap", "--unshare-all", "--die-with-parent", "--new-session", "--cap-drop", "ALL", "--clearenv"]
+    isolated = ["/usr/bin/bwrap", "--unshare-all", "--die-with-parent", "--new-session", "--cap-drop", "ALL", "--clearenv",
+                "--tmpfs", "/tmp"]
     if network:
         # Installed deployment drivers are trusted to use their pinned endpoint.
         # This namespace protects state files; it is not a hostile-code egress jail.
@@ -43,7 +44,8 @@ def command(packet, limits, unit):
             mounts.add(path)
     for path in sorted(mounts, key=str):
         isolated += ["--ro-bind", str(path), str(path)]
-    isolated += ["--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--dir", "/work", "--chdir", "/work"]
+    # Explicit read-only runtime mounts must survive even when installed in /tmp.
+    isolated += ["--proc", "/proc", "--dev", "/dev", "--dir", "/work", "--chdir", "/work"]
     if packet.get("source"):
         from ficc_node.file_access import parts
         relative = os.fsdecode(b"/".join(parts(packet["source"]["reference"])))

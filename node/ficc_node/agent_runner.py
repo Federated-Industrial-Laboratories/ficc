@@ -154,5 +154,6 @@ def codex(controller, agent, spec, env):
         endpoint_folder.rmdir()
         with spool.locked(controller, agent) as folder:
             runtime = spool.read(folder / "runtime.json")
-            runtime["state"] = "exited"
-            spool.write(folder / "runtime.json", runtime)
+            if runtime["state"] != "stopped":
+                runtime["state"] = "exited"
+                spool.write(folder / "runtime.json", runtime)

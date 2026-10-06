@@ -105,6 +105,14 @@ Ordinary same-account processes remain inside the trusted
 account boundary. Spools reject links, unsafe ownership, unknown members and
 capacity overflow. The native TUI owns runtime approval decisions.
 
+Native macOS controllers use kernel peer credentials for the private control
+socket and per-user launchd startup. Mac nodes support resource observations,
+terminals and coding agents. Managed resource-limited jobs and safe file roots
+still require Linux kernel facilities and report unavailable on Mac nodes.
+Agent shells and tools retain the runtime account's authority on either system;
+the macOS port does not add an agent sandbox. See [macOS support](docs/macos.md)
+for supported capabilities and qualification limits.
+
 Runtime modules have a separate containment boundary. Executable packages require
 private namespaces, syscall filters and enforced cgroup limits. They receive no
 SSH keys, controller database, host home, display socket or provider socket.

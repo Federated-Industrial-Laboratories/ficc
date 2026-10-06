@@ -105,7 +105,13 @@ def save(path: Path, config: LaunchConfig) -> None:
 
 
 def write_file(path: Path, content: str, mode: int = 0o600) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    missing = []
+    directory = path.parent
+    while not directory.exists() and not directory.is_symlink():
+        missing.append(directory)
+        directory = directory.parent
+    for directory in reversed(missing):
+        directory.mkdir(mode=0o755, exist_ok=True)
     info = path.parent.lstat()
     if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o022:
         raise ValueError("The startup file directory is not safe to use.")
@@ -121,11 +127,11 @@ def write_file(path: Path, content: str, mode: int = 0o600) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
-        directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
         try:
-            os.fsync(directory)
+            os.fsync(directory_fd)
         finally:
-            os.close(directory)
+            os.close(directory_fd)
     finally:
         Path(temporary).unlink(missing_ok=True)
 
