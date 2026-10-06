@@ -21,7 +21,7 @@ Validated on native macOS:
 - Live CPU, load, memory, disk, uptime and network reporting.
 - Ephemeral SSH shells and persistent tmux terminals, including FICC WebSocket
   transport and explicit stop.
-- Installed Claude and Codex runtime probes and the existing agent protocol.
+- Installed agent runtime probes and the existing agent protocol.
   Runtime versions outside the explicitly qualified direct-adapter versions
   retain inbox delivery. Provider sign-in and trust prompts remain native.
 

@@ -49,7 +49,7 @@ NODE_SUPPORT_FILES = (
     "modules/sandbox_io.py", "modules/watcher.py",
 )
 
-NODE_MAIN = '''import os,sys
+NODE_MAIN = '''import os,subprocess,sys
 if sys.platform == "darwin":
  os.environ["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + os.environ.get("PATH", "/usr/bin:/bin")
  if sys.version_info < (3,12):
@@ -57,10 +57,16 @@ if sys.platform == "darwin":
    raise SystemExit("FICC requires Python 3.12 or later")
   os.environ["FICC_PYTHON_REEXEC"] = "1"
   for base in ("/opt/homebrew/bin", "/usr/local/bin"):
-   for version in ("3.14", "3.13", "3.12"):
+   for version in ("3.14", "3.13", "3.12", "3"):
     python = base + "/python" + version
     if os.path.isfile(python) and os.access(python, os.X_OK):
-     os.execv(python, [python, *sys.argv])
+     try:
+      result = subprocess.run([python,"-c","import sys;raise SystemExit(sys.version_info < (3,12))"],
+       stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=3)
+     except (OSError,subprocess.TimeoutExpired):
+      continue
+     if result.returncode == 0:
+      os.execv(python, [python, *sys.argv])
   raise SystemExit("Install Homebrew Python 3.12 or later for the FICC helper")
 from ficc_node.__main__ import main
 raise SystemExit(main())

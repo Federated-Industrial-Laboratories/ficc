@@ -4,6 +4,7 @@
 import asyncio
 import os
 import signal
+import subprocess
 import sys
 from pathlib import Path
 
@@ -42,6 +43,14 @@ async def test_cleanup_when_parent_exits_before_descendant(tmp_path, ending):
         status = Path(f"/proc/{pid}/stat")
         async with asyncio.timeout(2):
             while True:
+                if sys.platform == "darwin":
+                    observation = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "stat="],
+                                                  capture_output=True, text=True, timeout=2, check=False)
+                    if observation.returncode == 1 or observation.stdout.strip().startswith("Z"):
+                        break
+                    assert observation.returncode == 0, observation.stderr
+                    await asyncio.sleep(0.01)
+                    continue
                 try:
                     if status.read_text().split()[2] == "Z":
                         break

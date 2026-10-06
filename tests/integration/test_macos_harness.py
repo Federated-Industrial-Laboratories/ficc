@@ -9,9 +9,11 @@ state and remote fixture workspaces are isolated and cleaned after the test.
 import asyncio
 import json
 import os
+import queue
 import secrets
 import shlex
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -119,14 +121,40 @@ def test_native_mac_agent_tools_and_bus(tmp_path):
                 with client.websocket_connect("ws://127.0.0.1:8170" + ticket["websocket_path"],
                         headers={"Origin": "http://127.0.0.1:8170"}) as stream:
                     stream.send_json({"type": "auth", "ticket": ticket["ticket"]})
+                    frames = queue.Queue(maxsize=256)
+                    finished = threading.Event()
+                    def receive():
+                        while not finished.is_set():
+                            try:
+                                frame = stream.receive()
+                                frames.put(frame, timeout=1)
+                                if frame.get("type") == "websocket.close":
+                                    return
+                            except Exception as error:
+                                try:
+                                    frames.put(error, timeout=1)
+                                except queue.Full:
+                                    pass
+                                return
+                    reader = threading.Thread(target=receive, daemon=True)
+                    reader.start()
                     output = b""
-                    while b"FICC_MACOS_HARNESS_REPLIED" not in output:
-                        frame = stream.receive()
-                        if frame.get("bytes"):
-                            output += frame["bytes"]
-                            stream.send_json({"type": "ack", "bytes": len(frame["bytes"])})
-                        elif frame.get("text"):
-                            assert json.loads(frame["text"]).get("state") == "attached", frame
+                    deadline = time.monotonic() + 10
+                    try:
+                        while b"FICC_MACOS_HARNESS_REPLIED" not in output:
+                            frame = frames.get(timeout=max(.01, deadline - time.monotonic()))
+                            assert not isinstance(frame, Exception), repr(frame)
+                            assert frame.get("type") != "websocket.close", frame
+                            if frame.get("bytes"):
+                                output += frame["bytes"]
+                                assert len(output) <= 1048576, "Terminal output exceeded capacity"
+                                stream.send_json({"type": "ack", "bytes": len(frame["bytes"])})
+                            elif frame.get("text"):
+                                assert json.loads(frame["text"]).get("state") == "attached", frame
+                            assert time.monotonic() < deadline, "Terminal marker did not arrive"
+                    finally:
+                        finished.set()
+                reader.join(timeout=1)
                 print("Native agent: file/process tools, inbox list/read, reply/dedup, receipts and PTY passed")
             finally:
                 if agent:
