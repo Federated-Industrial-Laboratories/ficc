@@ -68,7 +68,7 @@ from an observed custom message inclusion event. Switching or branching a sessio
 suspends direct admission until the operator explicitly rebinds the observed
 session identity. Pending messages are not silently replayed after an interruption.
 
-Codex 0.156.1 uses an owned private Unix app-server and attaches its native TUI to
+Codex 0.156.1 and 0.160.1 use an owned private Unix app-server and attach the native TUI to
 the exact thread returned by `thread/start`. The bridge uses a bounded WebSocket
 connection and the version-specific queue API. Queue admission can start agent
 work. The native TUI handles runtime approval requests; FICC never answers them.
@@ -80,6 +80,13 @@ message ID and exact content in the same thread establishes session inclusion.
 A disappeared queue entry does not. A changed TUI thread suspends direct delivery.
 Confirmed rebinding validates the observed thread against the owned server. A
 thread change is refused while old direct outcomes remain uncertain or submitted.
+
+Codex 0.160.1 names the new thread after its FICC agent ID to persist it before
+the TUI resumes it, without starting a model turn. It uses legacy history so an
+empty thread has a source rollout when the native client attaches.
+Its ephemeral `thread_title` background thread does not change the registered
+session binding. Other new threads retain
+the suspension and explicit-rebind behavior.
 
 The bridge can reconcile those outcomes against the original thread while
 suspended. It then follows the confirmed binding for all new submissions. A

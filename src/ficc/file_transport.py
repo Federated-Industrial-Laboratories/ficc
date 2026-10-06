@@ -3,6 +3,7 @@
 
 import asyncio
 import json
+import sys
 
 from ficc_node.file_access import CHUNK, FileError
 from ficc_node.files import dispatch
@@ -43,6 +44,8 @@ class FileTransport:
             if check:
                 check()
             if root.get("node_id") is None:
+                if sys.platform != "linux":
+                    raise Failure("files_unavailable", "Controller file roots require Linux; select a remote Linux node.", 409)
                 try:
                     return await owned(dispatch, request, data, self.service.settings.state_dir / "files", cancellable=True)
                 except FileError as exc:

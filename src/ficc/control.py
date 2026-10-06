@@ -4,11 +4,10 @@
 import asyncio
 import json
 import os
-import socket
-import struct
 from contextlib import suppress
 
 from .errors import Failure
+from .posix_host import peer_uid
 from .service import Service
 
 
@@ -42,8 +41,7 @@ class Control:
         assert task is not None
         self.clients.add(task)
         try:
-            peer = writer.get_extra_info("socket").getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
-            if struct.unpack("3i", peer)[1] != os.getuid() or len(self.clients) > 16:
+            if peer_uid(writer.get_extra_info("socket")) != os.getuid() or len(self.clients) > 16:
                 return
             async with asyncio.timeout(45):
                 data = await reader.readline()
@@ -123,7 +121,7 @@ class Control:
             with suppress(ConnectionError):
                 writer.write(json.dumps({"error": exc.code, "message": exc.message}).encode() + b"\n")
                 await writer.drain()
-        except (KeyError, ValueError, TypeError, TimeoutError):
+        except (KeyError, ValueError, TypeError, TimeoutError, OSError):
             with suppress(ConnectionError):
                 writer.write(b'{"error":"local_request_failed"}\n')
                 await writer.drain()

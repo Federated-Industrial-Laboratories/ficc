@@ -29,6 +29,8 @@ class How(ctypes.Structure):
 
 
 def opened(parent, path, flags, beneath=True):
+    if platform.system() != "Linux":
+        raise FileError("files_unavailable", "The safe file adapter requires Linux.")
     if platform.machine() not in {"x86_64", "aarch64"}:
         raise FileError("files_unavailable", "This architecture does not support the file adapter.")
     how = How(flags | os.O_CLOEXEC | os.O_NOFOLLOW, 0, 0x04 | 0x02 | (0x08 | 0x01 if beneath else 0))

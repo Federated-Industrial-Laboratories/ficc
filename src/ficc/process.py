@@ -3,11 +3,11 @@
 
 import asyncio
 import os
-import signal
 import subprocess
 
 from .errors import Failure
 from .pipe_ready import ready
+from .posix_host import kill_group, process_descriptor
 from .settings import MAX_MESSAGE
 
 
@@ -51,7 +51,7 @@ async def run(command: list[str], payload: bytes = b"", timeout: float = 10,
             pipes[0].close()
 
     try:
-        pidfd = os.pidfd_open(process.pid)
+        pidfd = process_descriptor(process.pid)
         for pipe in pipes:
             os.set_blocking(pipe.fileno(), False)
         stdout_task = asyncio.create_task(read(pipes[1].fileno()))
@@ -69,7 +69,7 @@ async def run(command: list[str], payload: bytes = b"", timeout: float = 10,
         # Keep the direct child unreaped until the owned group is killed. Its PID
         # cannot be reused, even when it exits before a descendant closes a pipe.
         try:
-            os.killpg(process.pid, signal.SIGKILL)
+            kill_group(process.pid)
         except ProcessLookupError:
             pass
         for task in tasks:

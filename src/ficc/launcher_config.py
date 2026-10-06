@@ -52,7 +52,7 @@ class LaunchConfig:
             absolute(value)
         if "=" in self.executable:
             raise ValueError("The executable path must not contain an equals sign.")
-        if not NAME.fullmatch(Path(self.unit_path).stem) or not self.unit_path.endswith(".service"):
+        if not NAME.fullmatch(Path(self.unit_path).stem) or not self.unit_path.endswith((".service", ".plist")):
             raise ValueError("The service name is invalid.")
         if self.ssh_config is not None:
             absolute(self.ssh_config)

@@ -13,7 +13,8 @@ from ficc_node.agent_codex import observe
 
 
 @pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
-def test_runner_uses_confirmed_thread_and_ignores_stale_observation(tmp_path, monkeypatch, count):
+@pytest.mark.parametrize("version", ["codex-cli 0.156.1", "codex-cli 0.160.1"])
+def test_runner_uses_confirmed_thread_and_ignores_stale_observation(tmp_path, monkeypatch, count, version):
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(agents.terminals, "call", lambda *args: 0)
     monkeypatch.setattr(runner, "alive", lambda process: True)
@@ -25,7 +26,7 @@ def test_runner_uses_confirmed_thread_and_ignores_stale_observation(tmp_path, mo
         first, second = f"thread-A-{index}", f"thread-B-{index}"
         folder = spool.base(controller, agent)
         spec = {"controller_id": controller, "agent_id": agent, "run_id": "d" * 32,
-            "terminal_controller": "e" * 32, "terminal_id": f"{index + 1000:032x}", "delivery_method": "direct",
+            "terminal_controller": "e" * 32, "terminal_id": f"{index + 1000:032x}", "delivery_method": "direct", "version": version,
             "profile": {"adapter": "codex", "argv": ["fixture-codex"], "workspace": str(tmp_path)}}
         spool.write(folder / "spec.json", spec)
         spool.write(folder / "runtime.json", {"state": "starting", "session_id": None})
@@ -40,7 +41,11 @@ def test_runner_uses_confirmed_thread_and_ignores_stale_observation(tmp_path, mo
             def call(self, method, params):
                 calls.append((method, params))
                 if method == "thread/start":
+                    assert params.get("historyMode") == ("legacy" if version == "codex-cli 0.160.1" else None)
                     return {"thread": {"id": first}}
+                if method == "thread/name/set":
+                    assert params == {"threadId": first, "name": "FICC " + agent}
+                    return {}
                 if method == "thread/read":
                     if not rebound:
                         self.events.append({"method": "thread/started", "params": {"thread": {"id": second}}})
@@ -61,6 +66,8 @@ def test_runner_uses_confirmed_thread_and_ignores_stale_observation(tmp_path, mo
                 self.polls = 0
                 if "app-server" in command:
                     Path(command[-1].removeprefix("unix://")).touch(mode=0o600)
+                elif version == "codex-cli 0.160.1":
+                    assert ("thread/name/set", {"threadId": first, "name": "FICC " + agent}) in calls
             def poll(self):
                 self.polls += 1
                 return None if self.polls < 6 else 0
@@ -166,3 +173,28 @@ def test_unavailable_item_projection_uses_bounded_thread_read(tmp_path, monkeypa
     assert runtime["state"] == ("ready" if kind in {"waiting", "included"} else "suspended")
     assert receipt["state"] == ("session-included" if kind == "included" else "uncertain")
     assert [method for method, _ in calls] == ["thread/items/list", "thread/read"]
+
+
+@pytest.mark.parametrize(("metadata", "expected"), [
+    ({"ephemeral": True, "threadSource": "thread_title"}, "ready"),
+    ({"ephemeral": False, "threadSource": "thread_title"}, "suspended"),
+    ({"ephemeral": True, "threadSource": "cli"}, "suspended"),
+    ({}, "suspended"),
+])
+def test_title_generation_does_not_change_bound_thread(tmp_path, monkeypatch, metadata, expected):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    controller, agent, thread = "c" * 32, "a" * 32, "bound-thread"
+    folder = spool.base(controller, agent)
+    spool.write(folder / "spec.json", {"delivery_method": "direct"})
+    spool.write(folder / "runtime.json", {"state": "ready", "session_id": thread})
+    class Runtime:
+        events = [{"method": "thread/started", "params": {"thread": {"id": "other-thread", **metadata}}}]
+        def call(self, method, request):
+            assert method == "thread/read" and request["threadId"] == thread
+            return {"thread": {"id": thread}}
+    runtime = Runtime()
+    assert observe(runtime, controller, agent, thread)
+    saved = spool.read(folder / "runtime.json")
+    assert saved["state"] == expected and saved["session_id"] == thread
+    assert saved.get("observed_session_id") == ("other-thread" if expected == "suspended" else None)
+    assert runtime.events == []
