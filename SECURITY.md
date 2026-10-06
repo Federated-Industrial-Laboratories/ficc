@@ -1,12 +1,12 @@
 # Security
 
-The supported stable release is 0.2.0, published as 0.2.0-stable.
+This policy covers the 0.2.6 stable release series, including revision releases.
 Report a security issue privately to contact@federatedindustrial.com.
 Do not include credentials, private keys or confidential logs in a public issue.
 
-The supported stable release uses local-mode loopback access. Do not expose
-that release's listener through a public proxy, tunnel or network bind.
-The development controller also provides explicit [remote mode](docs/remote-access.md):
+Local mode uses loopback access. Do not expose its listener through a public
+proxy, tunnel or network bind. Stable releases also provide explicit
+[remote mode](docs/remote-access.md):
 verified HTTPS, a protected Unix gateway connection, approved external identities
 and current project permissions. Adding a proxy to a local-mode listener does
 not enable secure remote access.
@@ -80,6 +80,21 @@ or approval policy. Direct delivery can start work under the recipient agent's
 existing account. Bus messages are labeled participant testimony and carry no
 FICC approval authority. Revocation prevents later admission but cannot undo
 work that the runtime already accepted.
+
+The [agent observation interface](docs/agent-observations.md) releases permitted
+machine inventory and resource samples under separate observations:read and
+observations:resources permissions. Current project machine assignments,
+credential limits and policy grants still apply. Grant these permissions only
+when the receiving agent and its inference provider
+may receive the documented observation fields. Revocation prevents later reads;
+it cannot recall information already released.
+
+Observation tools do not execute commands, read files or retrieve logs. Remote
+credentials stay with the controller's existing transport. The observation
+client uses a separate API credential restricted to observation scopes.
+The endpoints refuse broader credentials and browser sessions.
+This interface does not constrain
+an agent's independently available tools, credentials or network access.
 
 Nodes expose only the fixed SSH helper exchange and private local spool tools.
 Controller credentials stay on the controller. An outbox cannot choose a different

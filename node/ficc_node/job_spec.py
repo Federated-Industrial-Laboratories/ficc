@@ -6,6 +6,7 @@ import re
 
 ID = re.compile(r"[0-9a-f]{32}\Z")
 ENV = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,127}\Z")
+CUDA_UUID = re.compile(r"GPU-[A-Za-z0-9-]{1,96}\Z")
 LIMITS = {
     "cpu_percent": (1, 6553600),
     "memory_high_bytes": (16777216, 2**60),
@@ -74,7 +75,7 @@ def validate_job(job):
             if not isinstance(device, dict) or set(device) != {"uuid", "memory_bytes"}:
                 raise ValueError("Invalid GPU reservation.")
             uuid = device["uuid"]
-            if not isinstance(uuid, str) or not re.fullmatch(r"GPU-[A-Za-z0-9-]{1,96}", uuid) or uuid in seen:
+            if not isinstance(uuid, str) or not CUDA_UUID.fullmatch(uuid) or uuid in seen:
                 raise ValueError("Invalid or repeated GPU UUID.")
             seen.add(uuid)
             if type(device["memory_bytes"]) is not int or not 1 <= device["memory_bytes"] <= 2**60:

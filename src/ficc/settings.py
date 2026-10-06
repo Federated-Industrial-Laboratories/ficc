@@ -16,7 +16,8 @@ from .remote_settings import configuration as remote_configuration
 from .windows_runtime import discover as discover_windows
 
 PROFILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\Z")
-SCOPES = {"nodes:read", "nodes:write", "resources:read", "tokens:manage", "identities:manage", "policies:manage", "audit:read",
+SCOPES = {"nodes:read", "nodes:write", "resources:read", "observations:read", "observations:resources",
+          "tokens:manage", "identities:manage", "policies:manage", "audit:read",
           "jobs:read", "jobs:execute", "jobs:cancel", "jobs:logs",
           "files:read", "files:write", "files:mode", "files:delete",
           "data:read", "data:export", "data:write", "data:manage",

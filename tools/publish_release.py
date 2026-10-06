@@ -34,7 +34,7 @@ def gh(*arguments: str, missing_ok: bool = False):
 def validate(output: Path) -> tuple[dict, dict]:
     build = json.loads((output / 'build.json').read_text())
     version = build['version']
-    if not re.fullmatch(r'\d+\.\d+\.\d+(?:rc\d+)?', version):
+    if not re.fullmatch(r'\d+\.\d+\.\d+(?:rc\d+|\.post[1-9]\d*)?', version):
         raise ValueError('Unsupported release version')
     if (build.get('formats_complete') is not True or build['source'].get('dirty') is not False
             or not re.fullmatch('[0-9a-f]{40}', build['source']['commit'])):
@@ -78,7 +78,7 @@ def publish(output: Path, repo: str, notes: Path, publish_now: bool, tag: str | 
             *, trusted_key: Path) -> str:
     build, assets = validate(output)
     version, commit = build['version'], build['source']['commit']
-    default_tag = 'v' + version
+    default_tag = 'v' + re.sub(r'\.post([1-9]\d*)$', r'r\1', version)
     allowed_tags = {default_tag}
     if 'rc' not in version:
         allowed_tags.add(default_tag + '-stable')

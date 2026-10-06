@@ -122,6 +122,8 @@ def parser() -> argparse.ArgumentParser:
     add_secret_commands(commands)
     from .audit_cli import add_commands as add_audit_commands
     add_audit_commands(commands)
+    from .observation_cli import add_commands as add_observation_commands
+    add_observation_commands(commands)
     return result
 
 
@@ -151,7 +153,10 @@ def api_command(args) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args((sys.argv[1:] if argv is None else argv) or ["desktop"])
     try:
-        if args.command == "serve":
+        if args.command == "observe":
+            from .observation_cli import execute as execute_observation
+            execute_observation(args)
+        elif args.command == "serve":
             os.umask(0o077)
             settings = Settings(state_dir=args.state_dir, port=args.port, profiles=tuple(args.profile),
                                 ssh_config=args.ssh_config, demo=args.demo, viewer_runtime=args.viewer_runtime,

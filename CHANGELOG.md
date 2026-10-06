@@ -1,5 +1,15 @@
 # Changes
 
+## 0.2.6r1 (unreleased)
+
+- Add a scoped agent observation API and JSON CLI for enrolled Linux SSH inventory and saved resource readings.
+- Require explicit observation disclosure permission and retain attributed access records.
+- Add generic read-only AMDGPU sysfs/hwmon observations alongside NVIDIA readings, with unknown values preserved.
+- Keep AMD observations out of CUDA reservation controls and admission.
+- Check the AMD method against kernel documentation and synthetic fixtures; direct AMD hardware qualification remains pending for 0.2.6r2.
+- Correct the supported stable series and remote-access description in the security policy.
+- Use package version 0.2.6.post1 with release tag v0.2.6r1-stable.
+
 ## 0.2.6
 
 - Add browser-local appearance controls with Classic Light, PRISM Graphite Classic Dark and 24 named themes.

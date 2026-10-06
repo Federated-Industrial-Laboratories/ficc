@@ -11,7 +11,7 @@ from pathlib import Path
 
 from . import job_state as state
 from .collect import gpu_metrics
-from .job_spec import ID, LOG_CAP, RECEIPT_CAP, TERMINAL, TOTAL_LOG_CAP, validate_job
+from .job_spec import CUDA_UUID, ID, LOG_CAP, RECEIPT_CAP, TERMINAL, TOTAL_LOG_CAP, validate_job
 from .job_system import capability, command, properties, start
 
 
@@ -146,7 +146,7 @@ def submit(body):
     reservations = job["gpu_reservations"].get(body["node_id"], [])
     if reservations:
         gpus, _ = gpu_metrics()
-        devices = {gpu["uuid"]: gpu for gpu in gpus}
+        devices = {gpu["uuid"]: gpu for gpu in gpus if CUDA_UUID.fullmatch(gpu["uuid"])}
         for reservation in reservations:
             gpu = devices.get(reservation["uuid"])
             if gpu is None or gpu["memory_total_bytes"] is None or gpu["memory_used_bytes"] is None:

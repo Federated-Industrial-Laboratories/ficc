@@ -152,6 +152,11 @@ protect against other accounts, not a hostile process running as the owner.
 
 ## External agent assistance
 
+The [agent observation interface](agent-observations.md) lets an existing agent
+session inspect permitted machine inventory and resource readings. It uses
+explicit disclosure permission and scoped API credentials. It does not require
+a registered runtime profile or grant remote command execution.
+
 The separate [ficc-harness](https://github.com/Federated-Industrial-Laboratories/ficc-harness)
 companion provides portable skills, agent templates
 and optional session hooks for coding agents that assist an operator with FICC

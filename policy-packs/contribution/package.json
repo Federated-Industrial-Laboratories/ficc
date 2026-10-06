@@ -2,9 +2,14 @@
   "format": "ficc-policy",
   "version": 1,
   "id": "ficc-contribution",
-  "release": "0.2.5",
+  "release": "0.2.6.post1",
   "decision_api": 1,
   "roles": [
+    {
+      "id": "agent-observer",
+      "label": "Agent observer",
+      "description": "Release permitted machine inventory and resource readings to an approved agent."
+    },
     {
       "id": "observer",
       "label": "Observer",

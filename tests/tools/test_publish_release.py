@@ -73,13 +73,15 @@ def test_remote_assets_are_checked_individually(count, failure):
 
 
 @pytest.mark.parametrize('failure', ['none', 'wrong-tag', 'wrong-master', 'uploaded-digest'])
-@pytest.mark.parametrize('tag', [None, 'v1.0.0-stable'])
-def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, monkeypatch, failure, tag):
+@pytest.mark.parametrize(('version', 'tag'), [
+    ('1.0.0', None), ('1.0.0', 'v1.0.0-stable'), ('0.2.6.post1', 'v0.2.6r1-stable'),
+])
+def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, monkeypatch, failure, version, tag):
     import publish_release as module
 
     # Signature cryptography is exercised separately; this case checks GitHub ordering.
     monkeypatch.setattr(module, 'verify_signature', lambda *args: None)
-    local_release(tmp_path)
+    local_release(tmp_path, version)
     _, assets = validate(tmp_path)
     remote = [{'name': n, 'state': 'uploaded', **v} for n, v in assets.items()]
     if failure == 'uploaded-digest':
@@ -192,6 +194,8 @@ def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monk
     ('1.0.0', 'v1.0.1-stable'), ('1.0.0', 'v1.0.0-nightly'),
     ('1.0.0', 'v1.0.0-stable/extra'), ('1.0.0', ''),
     ('1.0.0rc1', 'v1.0.0rc1-stable'),
+    ('0.2.6.post1', 'v0.2.6-stable'), ('0.2.6.post1', 'v0.2.6r2-stable'),
+    ('0.2.6.post1', 'v0.2.6.post1-stable'),
 ])
 def test_invalid_release_tag_is_refused_before_remote_access(tmp_path, monkeypatch, version, tag):
     import publish_release as module

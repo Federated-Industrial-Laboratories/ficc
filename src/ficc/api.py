@@ -31,6 +31,8 @@ from .module_editor_store import retained as editor_retained
 from .module_routes import install as install_module_routes
 from .module_vm_routes import install as install_module_vms
 from .module_windows_routes import install as install_windows_endpoints
+from .observation_routes import install as install_observation_routes
+from .observation_routes import restrict_request as restrict_observation_request
 from .operation_routes import install as install_operation_routes
 from .policy_routes import install as install_policy_routes
 from .remote_ingress import RemoteIngress
@@ -212,6 +214,7 @@ def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
                     result.csrf, request.headers.get("x-csrf-token", "")
                 ):
                     raise Failure("csrf_denied", "The session request check failed.", 403)
+        restrict_observation_request(request, result, service.store)
         selected = request.headers.get("x-ficc-project")
         if selected is not None and selected != result.project_id:
             raise Failure("project_changed", "This window belongs to another project. Open a new console window.", 409)
@@ -376,6 +379,7 @@ def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
         return {"events": service.store.events()}
 
     install_identity_routes(app, service, principal, session, cookie)
+    install_observation_routes(app, service, principal)
     from .contributor_routes import install as install_contributor_routes
     install_contributor_routes(app, service, principal)
     from .workloads.routes import install as install_workload_routes

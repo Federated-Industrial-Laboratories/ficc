@@ -52,10 +52,13 @@ for (const changes of [{ expiry: -1 }, { ready: false }]) {
 test('shell mode, resource limits and GPU reservations remain explicit', async ({ page }) => {
   const sample = jobNode();
   sample.resources.gpus = [{ uuid: 'GPU-SYNTHETIC', name: 'Synthetic GPU', memory_used_bytes: 1073741824,
-    memory_total_bytes: 8589934592, utilization_percent: 10 }];
+    memory_total_bytes: 8589934592, utilization_percent: 10 },
+  { uuid: 'AMD-PCI-0000:03:00.0', name: 'AMD observation', memory_used_bytes: 0,
+    memory_total_bytes: 8589934592, utilization_percent: 0 }];
   const fixture = await setupJobs(page, { nodes: [sample] });
   await page.getByRole('button', { name: 'New job', exact: true }).click();
   await page.getByRole('button', { name: 'Select all machines', exact: true }).click();
+  await expect(page.getByLabel('AMD observation / AMD-PCI-0000:03:00.0', { exact: true })).toHaveCount(0);
   await page.getByLabel('Job label / purpose', { exact: true }).fill('Shell example');
   await page.getByLabel('Command mode', { exact: true }).selectOption('shell');
   await page.getByLabel('Shell script', { exact: true }).fill("printf '%s' 'literal; value'");
