@@ -66,7 +66,8 @@ jobs:
         run: |
           python -m pytest -q tests/python/test_macos.py tests/python/test_macos_launcher.py \
             tests/python/test_process.py tests/python/test_ssh_master.py \
-            tests/python/test_agent*.py tests/integration/test_agent_runtime.py
+            tests/python/test_agent*.py tests/python/test_omp_versions.py \
+            tests/integration/test_agent_runtime.py
       - name: Check helper installation, SSH terminals and inbox transport
         env:
           FICC_REQUIRE_SSH: '1'
