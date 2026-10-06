@@ -31,7 +31,7 @@ def inspect(root: Path) -> tuple[int, list[str]]:
         if not path.is_file():
             continue
         relative = path.relative_to(root)
-        if any(part in SKIP or part.endswith(".egg-info") for part in relative.parts[:-1]):
+        if relative == Path(".git") or any(part in SKIP or part.endswith(".egg-info") for part in relative.parts[:-1]):
             continue
         if relative.parts[:3] == ("src", "ficc", "static"):
             continue

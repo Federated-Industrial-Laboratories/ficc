@@ -45,3 +45,9 @@ def test_hidden_ci_directory_is_scanned(tmp_path):
     target.mkdir(parents=True)
     (target / "example.yml").write_text("credential: ghp_" + "a" * 36)
     assert checker.inspect(tmp_path)[1]
+
+
+def test_worktree_git_pointer_is_not_distributable_source(tmp_path):
+    (tmp_path / ".git").write_text("gitdir: /home/" + "local-owner/repository/.git/worktrees/release\n")
+    (tmp_path / "README.md").write_text("Public source.\n")
+    assert checker.inspect(tmp_path) == (1, [])

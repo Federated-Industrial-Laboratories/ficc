@@ -1,6 +1,6 @@
 # Changes
 
-## 0.2.6r1 (unreleased)
+## 0.2.6r1
 
 - Add a scoped agent observation API and JSON CLI for enrolled Linux SSH inventory and saved resource readings.
 - Require explicit observation disclosure permission and retain attributed access records.
