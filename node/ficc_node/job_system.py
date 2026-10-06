@@ -4,6 +4,7 @@
 import os
 import signal
 import subprocess
+import sys
 import time
 from contextlib import suppress
 from pathlib import Path
@@ -24,6 +25,9 @@ def command(argv, timeout=8):
 
 def capability():
     result: dict[str, bool | str] = {"jobs": False, "logout_persistent": False}
+    if sys.platform == "darwin":
+        result["job_error"] = "Managed resource-limited jobs require Linux systemd and cgroups."
+        return result
     try:
         code, output, _ = command(["systemctl", "--user", "show", "--property=ControlGroup", "--value"])
         if code or not output.strip().startswith("/"):

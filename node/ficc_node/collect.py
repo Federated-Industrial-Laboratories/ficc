@@ -8,6 +8,7 @@ import os
 import selectors
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -96,6 +97,9 @@ def gpu_metrics() -> tuple[list[dict], str]:
 
 
 def collect() -> dict:
+    if sys.platform == "darwin":
+        from .collect_macos import collect as collect_native
+        return collect_native()
     first_total, first_idle = cpu_ticks()
     time.sleep(0.1)
     total, idle = cpu_ticks()

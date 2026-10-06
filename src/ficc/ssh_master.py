@@ -5,7 +5,6 @@ import asyncio
 import copy
 import os
 import select
-import signal
 import stat
 import subprocess
 import tempfile
@@ -15,6 +14,7 @@ from contextlib import suppress
 from pathlib import Path
 
 from .errors import Failure
+from .posix_host import kill_group, process_descriptor
 from .process import ready
 from .settings import MAX_NODES
 from .ssh_trust_connection import Arguments, release
@@ -63,13 +63,13 @@ class Master:
                 ["timeout", "--signal=TERM", "--kill-after=2s", f"{LIFETIME}s", *command],
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                 start_new_session=True, bufsize=0)
-            self.pidfd = os.pidfd_open(self.process.pid)
+            self.pidfd = process_descriptor(self.process.pid)
             assert self.process.stderr is not None
             os.set_blocking(self.process.stderr.fileno(), False)
         except OSError as exc:
             if self.process is not None:
                 with suppress(ProcessLookupError):
-                    os.killpg(self.process.pid, signal.SIGKILL)
+                    kill_group(self.process.pid)
                 self.process.wait()
                 if self.process.stderr is not None:
                     self.process.stderr.close()
@@ -106,7 +106,7 @@ class Master:
         assert self.process is not None
         # The supervisor remains unreaped, so its process group ID cannot be reused.
         with suppress(ProcessLookupError):
-            os.killpg(self.process.pid, signal.SIGKILL)
+            kill_group(self.process.pid)
 
     async def read(self) -> None:
         assert self.process is not None and self.process.stderr is not None

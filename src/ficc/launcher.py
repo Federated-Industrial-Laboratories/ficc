@@ -5,6 +5,7 @@ import fcntl
 import os
 import shutil
 import subprocess
+import sys
 import time
 from contextlib import contextmanager, suppress
 from pathlib import Path
@@ -72,6 +73,9 @@ def verify_unit(config: LaunchConfig, path: Path) -> bool:
 
 
 def install(args, *, only_if_missing: bool = False) -> dict:
+    if sys.platform == "darwin":
+        from . import launcher_macos
+        return launcher_macos.install(args, only_if_missing=only_if_missing)
     path = args.launcher_config.absolute()
     if not NAME.fullmatch(args.name):
         raise ValueError("The launcher name must be ficc or ficc- followed by letters, digits or hyphens.")
@@ -135,6 +139,9 @@ def ready(config: LaunchConfig) -> bool:
 
 
 def start(path: Path) -> LaunchConfig:
+    if sys.platform == "darwin":
+        from . import launcher_macos
+        return launcher_macos.start(path)
     path = path.absolute()
     with startup_lock(path):
         config = load(path)
@@ -159,6 +166,9 @@ def start(path: Path) -> LaunchConfig:
 
 
 def status(path: Path) -> dict:
+    if sys.platform == "darwin":
+        from . import launcher_macos
+        return launcher_macos.status(path)
     config = load(path.absolute())
     verify_unit(config, path.absolute())
     state = systemctl("is-active", config.unit, check=False).stdout.strip()
@@ -168,6 +178,9 @@ def status(path: Path) -> dict:
 
 
 def stop(path: Path) -> dict:
+    if sys.platform == "darwin":
+        from . import launcher_macos
+        return launcher_macos.stop(path)
     path = path.absolute()
     with startup_lock(path):
         config = load(path)
@@ -185,7 +198,7 @@ def open_console(state_dir: Path, print_url: bool = False, *, subject: str | Non
     if print_url:
         print(url)
         return
-    opener = shutil.which("xdg-open")
+    opener = "/usr/bin/open" if sys.platform == "darwin" else shutil.which("xdg-open")
     if not opener:
         raise ValueError("Install xdg-utils to open the console, or use ficc open --print-url explicitly.")
     process = subprocess.Popen([opener, url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,

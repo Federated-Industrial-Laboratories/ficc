@@ -5,13 +5,13 @@ import asyncio
 import errno
 import fcntl
 import os
-import signal
 import struct
 import subprocess
 import sys
 import termios
 from contextlib import suppress
 
+from .posix_host import kill_group, process_descriptor
 from .process import ready
 
 
@@ -27,12 +27,12 @@ class TerminalPTY:
             self.process = subprocess.Popen([sys.executable, "-m", "ficc.terminal_child", *args],
                                             stdin=slave, stdout=slave, stderr=slave,
                                             start_new_session=True, env=env, close_fds=True)
-            self.pidfd = os.pidfd_open(self.process.pid)
+            self.pidfd = process_descriptor(self.process.pid)
             os.set_blocking(self.fd, False)
         except BaseException:
             if self.process is not None:
                 with suppress(ProcessLookupError):
-                    os.killpg(self.process.pid, signal.SIGKILL)
+                    kill_group(self.process.pid)
                 self.process.wait()
             os.close(self.fd)
             raise
@@ -68,7 +68,7 @@ class TerminalPTY:
         if self.process is None:
             return
         with suppress(ProcessLookupError):
-            os.killpg(self.process.pid, signal.SIGKILL)
+            kill_group(self.process.pid)
         await asyncio.to_thread(self.process.wait)
         self.process = None
         if self.pidfd is not None:

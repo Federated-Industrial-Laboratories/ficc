@@ -43,11 +43,28 @@ finally:
 """
 INSTALL = "exec python3 -c " + shlex.quote(INSTALL_SCRIPT)
 NODE_SUPPORT_FILES = (
-    "errors.py", "pipe_ready.py", "modules/validation.py", "modules/manifest.py",
+    "errors.py", "pipe_ready.py", "posix_host.py", "modules/validation.py", "modules/manifest.py",
     "modules/ui.py", "modules/adapter_manifest.py", "modules/adapter_protocol.py",
     "modules/adapter_vm_protocol.py", "modules/protocol.py", "modules/sandbox.py", "modules/native.py",
     "modules/sandbox_io.py", "modules/watcher.py",
 )
+
+NODE_MAIN = '''import os,sys
+if sys.platform == "darwin":
+ os.environ["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + os.environ.get("PATH", "/usr/bin:/bin")
+ if sys.version_info < (3,12):
+  if os.environ.get("FICC_PYTHON_REEXEC"):
+   raise SystemExit("FICC requires Python 3.12 or later")
+  os.environ["FICC_PYTHON_REEXEC"] = "1"
+  for base in ("/opt/homebrew/bin", "/usr/local/bin"):
+   for version in ("3.14", "3.13", "3.12"):
+    python = base + "/python" + version
+    if os.path.isfile(python) and os.access(python, os.X_OK):
+     os.execv(python, [python, *sys.argv])
+  raise SystemExit("Install Homebrew Python 3.12 or later for the FICC helper")
+from ficc_node.__main__ import main
+raise SystemExit(main())
+'''
 
 
 def archive() -> bytes:
@@ -55,7 +72,7 @@ def archive() -> bytes:
     root = importlib.resources.files("ficc_node")
     support = importlib.resources.files("ficc")
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as bundle:
-        bundle.writestr("__main__.py", "from ficc_node.__main__ import main\nraise SystemExit(main())\n")
+        bundle.writestr("__main__.py", NODE_MAIN)
         for item in sorted(root.iterdir(), key=lambda item: item.name):
             name = item.name
             if not name.endswith(".py"):

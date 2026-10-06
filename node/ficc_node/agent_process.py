@@ -8,6 +8,8 @@ import subprocess
 import time
 from contextlib import suppress
 
+from ficc.posix_host import kill_group
+
 
 def alive(process):
     return os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None
@@ -16,12 +18,12 @@ def alive(process):
 def stop_group(process):
     # The child leader remains unreaped, so its group identifier cannot be reused.
     with suppress(ProcessLookupError):
-        os.killpg(process.pid, signal.SIGTERM)
+        kill_group(process.pid, signal.SIGTERM)
     deadline = time.monotonic() + 2
     while alive(process) and time.monotonic() < deadline:
         time.sleep(0.02)
     with suppress(ProcessLookupError):
-        os.killpg(process.pid, signal.SIGKILL)
+        kill_group(process.pid)
     process.wait(timeout=3)
 
 

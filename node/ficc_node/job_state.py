@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import stat
+import sys
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -83,6 +84,9 @@ def job_path(job_id):
 
 
 def boot_id():
+    if sys.platform == "darwin":
+        from .collect_macos import boot_id as native_boot_id
+        return native_boot_id()
     return Path("/proc/sys/kernel/random/boot_id").read_text().strip()
 
 
