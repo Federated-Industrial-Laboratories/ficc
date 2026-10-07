@@ -15,6 +15,32 @@
           "title": "Name",
           "type": "string"
         },
+        "source": {
+          "default": "unknown",
+          "enum": [
+            "nvidia-smi",
+            "amdgpu-sysfs",
+            "apple-ioreg",
+            "unknown"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "memory_kind": {
+          "default": "unknown",
+          "enum": [
+            "vram",
+            "unified",
+            "unknown"
+          ],
+          "title": "Memory Kind",
+          "type": "string"
+        },
+        "reservation_supported": {
+          "default": true,
+          "title": "Reservation Supported",
+          "type": "boolean"
+        },
         "memory_total_bytes": {
           "anyOf": [
             {

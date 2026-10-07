@@ -243,6 +243,13 @@ Archive integration also runs the owner CLI through an isolated SSH server and
 checks real systemd unit absence. Use separate synthetic state for these checks;
 do not retire an operator's history as a test fixture.
 
+GPU collector checks run with `python -m pytest tests/python/test_gpu_metrics.py
+tests/python/test_gpu_apple.py tests/python/test_macos.py`. Run `gpu.spec.mjs`,
+`jobs.spec.mjs` and `states.spec.mjs` against the isolated browser service.
+Fixtures do not establish hardware support. Compare actual packaged-helper
+samples with native driver counters and validate them against `node-v1.json`.
+See [GPU observations](gpu-observations.md) for the hardware checks and limits.
+
 Observation checks exercise owned connection reuse, renewal before expiry,
 changed SSH configuration, pinned identity and process cleanup. Count controller
 and child CPU together for performance measurements. A dedicated Linux cgroup's

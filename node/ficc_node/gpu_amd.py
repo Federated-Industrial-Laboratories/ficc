@@ -74,6 +74,7 @@ def metrics() -> tuple[list[dict], str]:
         total = number(device / "mem_info_vram_total", 0, 2**63 - 1)
         result.append({
             "uuid": "AMD-PCI-" + identity, "name": name,
+            "source": "amdgpu-sysfs", "memory_kind": "vram", "reservation_supported": False,
             "memory_total_bytes": total,
             "memory_used_bytes": number(device / "mem_info_vram_used", 0, total if total is not None else 2**63 - 1),
             "utilization_percent": number(device / "gpu_busy_percent", 0, 100),

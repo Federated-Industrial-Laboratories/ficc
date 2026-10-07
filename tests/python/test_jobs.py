@@ -389,3 +389,17 @@ def test_amd_observation_cannot_admit_a_cuda_reservation(console, monkeypatch):
     target = asyncio.run(service.jobs.ready(service.store.node("node-0"), body["job"], actor))
     assert target["ready"] is False
     assert target["errors"] == ["The requested GPU capacity is unavailable."]
+
+
+def test_preview_refuses_observation_only_gpu(console, monkeypatch):
+    client, service, _, _ = prepare(console, monkeypatch)
+    body = request()
+    body["job"]["gpu_reservations"] = {"node-0": [{"uuid": "GPU-test", "memory_bytes": 30}]}
+    async def probe(node, check=None):
+        check()
+        return {"resources": {"gpus": [{"uuid": "GPU-test", "memory_total_bytes": 100,
+            "memory_used_bytes": 0, "reservation_supported": False}]}}
+    monkeypatch.setattr(service.ssh, "probe", probe)
+    result = client.post("/api/v1/operation-previews", json=body)
+    assert result.status_code == 200
+    assert result.json()["targets"][0]["ready"] is False

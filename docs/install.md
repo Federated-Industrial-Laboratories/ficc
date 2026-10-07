@@ -35,6 +35,8 @@ Controllers need Linux or macOS, OpenSSH and GNU coreutils `timeout`. Nodes requ
 OpenSSH server and Python 3.12 or later. NVIDIA reporting uses a bounded,
 structured nvidia-smi query when available. Generic AMDGPU observation reads the
 kernel's sysfs and hwmon attributes without ROCm or elevated privileges.
+Apple Silicon observation uses built-in `ioreg` driver statistics without sudo.
+Upgrade remote helpers from the updated controller to enable the new readings.
 Missing GPU support does not prevent CPU and memory observation.
 See [GPU observations](gpu-observations.md) for supported readings and qualification limits.
 

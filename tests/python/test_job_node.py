@@ -278,3 +278,14 @@ def test_missing_job_logs_validate_fields_first(remote, field, value):
     request[field] = value
     with pytest.raises(ValueError, match="output"):
         jobs.dispatch(request)
+
+
+def test_observation_only_gpu_cannot_be_reserved(remote, monkeypatch):
+    _, starts = remote
+    item = body()
+    item["job"]["gpu_reservations"] = {"node-0": [{"uuid": "GPU-test", "memory_bytes": 30}]}
+    monkeypatch.setattr(jobs, "gpu_metrics", lambda: ([{"uuid": "GPU-test",
+        "memory_total_bytes": 100, "memory_used_bytes": 0, "reservation_supported": False}], "available"))
+    with pytest.raises(ValueError, match="capacity cannot be verified"):
+        jobs.dispatch(item)
+    assert starts == []

@@ -149,7 +149,8 @@ def submit(body):
         devices = {gpu["uuid"]: gpu for gpu in gpus if CUDA_UUID.fullmatch(gpu["uuid"])}
         for reservation in reservations:
             gpu = devices.get(reservation["uuid"])
-            if gpu is None or gpu["memory_total_bytes"] is None or gpu["memory_used_bytes"] is None:
+            if (gpu is None or gpu.get("reservation_supported") is False
+                    or gpu["memory_total_bytes"] is None or gpu["memory_used_bytes"] is None):
                 raise ValueError("GPU capacity cannot be verified.")
             if reservation["memory_bytes"] > gpu["memory_total_bytes"] - gpu["memory_used_bytes"]:
                 raise ValueError("The GPU reservation exceeds observed free memory.")

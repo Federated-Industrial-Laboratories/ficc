@@ -247,3 +247,19 @@ test('following output resumes after a temporary remote failure', async ({ page 
   expect(fixture.logCalls.length).toBeGreaterThanOrEqual(2);
   expect(fixture.logCalls.slice(0, 2).map(url => url.searchParams.get('offset'))).toEqual(['0', '0']);
 });
+
+
+test('observation-only GPUs are excluded from reservation controls', async ({ page }) => {
+  const sample = jobNode();
+  sample.resources.gpus = [
+    { uuid: 'AMD-PCI-0000:01:00.0', name: 'Sample AMD GPU', reservation_supported: false },
+    { uuid: 'APPLE-REGISTRY-64', name: 'Sample Apple GPU', reservation_supported: false },
+    { uuid: 'GPU-SYNTHETIC', name: 'Synthetic GPU', memory_used_bytes: 0,
+      memory_total_bytes: 8589934592, utilization_percent: 10 },
+  ];
+  await setupJobs(page, { nodes: [sample] });
+  await page.getByRole('button', { name: 'New job', exact: true }).click();
+  await page.getByRole('button', { name: 'Select all machines', exact: true }).click();
+  await expect(page.getByLabel('Synthetic GPU / GPU-SYNTHETIC', { exact: true })).toBeVisible();
+  await expect(page.locator('.gpu-option')).toHaveCount(1);
+});

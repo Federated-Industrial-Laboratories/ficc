@@ -10,7 +10,7 @@ export function jobNodes(nodes) {
     const gpuFields = [];
     const gpuBox = el('div', { class: 'gpu-options', hidden: true });
     for (const [gpuIndex, gpu] of (node.resources?.gpus ?? []).entries()) {
-      if (!/^GPU-[A-Za-z0-9-]{1,96}$/.test(gpu.uuid)) continue;
+      if (gpu.reservation_supported === false || !/^GPU-[A-Za-z0-9-]{1,96}$/.test(gpu.uuid)) continue;
       const gpuCheck = el('input', { type: 'checkbox', id: `job-gpu-${index}-${gpuIndex}` });
       const memory = el('input', { type: 'number', min: 1, step: 1, value: 256,
         'aria-label': `GPU memory MiB for ${node.name} ${gpu.uuid}`, disabled: true });
