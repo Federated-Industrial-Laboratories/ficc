@@ -9,6 +9,7 @@
 <details>
 <summary>On this page</summary>
 
+- [Installed agent discovery](#installed-agent-discovery)
 - [Register and launch an agent](#register-and-launch-an-agent)
 - [Runtime adapters](#runtime-adapters)
 - [Linux and macOS requirements](#linux-and-macos-requirements)
@@ -23,9 +24,34 @@ controller records the agent identity, run membership and message deliveries.
 Launch creates a dedicated session; FICC never types the launch command into
 an existing shell.
 
-Install and sign in to the selected agent on the node before registration. FICC
-does not install coding agents, copy provider credentials or select a model.
-Register an existing absolute executable and workspace from the local owner CLI:
+FICC polls enrolled machines for installed coding agents and registers them
+automatically. Install the selected agent on the machine; complete provider
+sign-in in its terminal. Discovery does not install coding agents, copy provider
+credentials or select a model. Custom commands and workspaces can also be
+registered with an existing absolute executable through the local owner CLI:
+
+## Installed agent discovery
+
+The controller scans each enrolled machine about once a minute. The
+`POST /api/v1/agent-profiles/refresh` API also requests discovery. Refresh returns
+within two seconds while remaining scans continue; repeated requests share active
+scans. The helper searches the enrolled account's command path and common local,
+mise and Homebrew installation directories for Codex, Claude Code, Pi, OMP,
+Kimi Code, OpenCode, GitHub Copilot, Gemini CLI, Grok and Cursor Agent. It skips
+mise setup launchers in favor of existing installed executables. Custom command
+names still use manual registration.
+
+Codex and OMP use their existing native adapters and bounded version checks.
+Other commands use the generic adapter, which verifies the installed command and
+interpreter but does not probe its version. Discovery does not establish provider
+sign-in or qualify new runtime versions for direct bus delivery.
+
+New discovered profiles use the enrolled account's home directory as their
+workspace. Matching manual registrations retain their custom workspace. Each
+automatic registration keeps its identity across scans and runtime updates.
+An uninstalled command becomes unavailable; a failed connection preserves the
+last inventory and records the scan error. Upgrade an older node helper to
+enable discovery. One unavailable machine does not block other results.
 
 ## Register and launch an agent
 
@@ -45,8 +71,8 @@ explicit interpreter is also supported:
 The JSON array is passed as command arguments; message text never becomes shell
 syntax. Keep adapter arguments compatible with the agent's native subcommands.
 The profile preview shows the exact executable, arguments, account, workspace,
-version and delivery method. Changed versions or delivery methods require a newly
-registered profile.
+version and delivery method. Changed manual profiles require registration again;
+discovered profiles update automatically and require a new launch preview.
 A missing executable produces a registration error rather than installing it.
 Remove an unused profile with `ficc agent-profile-remove PROFILE_ID` after its
 retained runs have been archived.
@@ -181,7 +207,7 @@ that authority to the current viewer. Unacknowledged node outbox items remain
 available for owner inspection; they are not silently imported under a new grant.
 Already admitted runtime work cannot be unsent by later credential revocation.
 
-There are at most 128 registered profiles and 512 retained agents. Agent launches
+There are at most 1,024 registered profiles and 512 retained agents. Agent launches
 share the terminal limits: 16 active sessions total, four per node and 512
 retained terminal records. Two background relay exchanges run concurrently,
 leaving controller connection capacity for user actions. A slow sibling's relay

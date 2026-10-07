@@ -8,7 +8,7 @@ import time
 
 from .errors import Failure
 
-CAPS = {"agent_profiles": 128, "agents": 512, "bus_runs": 128,
+CAPS = {"agent_profiles": 1024, "agents": 512, "bus_runs": 128,
         "bus_messages": 16384, "bus_deliveries": 32768}
 CLOSED = {"stopped", "exited"}
 SETTLED = {"session-included", "tool-read", "failed", "cancelled"}

@@ -143,6 +143,11 @@ def exchange(folder, spec, request):
 
 def dispatch(request):
     action = request.get("action")
+    if action == "agent.discover":
+        if set(request) != {"version", "action"}:
+            raise ValueError("Invalid agent discovery fields.")
+        from .agent_discovery import discover
+        return discover()
     if action == "agent.archive":
         if set(request) != {"version", "action", "controller_id", "agent_id"}:
             raise ValueError("Invalid agent archive fields.")

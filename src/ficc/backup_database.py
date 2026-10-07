@@ -26,7 +26,7 @@ LEGACY_TABLES = {
     "transfers": ("id actor key value", 2048),
     "terminals": ("id actor key digest value", 512),
     "sqlite_sequence": ("name seq", 1),
-    "agent_profiles": ("id actor key digest value", 128),
+    "agent_profiles": ("id actor key digest value", 1024),
     "agents": ("id actor key digest value", 512),
     "bus_runs": ("id actor key digest value", 128),
     "bus_messages": ("id actor key digest value", 16384),

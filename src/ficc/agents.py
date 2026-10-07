@@ -24,6 +24,8 @@ class Agents:
         self.previews = {}
         self.cursors = {}
         self.poll_error = False
+        from .agent_discovery import Discovery
+        self.discovery = Discovery(self)
         self.controller = service.store.get_setting("agent_controller", None)
         if self.controller is None:
             self.controller = secrets.token_hex(16)
@@ -56,7 +58,8 @@ class Agents:
         if len(raw) > 131072:
             raise Failure("capacity", "The agent exchange exceeds its byte limit.", 409)
         async with self.service.connections:
-            code, output, stderr = await self.service.ssh.command(node, PROBE, raw, check=verify)
+            code, output, stderr = await self.service.ssh.command(node, PROBE, raw, check=verify,
+                                                                 timeout=20 if action == "discover" else 10)
         try:
             response = json.loads(output)
             if code == 65:
@@ -98,10 +101,19 @@ class Agents:
         if node["fingerprint"] != value["fingerprint"]:
             raise Failure("identity_changed", "The saved agent node identity changed.", 409)
 
+    def check_profile(self, profile):
+        if profile.get("source") == "discovered":
+            current = self.store.get("agent_profiles", profile["id"])
+            if current.get("availability") != "available":
+                raise Failure("agent_unavailable", "This agent is no longer available on the selected machine. Refresh agents.", 409)
+            if current.get("discovery_revision") != profile.get("discovery_revision"):
+                raise Failure("profile_changed", "The discovered agent changed. Create a new preview before launch.", 409)
+
     async def preview(self, request, actor):
         self.service.live()
         profile = self.store.get("agent_profiles", request["profile_id"])
         self.check(profile, actor, "agents:execute")
+        self.check_profile(profile)
         run = self.service.bus.check_run(request["run_id"], actor, "bus:send")
         if run["state"] != "open":
             raise Failure("run_closed", "Select an open bus run.", 409)
@@ -116,7 +128,7 @@ class Agents:
         preview = {"preview_id": secrets.token_hex(16), "expires_at": time.time() + 120,
                    "actor": actor, "profile": profile, "request": request,
                    "delivery_method": profile["delivery_method"],
-                   "node": {key: self.service.store.node(profile["node_id"])[key] for key in ("id", "name", "account", "fingerprint")}}
+                   "node": {key: self.service.store.node(profile["node_id"])[key] for key in ("id", "name", "account", "host", "fingerprint")}}
         self.previews[preview["preview_id"]] = preview
         return {**public(preview), "profile": public(profile)}
 
@@ -133,6 +145,7 @@ class Agents:
                 raise Failure("preview_expired", "Create a new agent launch preview.", 409)
             profile = preview["profile"]
             self.check(profile, actor, "agents:execute")
+            self.check_profile(profile)
             run = self.service.bus.check_run(preview["request"]["run_id"], actor, "bus:send")
             if run["state"] != "open":
                 raise Failure("run_closed", "Select an open bus run.", 409)

@@ -20,6 +20,26 @@ class Profile(Model):
     workspace: Annotated[str, Field(min_length=1, max_length=4096)]
 
 
+class DiscoveredProfile(Model):
+    command: Literal["codex", "claude", "pi", "omp", "kimi", "opencode", "copilot", "gemini", "grok", "cursor-agent"]
+    name: Label
+    adapter: Literal["generic", "omp", "codex"]
+    argv: Annotated[list[Annotated[str, Field(min_length=1, max_length=2048)]], Field(min_length=1, max_length=32)]
+    workspace: Annotated[str, Field(min_length=1, max_length=4096)]
+    version: Annotated[str, Field(min_length=1, max_length=240)]
+    delivery_method: Literal["inbox", "direct"]
+
+
+class DiscoveryError(Model):
+    command: Annotated[str, Field(min_length=1, max_length=80)]
+    message: Annotated[str, Field(min_length=1, max_length=240)]
+
+
+class DiscoveryResult(Model):
+    profiles: Annotated[list[DiscoveredProfile], Field(max_length=10)]
+    errors: Annotated[list[DiscoveryError], Field(max_length=10)]
+
+
 class AgentPreview(Model):
     profile_id: Identity
     label: Label
