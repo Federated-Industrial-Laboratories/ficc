@@ -51,9 +51,27 @@ A missing executable produces a registration error rather than installing it.
 Remove an unused profile with `ficc agent-profile-remove PROFILE_ID` after its
 retained runs have been archived.
 
-In Bus, create a run. In Agents, select that run and a registered profile, review
-the preview and explicitly launch. The returned terminal ID names the same
-session in Terminals. Closing a tile detaches its viewer.
+In Bus, create a run. In Agents, choose **Launch agent**, then select a machine,
+one of its registered agent profiles, the bus run and an agent label. Machines
+are identified by name, account and host. The profile list is limited to that
+machine; repeated registrations of the same name, command, workspace, adapter,
+version and delivery method appear once, using the most recently verified record.
+Profiles with the same name and different workspaces or commands remain separate.
+
+**Refresh agents** and opening **Launch agent** request fresh discovery. The
+dialog remains usable while slower machines finish, and updates choices without
+clearing the selected machine or agent label. It displays each profile's automatic
+or manual origin, command, workspace and last verification time. Unavailable
+discovered commands are hidden; scan errors identify the affected machine.
+Preview verifies the selected command again. Discovery does not prove provider
+sign-in or direct bus compatibility.
+
+Review the preview and explicitly launch. **Back** returns to the form with the
+machine, profile, bus run and label preserved; previewing edited choices requires
+fresh confirmation. After a launch request has been sent, a lost-response retry
+keeps its original identity and Back is disabled to avoid a second launch.
+The returned terminal ID names the same session in Terminals. Closing a tile
+detaches its viewer.
 
 Stop Agent stops its
 exact tmux session. An interrupted launch remains unknown; Reconcile only checks
