@@ -73,7 +73,8 @@ def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
                 await control.start()
             for name, run in (("poller", service.poll), ("job_poller", service.jobs.poll),
                               ("transfer_poller", service.transfers.poll), ("file_poller", service.files.poll),
-                              ("agent_poller", service.agents.poll)):
+                              ("agent_poller", service.agents.poll),
+                              ("agent_discovery_poller", service.agents.discovery.poll)):
                 task = asyncio.create_task(run())
                 tasks.append(task)
                 setattr(app.state, name, task)
@@ -248,8 +249,9 @@ def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
         poller = getattr(app.state, "poller", None)
         job_poller = getattr(app.state, "job_poller", None)
         pollers = (poller, job_poller, getattr(app.state, "file_poller", None),
-                   getattr(app.state, "transfer_poller", None), getattr(app.state, "agent_poller", None))
-        failed = service.poll_error or service.jobs.failed or service.agents.poll_error or (not settings.demo and any(
+                   getattr(app.state, "transfer_poller", None), getattr(app.state, "agent_poller", None),
+                   getattr(app.state, "agent_discovery_poller", None))
+        failed = service.poll_error or service.jobs.failed or service.agents.poll_error or service.agents.discovery.failed or (not settings.demo and any(
             task is not None and task.done() for task in pollers))
         return {"status": "degraded" if failed else "ok", "version": __version__}
 
@@ -349,6 +351,7 @@ def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
                 raise Failure("admin_retained", "Remove administration profiles and operation receipts before removing this machine.", 409)
             if service.vm_providers.retained(node_id):
                 raise Failure("vm_retained", "Remove VM profiles and operation receipts before forgetting this machine.", 409)
+            service.agents.discovery.forget(node_id)
             service.store.delete_node(node_id)
             service.ssh.reset(node_id)
             service.store.audit("node.forget", node_id, actor=value.id)

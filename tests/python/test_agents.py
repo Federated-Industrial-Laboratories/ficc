@@ -50,6 +50,7 @@ def agents(console, monkeypatch, tmp_path):
             run = response.json()
         preview = client.post("/api/v1/agent-previews", json={"profile_id": profile["id"], "label": "Fixture agent", "run_id": run["id"]})
         assert preview.status_code == 200, preview.text
+        assert preview.json()["node"]["host"] == value["host"]
         request = {"preview_id": preview.json()["preview_id"], "idempotency_key": "launch-fixture-" + str(index).zfill(16), "confirm_execution": True}
         response = client.post("/api/v1/agents", json=request)
         assert response.status_code == 200, response.text
@@ -61,6 +62,24 @@ def message(identity, **extra):
     return {"type": "note", "body": {"text": "A bounded observation; $(touch /tmp/not-executed)"},
             "recipient_ids": [identity], "delivery": "inbox", "reply_to": None,
             "idempotency_key": "message-request-00001", "confirm_delivery": True, **extra}
+
+
+def test_profile_inventory_includes_current_machine_identity_with_node_scope(agents):
+    client, service, _, _, setup = agents
+    profile, _, agent, _ = setup()
+    setup(1)
+    machine = service.store.node(agent["node_id"])
+    machine["name"] = "Renamed workstation"
+    service.store.save_node(machine)
+    token, _ = service.auth.issue("token", scopes=["agents:read"], node_ids=[agent["node_id"]])
+    headers = {"Authorization": "Bearer " + token}
+    response = client.get("/api/v1/agent-profiles", headers=headers)
+    assert response.status_code == 200
+    profiles = response.json()["profiles"]
+    assert [value["id"] for value in profiles] == [profile["id"]]
+    assert profiles[0]["node"] == {key: machine[key] for key in ("id", "name", "account", "host", "profile")}
+    assert "fingerprint" not in profiles[0]
+    assert client.get("/api/v1/nodes", headers=headers).status_code == 403
 
 
 @pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])

@@ -20,11 +20,26 @@ class Rebind(Model):
 def install(app, service, principal):
     manager, bus = service.agents, service.bus
 
+    def inventory(actor):
+        visible = []
+        for value in manager.store.all("agent_profiles"):
+            if not actor.permits("agents:read", value["node_id"]):
+                continue
+            node = service.store.node(value["node_id"])
+            visible.append({**public(value), "node": {
+                key: node[key] for key in ("id", "name", "account", "host", "profile")}})
+        return {"profiles": visible, "discovery": [manager.discovery.view(node) for node in service.store.nodes()
+                if actor.permits("agents:read", node["id"])]}
+
     @app.get("/api/v1/agent-profiles")
     async def profiles(request: Request):
+        return inventory(principal(request, "agents:read"))
+
+    @app.post("/api/v1/agent-profiles/refresh")
+    async def refresh_profiles(request: Request):
         actor = principal(request, "agents:read")
-        return {"profiles": [public(value) for value in manager.store.all("agent_profiles")
-                             if actor.node_ids is None or value["node_id"] in actor.node_ids]}
+        await manager.discovery.refresh(actor.id)
+        return inventory(principal(request, "agents:read"))
 
     @app.get("/api/v1/agents")
     async def agents(request: Request):

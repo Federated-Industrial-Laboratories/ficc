@@ -209,7 +209,22 @@ states. See [terminals](terminals.md) for bounds, reattachment and grant semanti
 ## Agent and bus routes
 
 GET `/api/v1/agent-profiles` returns registered profiles visible under
-`agents:read`. Owner-only profile registration uses the private local socket.
+`agents:read`. Each profile includes current `node` metadata (`id`, `name`,
+`account`, `host`, SSH `profile`) for its enrolled machine. The profile and
+metadata share the caller's node restrictions and current policy; reading them
+does not require the separate node inventory grant. Owner-only profile
+registration uses the private local socket. The response also includes
+per-machine `discovery` status, last check time and bounded command-check errors.
+Automatic profiles include `source:discovered`, `command`, `availability` and a
+`discovery_revision` that invalidates a preview when its runtime changes.
+
+POST `/api/v1/agent-profiles/refresh` polls the caller's permitted machines and
+returns the same inventory. It requires `agents:read` and never starts an agent.
+The response waits at most two seconds; scans still running report `scanning`.
+Read GET `/api/v1/agent-profiles` for subsequent results. Background discovery
+also runs without a browser. Repeated scans keep profile identities; commands
+missing from a successful scan become unavailable, while failed scans retain the
+last observed inventory.
 GET `/api/v1/agents` and `/api/v1/agents/{id}` return runtime, node, run and
 terminal identities, delivery capability, state and observed contact time.
 

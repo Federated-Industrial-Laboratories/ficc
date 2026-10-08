@@ -50,6 +50,8 @@ def main() -> int:
                 files_available = False
             result["capabilities"].update(terminals=True, terminals_ephemeral=True, terminals_tmux=bool(shutil.which("tmux")),
                                           files=files_available, history_archive=True, agents=bool(shutil.which("tmux")))
+            if result["capabilities"].get("agents"):
+                result["capabilities"]["agent_discovery"] = True
         elif isinstance(request, dict) and request.get("version") == "3":
             if str(request.get("action", "")).startswith("agent."):
                 from .agents import dispatch as agent_dispatch

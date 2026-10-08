@@ -164,8 +164,9 @@ class Service:
             raise Failure("denied", "An unrestricted credential is required.", 403)
 
     def retained_history(self, node_id: str) -> bool:
-        if any(value["node_id"] == node_id for table in ("agents", "agent_profiles")
-               for value in self.agents.store.all(table)):
+        if any(value["node_id"] == node_id for value in self.agents.all()) or any(
+                value["node_id"] == node_id and value.get("source") != "discovered"
+                for value in self.agents.store.all("agent_profiles")):
             return True
         if any(target["node_id"] == node_id for operation in self.jobs.store.all()
                for target in operation["targets"]):
