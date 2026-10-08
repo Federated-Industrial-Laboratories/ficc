@@ -34,7 +34,10 @@ The initial native macOS qualification covered:
 Resource-limited managed jobs still require Linux systemd/cgroups. The safe file
 adapter still requires Linux openat2 and related kernel operations. These
 capabilities are reported unavailable; the helper does not weaken those checks.
-Apple GPU telemetry is not implemented.
+Apple Silicon GPU observations use bounded, unprivileged IORegistry queries.
+Available utilization and used unified memory are shown; total GPU memory and
+temperature remain unknown. Apple GPUs cannot reserve CUDA jobs. See
+[GPU observations](gpu-observations.md) for the recorded hardware checks and limits.
 
 An older controller can use this helper, but its **Upgrade helper** action would
 reinstall the older Linux-only archive. Use this port's archive when upgrading
@@ -57,7 +60,7 @@ npm run build --prefix web
 .venv-build/bin/python -m build --wheel --no-isolation
 "$(brew --prefix python@3.12)/bin/python3.12" -m venv "$HOME/.local/share/ficc/macos-runtime"
 "$HOME/.local/share/ficc/macos-runtime/bin/python" -m pip install --require-hashes -r requirements.lock
-"$HOME/.local/share/ficc/macos-runtime/bin/python" -m pip install --no-deps dist/ficc-0.2.6.post2-py3-none-any.whl
+"$HOME/.local/share/ficc/macos-runtime/bin/python" -m pip install --no-deps dist/ficc-0.2.6.post4-py3-none-any.whl
 "$HOME/.local/share/ficc/macos-runtime/bin/ficc" install-launcher
 "$HOME/.local/share/ficc/macos-runtime/bin/ficc" start
 ```

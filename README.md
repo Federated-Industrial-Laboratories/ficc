@@ -5,7 +5,7 @@
 <p align="center">A modular console for cluster operations, remote teams and compute workloads.</p>
 
 <p align="center">
-  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.2.6r2 | Python 3.12 or later | OpenSSH">
+  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.2.6r4 | Python 3.12 or later | OpenSSH">
 </p>
 
 <p align="center">
@@ -53,7 +53,7 @@ authenticated gateway and identity setup; exposing the local listener is unsuppo
 | Contributors and Workloads | Approved managed or voluntary Linux nodes, local resource offers, fair queues, pause/drain and verified results. |
 | Files and Data sources | Registered roots, resumable transfers, immutable datasets, SQL/query templates, CSV, Arrow/Parquet, DuckDB and S3 workflows. |
 | Terminals | Interactive SSH and tmux sessions with machine tabs, adjustable splits, tile zoom and fullscreen. |
-| Agents | Registered OMP, Codex and generic commands with their own managed terminal sessions. |
+| Agents | Per-machine discovery of installed agents, machine-first launch previews and managed OMP, Codex and generic terminal sessions. |
 | Bus | Host-owned runs, explicit recipients, direct adapters and a tool-readable inbox. |
 | Workspace | Runtime modules, saved docked or floating panels, workspace tiling, separate monitor windows and sound. |
 | Access and Activity | Individual identities, projects, scoped credentials, signed runtime policies and recorded actions. |
@@ -187,7 +187,7 @@ Create a run in Bus. Select that run and profile in Agents, review the preview,
 then launch.
 **Open terminal** selects that agent's native terminal in the tiled workspace.
 
-OMP 18.1.12 and Codex 0.156.1 have native direct adapters. Other commands can use
+OMP 18.1.12 and Codex 0.156.1/0.160.1 have native direct adapters. Other commands can use
 the generic inbox tool. Direct delivery can start model work and always needs
 explicit recipients. FICC does not install runtimes, copy provider credentials,
 select a model or automatically reply. See [coding agents](docs/agents.md) and

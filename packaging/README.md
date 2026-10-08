@@ -50,7 +50,7 @@ docker run --rm --network=none \
     cp *.pkg.tar.zst /release/
   '
 python tools/finalize_release.py --output /tmp/ficc-release \
-  --arch-package /tmp/ficc-release/ficc-bin-0.2.6.post2-1-x86_64.pkg.tar.zst
+  --arch-package /tmp/ficc-release/ficc-bin-0.2.6.post4-1-x86_64.pkg.tar.zst
 ```
 
 ## Qualification
@@ -180,5 +180,6 @@ After review, repeat with `--publish` to publish the verified draft. Repository
 visibility is unchanged. Published versions cannot be replaced by this command.
 CI artifacts are temporary qualification output; they are not release downloads.
 
-For `0.2.6r2-stable`, package metadata uses `0.2.6.post2`.
-Pass `--tag v0.2.6r2-stable` to `publish_release.py` for the stable release tag.
+For `0.2.6r4-final`, package metadata uses `0.2.6.post4`.
+Pass `--tag v0.2.6r4-final` to `publish_release.py` for the final revision tag.
+This closes the 0.2.6 revision series; subsequent changes require a new version.

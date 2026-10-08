@@ -1,5 +1,17 @@
 # Changes
 
+## 0.2.6r4-final
+
+- Observe Apple Silicon GPU utilization and used unified memory through bounded, unprivileged IORegistry queries.
+- Identify GPU observation sources and shared memory, while keeping Apple and AMD devices outside CUDA reservations.
+- Document Apple M5 Pro and AMD Raphael APU observations; discrete AMD and RX 590 hardware qualification remains open.
+- Discover installed coding agents per enrolled machine, retaining stable registrations and the last inventory after connection failures.
+- Show per-machine discovery status and refresh installed agent profiles without launching or installing agents.
+- Select the machine before its agent profile, bus run and label in the launch dialog.
+- Return from preview with Back to edit the form and require fresh confirmation, while preserving the same identity for uncertain launch retries.
+- Use package version 0.2.6.post4 with release tag v0.2.6r4-final.
+- Close the 0.2.6 revision series; subsequent changes require a new version.
+
 ## 0.2.6r2
 
 - Add native macOS resource observations, process supervision, SSH terminals and launchd controller startup.

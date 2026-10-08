@@ -81,7 +81,7 @@ def publish(output: Path, repo: str, notes: Path, publish_now: bool, tag: str | 
     default_tag = 'v' + re.sub(r'\.post([1-9]\d*)$', r'r\1', version)
     allowed_tags = {default_tag}
     if 'rc' not in version:
-        allowed_tags.add(default_tag + '-stable')
+        allowed_tags.update({default_tag + '-stable', default_tag + '-final'})
     tag = default_tag if tag is None else tag
     if tag not in allowed_tags:
         raise ValueError('Release tag must match the package version and release status')
@@ -134,7 +134,7 @@ def main() -> None:
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--repo', default='Federated-Industrial-Laboratories/ficc')
     parser.add_argument('--notes', type=Path, required=True)
-    parser.add_argument('--tag', help='Version tag, with an optional -stable suffix for stable packages')
+    parser.add_argument('--tag', help='Version tag, with an optional -stable or -final suffix for stable packages')
     parser.add_argument('--trusted-key', type=Path, required=True, help='Independently trusted publisher public key')
     parser.add_argument('--publish', action='store_true', help='Publish after verifying every uploaded asset')
     args = parser.parse_args()
