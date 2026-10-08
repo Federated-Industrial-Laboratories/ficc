@@ -16,24 +16,33 @@ export async function setupAgents(page, options = {}) {
   const principal = { id: 'operator', label: 'Test operator', subject_id: '2'.repeat(32), project_id: project.id,
     local_owner: false, scopes: options.scopes ?? agentScopes, node_ids: null, root_ids: null };
   const agents = options.agents ?? [agent()];
+  const nodes = options.nodes ?? [...new Map(agents.map((a, i) => [a.node_id,
+    node(i + 1, { id: a.node_id, name: a.node_name })])).values()];
   const runs = options.runs ?? [{ id: 'run-1', name: 'Sample run', state: 'open', agent_ids: agents.filter(a => a.run_id === 'run-1').map(a => a.id), message_count: 0, created_at: 1000 }];
-  const profiles = agents.map(a => ({ id: a.profile_id, name: `Profile ${a.id}`, node_id: a.node_id, adapter: a.adapter,
-    argv: ['/usr/bin/agent', '--workspace', a.workspace], workspace: a.workspace, version: a.version, delivery_method: a.delivery_method, verified_at: 1000 }));
+  const profiles = (options.profiles ?? agents.map(a => ({ id: a.profile_id, name: `Profile ${a.id}`, node_id: a.node_id, adapter: a.adapter,
+    argv: ['/usr/bin/agent', '--workspace', a.workspace], workspace: a.workspace, version: a.version, delivery_method: a.delivery_method, verified_at: 1000 }))
+  ).map(p => ({ ...p, node: nodes.find(n => n.id === p.node_id) }));
   const state = { agents, runs, profiles, previews: [], launches: [], controls: [], messages: options.messages ?? [],
-    sends: [], creations: [], closes: [], denied: false, lists: [], deliveries: options.deliveries ?? [] };
+    sends: [], creations: [], closes: [], denied: false, lists: [], deliveries: options.deliveries ?? [], discoveries: 0,
+    discovery: options.discovery ?? nodes.map(n => ({ node_id: n.id, node: n, state: 'ready', errors: [], checked_at: 1000 })) };
   const denied = route => route.fulfill({ status: 403, json: { error: { code: 'denied', message: 'Permission revoked.' } } });
   await page.route('**/api/v1/session', route => route.fulfill({ json: { csrf: 'test-csrf', mode: options.mode ?? 'live', version: 'fixture',
     principal } }));
   await page.route('**/api/v1/projects', route => route.fulfill({ json: { projects: [project] } }));
   await page.route('**/api/v1/permissions', route => route.fulfill({ json: principal }));
   await page.route('**/api/v1/policy-status', route => route.fulfill({ json: { required: false, ready: true, revision: 0 } }));
-  await page.route('**/api/v1/nodes', route => route.fulfill({ json: { nodes: [node()] } }));
-  await page.route('**/api/v1/agent-profiles', route => route.fulfill({ json: { profiles: options.noProfiles ? [] : state.profiles } }));
+  await page.route('**/api/v1/nodes', route => route.fulfill({ json: { nodes } }));
+  await page.route('**/api/v1/agent-profiles', route => route.fulfill({ json: { profiles: options.noProfiles ? [] : state.profiles, discovery: state.discovery } }));
+  await page.route('**/api/v1/agent-profiles/refresh', route => {
+    state.discoveries++;
+    if (state.denied) return denied(route);
+    return route.fulfill({ json: { profiles: options.noProfiles ? [] : state.profiles, discovery: state.discovery } });
+  });
   await page.route('**/api/v1/agent-previews', route => {
     const body = route.request().postDataJSON(); state.previews.push(body);
     const profile = state.profiles.find(p => p.id === body.profile_id);
-    return route.fulfill({ json: { preview_id: 'frozen-preview', expires_at: Date.now() / 1000 + 120,
-      profile, node: { name: profile.node_id, account: 'operator' }, request: body, delivery_method: profile.delivery_method } });
+    return route.fulfill({ json: { preview_id: state.previews.length === 1 ? 'frozen-preview' : `frozen-preview-${state.previews.length}`, expires_at: Date.now() / 1000 + 120,
+      profile, node: profile.node, request: body, delivery_method: profile.delivery_method } });
   });
   await page.route('**/api/v1/agents', route => {
     if (state.denied) return denied(route);

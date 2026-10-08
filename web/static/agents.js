@@ -7,7 +7,7 @@ import { newAgent, rebindAgent } from './agent-form.js';
 export function agents() {
   let active = true, loading = false, timer, records = [], selected;
   const status = el('div'), inventory = el('div', { class: 'agent-inventory' }), selection = el('div');
-  const refresh = button('Refresh agents', load);
+  const refresh = button('Refresh agents', () => load(true));
   const demo = getSession().mode === 'demo';
   const actions = [refresh];
   if (!demo && allowed('agents:execute') && allowed('agents:read') && allowed('bus:read') && allowed('bus:send')) {
@@ -19,7 +19,7 @@ export function agents() {
   function draw() {
     const focus = element.contains(document.activeElement) ? document.activeElement.dataset.focus : null;
     if (!records.length) {
-      inventory.replaceChildren(state('No managed agents', 'Register an installed OMP, Codex or generic command with the local FICC CLI, create a bus run, then launch an agent.'));
+      inventory.replaceChildren(state('No managed agents', 'FICC discovers installed agents on enrolled machines automatically. Create a bus run, then choose Launch agent. Refresh agents polls the machines again.'));
       selection.replaceChildren(); return;
     }
     if (!records.some(item => item.id === selected)) selected = records[0].id;
@@ -54,10 +54,24 @@ export function agents() {
     try { await request(`/agents/${encodeURIComponent(item.id)}/${action}`, { method: 'POST', body }); if (active) await load(); }
     catch (error) { if (propagate) throw error; if (active) status.replaceChildren(errorPanel(error)); }
   }
-  async function load() {
+  async function load(discover = false) {
     if (!active || loading || !allowed('agents:read')) return;
     loading = true; refresh.disabled = true; clearTimeout(timer);
-    try { const result = await request('/agents'); if (active) { records = result.agents; status.replaceChildren(); draw(); } }
+    try {
+      let discovery;
+      if (discover && !demo) {
+        status.replaceChildren(notice('Polling machines for installed agents...'));
+        discovery = await request('/agent-profiles/refresh', { method: 'POST', body: {} });
+      }
+      const result = await request('/agents');
+      if (active) {
+        records = result.agents; status.replaceChildren(); draw();
+        for (const scan of discovery?.discovery ?? []) {
+          if (scan.state !== 'ready') status.append(notice(`${scan.node.name}: ${scan.message ?? 'Discovery pending.'}`, 'warning'));
+          else if (scan.errors?.length) status.append(notice(`${scan.node.name}: ${scan.errors.map(error => `${error.command}: ${error.message}`).join(' ')}`, 'warning'));
+        }
+      }
+    }
     catch (error) {
       if (active) { status.replaceChildren(errorPanel(error, load)); if ([401, 403].includes(error.status)) { records = []; inventory.replaceChildren(); selection.replaceChildren(); } }
     } finally { loading = false; refresh.disabled = false; if (active) timer = setTimeout(load, 4000); }
