@@ -19,12 +19,13 @@
 </details>
 
 Download FICC from [GitHub Releases](https://github.com/Federated-Industrial-Laboratories/ficc/releases).
-Use a Linux x86_64 package below. The examples use version 0.2.6.post2.
+Use a Linux x86_64 package below. The examples use version 0.2.6.post4.
 Check the published release version before downloading. These manuals also cover the current source version.
 
-The revision release designation is `0.2.6r2-stable`, with tag `v0.2.6r2-stable`.
-Application and package versions use `0.2.6.post2` for Python and native package compatibility.
-This version sorts after `0.2.6`; the public release name retains the `r2` designation.
+The revision release designation is `0.2.6r4-final`, with tag `v0.2.6r4-final`.
+Application and package versions use `0.2.6.post4` for Python and native package compatibility.
+This version sorts after `0.2.6`; the public release name retains the `r4` designation.
+This is the final revision of the 0.2.6 series. Subsequent changes use a new version.
 Select the matching release and verify its signed `SHA256SUMS` file.
 
 VM providers require their documented host versions, transports and explicit grants.
@@ -73,14 +74,14 @@ Key rotation requires independent confirmation before replacing the trusted key.
 ## Debian and Ubuntu
 
 ```sh
-sudo apt install ./ficc_0.2.6.post2_amd64.deb
+sudo apt install ./ficc_0.2.6.post4_amd64.deb
 ficc desktop
 ```
 
 ## Arch Linux
 
 ```sh
-sudo pacman -U ./ficc-bin-0.2.6.post2-1-x86_64.pkg.tar.zst
+sudo pacman -U ./ficc-bin-0.2.6.post4-1-x86_64.pkg.tar.zst
 ficc desktop
 ```
 
@@ -92,8 +93,8 @@ Extract it and run `makepkg` as a regular user to build the package locally.
 Run the executable from a directory owned by the desktop account.
 
 ```sh
-chmod +x FICC-0.2.6.post2-x86_64.AppImage
-./FICC-0.2.6.post2-x86_64.AppImage
+chmod +x FICC-0.2.6.post4-x86_64.AppImage
+./FICC-0.2.6.post4-x86_64.AppImage
 ```
 
 On first desktop use, FICC verifies and copies the bundled runtime into
@@ -106,7 +107,7 @@ Opening the AppImage requires a working FUSE installation. Without FUSE, extract
 into the directory where FICC will remain:
 
 ```sh
-./FICC-0.2.6.post2-x86_64.AppImage --appimage-extract
+./FICC-0.2.6.post4-x86_64.AppImage --appimage-extract
 ./squashfs-root/AppRun desktop
 ```
 
@@ -118,8 +119,8 @@ extraction directory must remain available while its launcher is installed.
 ## Portable archive
 
 ```sh
-tar -xzf ficc-0.2.6.post2-linux-x86_64.tar.gz
-./ficc-0.2.6.post2-linux-x86_64/ficc desktop
+tar -xzf ficc-0.2.6.post4-linux-x86_64.tar.gz
+./ficc-0.2.6.post4-linux-x86_64/ficc desktop
 ```
 
 The first desktop start creates a private on-demand user service and opens the

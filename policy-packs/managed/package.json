@@ -2,7 +2,7 @@
   "format": "ficc-policy",
   "version": 1,
   "id": "ficc-managed",
-  "release": "0.2.6.post2",
+  "release": "0.2.6.post4",
   "decision_api": 1,
   "roles": [
     {

@@ -75,6 +75,7 @@ def test_remote_assets_are_checked_individually(count, failure):
 @pytest.mark.parametrize('failure', ['none', 'wrong-tag', 'wrong-master', 'uploaded-digest'])
 @pytest.mark.parametrize(('version', 'tag'), [
     ('1.0.0', None), ('1.0.0', 'v1.0.0-stable'), ('0.2.6.post1', 'v0.2.6r1-stable'),
+    ('0.2.6.post4', 'v0.2.6r4-final'),
 ])
 def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, monkeypatch, failure, version, tag):
     import publish_release as module
@@ -193,7 +194,8 @@ def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monk
 @pytest.mark.parametrize(('version', 'tag'), [
     ('1.0.0', 'v1.0.1-stable'), ('1.0.0', 'v1.0.0-nightly'),
     ('1.0.0', 'v1.0.0-stable/extra'), ('1.0.0', ''),
-    ('1.0.0rc1', 'v1.0.0rc1-stable'),
+    ('1.0.0rc1', 'v1.0.0rc1-stable'), ('1.0.0rc1', 'v1.0.0rc1-final'),
+    ('0.2.6.post4', 'v0.2.6r3-final'), ('0.2.6.post4', 'v0.2.6r4-final/extra'),
     ('0.2.6.post1', 'v0.2.6-stable'), ('0.2.6.post1', 'v0.2.6r2-stable'),
     ('0.2.6.post1', 'v0.2.6.post1-stable'),
 ])

@@ -14,7 +14,7 @@ from ficc.ssh import PROBE
 from ficc.terminal_pty import TerminalPTY
 
 
-async def test_real_agent_inbox_reply_terminal_stop_and_archive(ssh_fixture):
+async def test_real_agent_discovery_inbox_reply_terminal_stop_and_archive(ssh_fixture):
     if not shutil.which("tmux"):
         pytest.fail("Tmux is required for the agent transport check.")
     transport, home, _ = ssh_fixture
@@ -36,12 +36,25 @@ for _ in range(200):
  time.sleep(.05)
 input()
 """
-    profile = {"adapter": "generic", "argv": ["/usr/bin/python3", "-c", code], "workspace": str(home)}
+    commands = home / "bin"
+    commands.mkdir(mode=0o700)
+    executable = commands / "gemini"
+    executable.write_text("#!/usr/bin/env python3\n" + code)
+    executable.chmod(0o700)
     async def request(action, **extra):
-        body = {"version": "3", "action": "agent." + action, "controller_id": controller, "agent_id": identity, **extra}
+        body = {"version": "3", "action": "agent." + action, **extra}
+        if action != "discover":
+            body.update(controller_id=controller, agent_id=identity)
         status, output, _ = await transport.command(node, PROBE, json.dumps(body).encode() + b"\n")
         assert status == 0, output
         return json.loads(output)["result"]
+    discovered = await request("discover")
+    found = next(item for item in discovered["profiles"] if item["command"] == "gemini")
+    assert found["adapter"] == "generic" and found["delivery_method"] == "inbox"
+    assert found["workspace"] == str(home.resolve())
+    assert str(executable) in found["argv"]
+    assert not (home / ".local/state/ficc/agents" / controller).exists()
+    profile = {key: found[key] for key in ("adapter", "argv", "workspace")}
     spec = {"controller_id": controller, "agent_id": identity, "terminal_controller": controller,
             "terminal_id": terminal, "run_id": run, "profile": profile, "version": "unversioned",
             "delivery_method": "inbox", "cols": 90, "rows": 30}
