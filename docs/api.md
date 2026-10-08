@@ -135,10 +135,13 @@ treat an old sample as current capacity or a connection failure as zero use.
 The helper response contract is [node-v1.json](../schemas/node-v1.json).
 Generate it with `python tools/export_schema.py schemas/node-v1.json`.
 The current collector reports the root filesystem and cumulative network counters.
-GPU measurements use a bounded structured nvidia-smi query and generic AMDGPU
-sysfs/hwmon reads when available. AMD observation IDs use AMD-PCI- followed by
-the current PCI address; they are not CUDA reservation UUIDs. The existing GPU
-fields and sample schema remain compatible with older NVIDIA-only helpers.
+GPU measurements use bounded `nvidia-smi` queries, AMDGPU sysfs/hwmon reads, or
+Apple Silicon `ioreg` driver statistics. Each GPU adds optional `source`,
+`memory_kind` and `reservation_supported` fields. Defaults accept older helper
+responses. New AMD and Apple records explicitly disable reservations; the CUDA
+UUID check still excludes older AMD records. Missing readings remain null.
+AMD observation IDs contain the node-local PCI address; Apple registry IDs are
+valid for the current boot. Neither identifies a CUDA reservation device.
 See [GPU observations](gpu-observations.md) for sources, units and qualification limits.
 
 See [managed jobs](jobs.md) for the typed request and lifetime rules. A job preview

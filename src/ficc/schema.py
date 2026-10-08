@@ -29,6 +29,9 @@ class Network(Model):
 class GPU(Model):
     uuid: Text
     name: Text
+    source: Literal["nvidia-smi", "amdgpu-sysfs", "apple-ioreg", "unknown"] = "unknown"
+    memory_kind: Literal["vram", "unified", "unknown"] = "unknown"
+    reservation_supported: bool = True
     memory_total_bytes: Number | None
     memory_used_bytes: Number | None
     utilization_percent: Annotated[float, Field(ge=0, le=100, allow_inf_nan=False)] | None

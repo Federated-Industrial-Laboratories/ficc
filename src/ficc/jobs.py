@@ -65,7 +65,8 @@ class Jobs:
                         if CUDA_UUID.fullmatch(gpu["uuid"])} if sample else {}
                 for item in reservations:
                     gpu = gpus.get(item["uuid"])
-                    if (not gpu or gpu["memory_total_bytes"] is None or gpu["memory_used_bytes"] is None
+                    if (not gpu or gpu.get("reservation_supported") is False
+                            or gpu["memory_total_bytes"] is None or gpu["memory_used_bytes"] is None
                             or item["memory_bytes"] > gpu["memory_total_bytes"] - gpu["memory_used_bytes"]):
                         raise Failure("gpu_capacity", "The requested GPU capacity is unavailable.", 409)
                 target["warnings"].append("GPU reservations are advisory; other applications can use the devices.")

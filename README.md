@@ -48,7 +48,7 @@ authenticated gateway and identity setup; exposing the local listener is unsuppo
 
 | Surface | Function |
 | --- | --- |
-| Overview | CPU, memory, storage and network samples; NVIDIA and generic AMDGPU observations; explicit stale and unavailable states. |
+| Overview | CPU, memory, storage and network samples; NVIDIA, AMDGPU and Apple Silicon observations; explicit stale and unavailable states. |
 | Jobs | Preview commands, set CPU/RAM limits, follow durable output and reconcile interrupted work. |
 | Contributors and Workloads | Approved managed or voluntary Linux nodes, local resource offers, fair queues, pause/drain and verified results. |
 | Files and Data sources | Registered roots, resumable transfers, immutable datasets, SQL/query templates, CSV, Arrow/Parquet, DuckDB and S3 workflows. |
@@ -93,8 +93,8 @@ Binary packages bundle Python and need no Node.js. See the
 Controller and node qualification are separate; nodes still need Python and SSH. Missing GPU support does not
 prevent CPU and memory observation.
 
-Generic AMDGPU observation follows documented kernel interfaces and is checked
-with synthetic fixtures. Direct AMD hardware qualification remains pending. See [GPU observations](docs/gpu-observations.md) for details.
+GPU observation includes a hardware check on an AMD Raphael integrated GPU and
+an Apple M5 Pro. Discrete AMD hardware qualification remains pending. See [GPU observations](docs/gpu-observations.md) for details.
 
 See [installation](docs/install.md) and [testing](docs/testing.md).
 See [modules](docs/modules.md) for grants and [native viewer installation](docs/viewer-runtime.md) for display requirements.

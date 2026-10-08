@@ -109,14 +109,16 @@ function nodeDetail(node, disconnected, refresh) {
         disk.total_bytes > 0 ? (disk.total_bytes - disk.available_bytes) / disk.total_bytes * 100 : null,
         `Available of ${bytes(disk.total_bytes)} total`)) : [el('p', { class: 'muted' }, 'Storage information unavailable.')]));
     body.append(el('h3', { class: 'section-label' }, 'GPU observation'));
-    if (resources.gpu_status !== 'available' || !resources.gpus.length) {
+    if (!resources.gpus.length) {
       body.append(el('p', { class: 'muted' }, `GPU metrics ${resources.gpu_status}. No capacity is inferred.`));
     } else {
       for (const gpu of resources.gpus) body.append(el('div', { class: 'gpu-card' }, el('strong', {}, gpu.name),
         gpu.uuid.startsWith('AMD-PCI-') ? el('small', { class: 'cell-note' }, 'AMDGPU sysfs / observation only') : null,
         metric('GPU use', percent(gpu.utilization_percent), gpu.utilization_percent,
-          `${bytes(gpu.memory_used_bytes)} / ${bytes(gpu.memory_total_bytes)} memory`),
-        el('small', {}, gpu.temperature_c == null ? 'Temperature unknown' : `${gpu.temperature_c} °C`)));
+          gpu.memory_kind === 'unified' ? `${bytes(gpu.memory_used_bytes)} unified memory used; shared with the system` :
+            `${bytes(gpu.memory_used_bytes)} / ${bytes(gpu.memory_total_bytes)} ${gpu.memory_kind === 'vram' ? 'driver-reported VRAM' : 'memory'}`),
+        el('small', {}, gpu.temperature_c == null ? 'Temperature unknown' : `${gpu.temperature_c} °C`),
+        gpu.reservation_supported === false ? el('p', { class: 'muted' }, 'Observation only. Job GPU reservations are unavailable.') : null));
     }
     body.append(el('h3', { class: 'section-label' }, 'System'), details([
       ['Load averages', resources.load.map(value => value.toFixed(2)).join(' / ') || 'Unknown'],

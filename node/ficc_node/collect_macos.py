@@ -10,6 +10,7 @@ import time
 import uuid
 
 from . import VERSION
+from .gpu import gpu_metrics
 
 
 def command(*argv: str) -> str:
@@ -74,12 +75,13 @@ def collect() -> dict:
         raise ValueError("The macOS boot time is unavailable.")
     mount = "/System/Volumes/Data" if os.path.isdir("/System/Volumes/Data") else "/"
     disk = os.statvfs(mount)
+    gpus, gpu_status = gpu_metrics()
     return {
         "version": "1", "boot_id": boot_id(),
         "observed_at": time.time(), "monotonic_seconds": time.monotonic(),
-        "capabilities": {"resources": True, "gpu_metrics": False,
+        "capabilities": {"resources": True, "gpu_metrics": gpu_status == "available",
                          "jobs": False, "files": False, "terminals": False,
-                         "source": "macos-mach-sysctl", "gpu_source": "unsupported"},
+                         "source": "macos-mach-sysctl", "gpu_source": "+".join(dict.fromkeys(gpu["source"] for gpu in gpus)) or "none"},
         "resources": {
             "cpu_percent": percent, "cpu_count": os.cpu_count() or 1,
             "load": list(os.getloadavg()), "memory_total_bytes": memory,
@@ -88,7 +90,7 @@ def collect() -> dict:
             "storage": [{"mount": mount, "total_bytes": disk.f_blocks * disk.f_frsize,
                          "available_bytes": disk.f_bavail * disk.f_frsize}],
             "network": network_counters(command("/usr/sbin/netstat", "-ibn")),
-            "gpus": [], "gpu_status": "unsupported",
+            "gpus": gpus, "gpu_status": gpu_status,
         },
         "helper_version": VERSION, "python_version": "python" + sys.version.split()[0],
     }

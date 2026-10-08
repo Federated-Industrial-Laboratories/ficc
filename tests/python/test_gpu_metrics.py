@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 import pytest
-from ficc_node import collect, gpu_amd
+from ficc_node import collect, gpu, gpu_amd
 
 from ficc.schema import Sample
 
@@ -25,7 +25,7 @@ def drm(tmp_path, monkeypatch):
     for name in ("amdgpu", "nvidia", "i915"):
         (drivers / name).mkdir()
     monkeypatch.setattr(gpu_amd, "DRM_ROOT", root)
-    monkeypatch.setattr(collect.shutil, "which", lambda name: None)
+    monkeypatch.setattr(gpu.shutil, "which", lambda name: None)
 
     def add(card="card10", identity="0000:02:00.0", driver="amdgpu", values=None, monitor="amdgpu"):
         device = devices / identity
@@ -50,7 +50,7 @@ def nvidia_program(tmp_path, monkeypatch, source):
     program = tmp_path / "nvidia-smi"
     program.write_text(f"#!{sys.executable}\n" + source + "\n")
     program.chmod(0o700)
-    monkeypatch.setattr(collect.shutil, "which", lambda name: str(program))
+    monkeypatch.setattr(gpu.shutil, "which", lambda name: str(program))
     return program
 
 
@@ -64,6 +64,7 @@ def test_amd_units_full_card_names_driver_filter_and_device_deduplication(drm):
     rows, status = collect.gpu_metrics()
     assert status == "available"
     assert rows == [{"uuid": "AMD-PCI-0000:02:00.0", "name": "AMD GPU (amdgpu)",
+                     "source": "amdgpu-sysfs", "memory_kind": "vram", "reservation_supported": False,
                      "memory_total_bytes": 8589934592, "memory_used_bytes": 1073741824,
                      "utilization_percent": 37, "temperature_c": 42.5}]
 
@@ -122,7 +123,7 @@ def test_all_missing_measurements_remain_null(drm):
     add(values={})
     rows, status = gpu_amd.metrics()
     assert status == "available" and len(rows) == 1
-    assert all(value is None for key, value in rows[0].items() if key not in {"uuid", "name"})
+    assert all(value is None for key, value in rows[0].items() if key not in {"uuid", "name", "source", "memory_kind", "reservation_supported"})
 
 
 def test_gpu_absence_and_discovery_failure_have_distinct_status(drm, monkeypatch):
@@ -169,7 +170,7 @@ def test_failed_nvidia_query_does_not_hide_amd(drm, tmp_path, monkeypatch, sourc
 def test_unlaunchable_nvidia_query_does_not_hide_amd(drm, tmp_path, monkeypatch):
     _, add = drm
     add()
-    monkeypatch.setattr(collect.shutil, "which", lambda name: str(tmp_path / "missing-nvidia-smi"))
+    monkeypatch.setattr(gpu.shutil, "which", lambda name: str(tmp_path / "missing-nvidia-smi"))
     rows, status = collect.gpu_metrics()
     assert status == "available" and rows[0]["uuid"].startswith("AMD-PCI-")
 
@@ -192,7 +193,7 @@ def test_nonfinite_nvidia_metrics_do_not_poison_mixed_sample(drm, tmp_path, monk
     value = collect.collect()
     Sample.model_validate(value)
     row = value["resources"]["gpus"][0]
-    assert all(value is None for key, value in row.items() if key not in {"uuid", "name"})
+    assert all(value is None for key, value in row.items() if key not in {"uuid", "name", "source", "memory_kind", "reservation_supported"})
     assert value["resources"]["gpus"][1]["temperature_c"] == 42.5
 
 
@@ -225,3 +226,21 @@ def test_source_capability_reports_only_retained_gpu_sources(drm, tmp_path, monk
     Sample.model_validate(value)
     assert value["capabilities"]["gpu_source"] == "nvidia-smi"
     assert len(value["resources"]["gpus"]) == 64
+
+
+def test_integrated_amd_vram_excludes_gtt_capacity(drm):
+    _, add = drm
+    add(values={**AMD_VALUES, "mem_info_vram_total": str(512 * 1024**2),
+                "mem_info_vram_used": str(16 * 1024**2), "mem_info_gtt_total": str(64 * 1024**3)})
+    row = gpu_amd.metrics()[0][0]
+    assert row["memory_total_bytes"] == 512 * 1024**2
+    assert row["memory_used_bytes"] == 16 * 1024**2
+    assert row["memory_kind"] == "vram"
+    assert row["reservation_supported"] is False
+
+
+def test_nvidia_quoted_product_name_remains_one_field(drm, tmp_path, monkeypatch):
+    nvidia_program(tmp_path, monkeypatch, 'print(\'GPU-example, "Example, NVIDIA", 8192, 1024, 25, 39\')')
+    rows, status = gpu.gpu_metrics()
+    assert status == "available" and len(rows) == 1
+    assert rows[0]["name"] == "Example, NVIDIA"
