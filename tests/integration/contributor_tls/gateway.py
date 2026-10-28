@@ -27,6 +27,8 @@ def server_certificate(directory: Path):
         .public_key(key.public_key()).serial_number(x509.random_serial_number())
         .not_valid_before(now - timedelta(minutes=1)).not_valid_after(now + timedelta(days=1))
         .add_extension(x509.BasicConstraints(True, 1), True)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(key.public_key()), False)
         .add_extension(x509.KeyUsage(False, False, False, False, False, True, True, False, False), True)
         .sign(key, hashes.SHA256()))
     server_key = ec.generate_private_key(ec.SECP256R1())
@@ -36,6 +38,9 @@ def server_certificate(directory: Path):
         .not_valid_before(now - timedelta(minutes=1)).not_valid_after(now + timedelta(hours=2))
         .add_extension(x509.SubjectAlternativeName([x509.DNSName("localhost"),
             x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]), False)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(server_key.public_key()), False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(key.public_key()), False)
+        .add_extension(x509.KeyUsage(True, False, False, False, False, False, False, False, False), True)
         .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), False)
         .sign(key, hashes.SHA256()))
     files = [directory / name for name in ("server-root.pem", "server.pem", "server.key")]

@@ -14,17 +14,18 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
 from finalize_release import finalize, required_artifacts  # noqa: E402
 from release_lib.common import digest, write_json  # noqa: E402
+from release_lib.versions import arch_package  # noqa: E402
 
 
-def release(tmp_path, count=1, corrupt=False):
+def release(tmp_path, count=1, corrupt=False, version="1.0.0"):
     output = tmp_path / "release"
     output.mkdir()
     bodies = {f"module-{i}.py": f"distinct runtime {i}".encode() for i in range(count)}
     manifest = {"files": {name: hashlib.sha256(value).hexdigest() for name, value in bodies.items()}, "links": {}}
-    for name in required_artifacts("1.0.0"):
+    for name in required_artifacts(version):
         (output / name).write_text("original artifact " + name)
     artifacts = {p.name: digest(p) for p in output.iterdir()}
-    write_json(output / "build.json", {"version": "1.0.0", "payload_manifest": manifest, "artifacts": artifacts})
+    write_json(output / "build.json", {"version": version, "payload_manifest": manifest, "artifacts": artifacts})
     (output / "SHA256SUMS").write_text("".join(f"{digest(p)}  {p.name}\n" for p in sorted(output.iterdir()) if p.is_file()))
     if corrupt:
         bodies[f"module-{count - 1}.py"] = b"changed last runtime member"
@@ -34,7 +35,7 @@ def release(tmp_path, count=1, corrupt=False):
             item = tarfile.TarInfo("opt/ficc/" + name)
             item.size = len(body)
             archive.addfile(item, io.BytesIO(body))
-    package = tmp_path / "ficc-bin-1.0.0-1-x86_64.pkg.tar.zst"
+    package = tmp_path / arch_package(version)
     package.write_bytes(subprocess.check_output(["zstd", "-q", "-c"], input=data.getvalue()))
     return output, package
 
@@ -72,3 +73,11 @@ def test_incomplete_or_changed_release_is_not_certified(tmp_path, name, change):
     with pytest.raises(ValueError):
         finalize(output, package)
     assert {p.name: p.read_bytes() for p in output.iterdir()} == before
+
+
+def test_development_native_names_keep_the_same_upstream_payload(tmp_path):
+    output, package = release(tmp_path, version="0.3.0.dev1")
+    assert package.name == "ficc-bin-0.3.0dev1-1-x86_64.pkg.tar.zst"
+    assert (output / "ficc_0.3.0~dev1_amd64.deb").is_file()
+    finalize(output, package)
+    assert json.loads((output / "build.json").read_text())["formats_complete"] is True

@@ -23,7 +23,7 @@ def main():
         fingerprint(executable)
         text = (Path(__file__).parent / "ficc-executor.service.in").read_text()
         values = {"INSTALLATION": settings.installation_id, "CONFIG": str(arguments.config),
-                  "PYTHON": str(arguments.python), "MOUNTS": " ".join([settings.state, *[item.mount for item in settings.slots]])}
+                  "PYTHON": str(arguments.python), "MOUNTS": " ".join([settings.state, *[item.mount for item in settings.slots], *([settings.model_cache.directory] if settings.model_cache else [])])}
         for name, value in values.items():
             text = text.replace("@" + name + "@", value)
         if "@" in text:

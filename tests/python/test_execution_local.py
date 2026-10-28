@@ -138,6 +138,7 @@ def test_distinct_local_attempts_complete_or_fail_without_crossing_reservations(
         for index, value in enumerate(values):
             provider.states[value.attempt_id] = {"phase": "payload", "payload_pid": index + 10}
         Monitor(s).tick()
+        settle(s)
         assert all(s.ledger.get(value.attempt_id)["state"] == "running" for value in values)
         for index, value in enumerate(values):
             record = s.ledger.get(value.attempt_id)

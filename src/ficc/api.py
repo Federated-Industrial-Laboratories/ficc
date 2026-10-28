@@ -2,6 +2,7 @@
 """Expose the authenticated local inventory and resource API."""
 
 import asyncio
+import re
 import secrets
 import sqlite3
 from contextlib import asynccontextmanager
@@ -68,6 +69,8 @@ def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
             tasks.append(asyncio.create_task(service.remote_auth.poll()))
             tasks.append(asyncio.create_task(service.contributors.poll()))
             tasks.append(asyncio.create_task(service.workloads.runner.poll()))
+            tasks.append(asyncio.create_task(service.inference.poll()))
+            tasks.append(asyncio.create_task(service.federation.run()))
             service.audit_delivery.start()
             if settings.control:
                 await control.start()
@@ -85,6 +88,8 @@ def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
                     task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)
                 await service.workloads.inputs.close()
+                await service.federation.close()
+                await service.models.close()
                 await service.sources.close()
                 await service.audit_delivery.close()
                 await service.inspections.close()
@@ -118,11 +123,13 @@ def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
     from urllib.parse import urlsplit
     hosts = {urlsplit(origin).netloc for origin in origins}
     package_uploads = 0
+    model_uploads = 0
 
     @app.middleware("http")
     async def guards(request: Request, call_next):
-        nonlocal package_uploads
+        nonlocal package_uploads, model_uploads
         package_slot = False
+        model_slot = False
         try:
             if request.headers.get("host") not in hosts:
                 raise Failure("invalid_host", "The request host is not allowed.", 403)
@@ -144,7 +151,15 @@ def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
                     package_uploads += 1
                     package_slot = True
                 maximum = 16 * 1024 * 1024 if request.url.path == "/api/v1/module-install-previews" else MAX_MESSAGE
-                if request.url.path == "/api/v1/workloads":
+                if re.fullmatch(r"/api/v1/models/[0-9a-f]{32}/files/[0-9]{1,2}/bytes", request.url.path):
+                    actor = principal(request, "models:manage")
+                    service.models.get(request.url.path.split("/")[4], actor, "models:manage")
+                    if model_uploads >= 2:
+                        raise Failure("capacity", "Wait for a model upload to finish.", 429)
+                    model_uploads += 1
+                    model_slot = True
+                    maximum = 16 * 1024 * 1024
+                elif request.url.path == "/api/v1/workloads":
                     principal(request, "jobs:execute")
                     maximum = 8 * 1024 * 1024
                 elif request.url.path == "/api/v1/node-channel/execution":
@@ -155,7 +170,7 @@ def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
                 if not content_length.isdigit() or int(content_length) > maximum:
                     raise Failure("request_limit", "The request exceeds the limit.", 413)
                 data = bytearray()
-                async with asyncio.timeout(5):
+                async with asyncio.timeout(60 if model_slot else 5):
                     async for chunk in request.stream():
                         data.extend(chunk)
                         if len(data) > maximum:
@@ -169,6 +184,8 @@ def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
         finally:
             if package_slot:
                 package_uploads -= 1
+            if model_slot:
+                model_uploads -= 1
         websocket_origins = " ".join(origin.replace("https://", "wss://").replace("http://", "ws://") for origin in origins)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; "
@@ -387,6 +404,12 @@ def create_app(settings: Settings, *, close_ingress=None) -> FastAPI:
     install_contributor_routes(app, service, principal)
     from .workloads.routes import install as install_workload_routes
     install_workload_routes(app, service, principal)
+    from .inference.routes import install as install_inference
+    from .models.routes import install as install_models
+    install_inference(app, service, principal)
+    install_models(app, service, principal)
+    from .federation.routes import install as install_federation
+    install_federation(app, service, principal)
     install_remote_routes(app, service, principal, cookie)
     install_policy_routes(app, service, principal)
     install_agent_routes(app, service, principal)

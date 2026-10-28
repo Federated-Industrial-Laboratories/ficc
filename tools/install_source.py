@@ -15,6 +15,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import hypernet_runtime
 import runtime_packages
 from source_runtime import download, secure_dir, unpack
 from viewer_runtime import install as install_viewer
@@ -72,6 +73,10 @@ def source_copy(destination: Path) -> None:
 
 
 def install(args) -> Path:
+    if args.hypernet_sdk_wheel:
+        hypernet_runtime.verify(args.hypernet_sdk_wheel, args.hypernet_sdk_sha256)
+    elif args.hypernet_sdk_sha256:
+        raise ValueError('--hypernet-sdk-sha256 requires --hypernet-sdk-wheel')
     if os.getuid() == 0:
         raise ValueError('Run ./install.sh as the desktop account, without sudo')
     if platform.system() != 'Linux' or platform.machine() != 'x86_64':
@@ -125,6 +130,9 @@ def install(args) -> Path:
                 provider_wheels = target / 'runtime-packages'
                 providers = runtime_packages.build(source, provider_wheels, python, env=env)
                 runtime_packages.install(python, provider_wheels, providers, env=env)
+                if args.hypernet_sdk_wheel:
+                    hypernet_runtime.install(python, args.hypernet_sdk_wheel, args.hypernet_sdk_sha256,
+                                            target / 'hypernet-sdk', env=env)
             executable = target / 'venv/bin/ficc'
             if args.viewer_runtime is not None:
                 install_viewer(args.viewer_runtime, target / 'venv/viewer-runtime')
@@ -163,6 +171,8 @@ def main() -> int:
     parser.add_argument('--no-desktop', action='store_true', help='Install command only; use serve/open without systemd')
     parser.add_argument('--viewer-runtime', type=Path, help='Copy a trusted local native viewer runtime after integrity checks')
     parser.add_argument('--windows-runtime', type=Path, help='Copy a trusted local Windows transport runtime after integrity checks')
+    parser.add_argument('--hypernet-sdk-wheel', type=Path, help='Install the trusted HyperNetSuite application-stream SDK for federation')
+    parser.add_argument('--hypernet-sdk-sha256', help='SHA-256 from the trusted SDK bundle inventory')
     args = parser.parse_args()
     if args.no_desktop and args.profile:
         parser.error('--profile requires desktop installation; use serve --profile for command-only operation')

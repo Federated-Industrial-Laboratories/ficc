@@ -30,6 +30,11 @@ def distribution(identity, *, owner=0):
         expected = "sha256:" + base64.urlsafe_b64decode(item.hash.value + "==").hex()
         if info["digest"] != expected or item.size != info["bytes"]:
             raise ValueError("An installed executor file differs from its package record.")
+        if (len(item.parts) == 2 and item.parts[0].endswith(".dist-info")
+                and item.name in {"INSTALLER", "REQUESTED", "direct_url.json"}):
+            # Installer provenance varies by host; runtime code and distribution
+            # metadata define the portable package identity.
+            continue
         records.append({"path": str(item), "bytes": info["bytes"], "digest": info["digest"]})
     if not records:
         raise ValueError("The executor distribution has no verified installed files.")

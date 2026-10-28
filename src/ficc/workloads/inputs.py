@@ -98,11 +98,15 @@ class Inputs:
     async def read(self, attempt, job, index, offset):
         chunks = bytearray()
         item = job.request.job.inputs[index]
+        snapshot = self.queue.runner.live.get(attempt.node_id)
+        maximum = min(8 * CHUNK, snapshot[0].input_chunk_bytes) if snapshot else CHUNK
         def authority():
             return self.queue.authority.current(self.current(attempt, job).delegation)
-        while len(chunks) < CHUNK and offset + len(chunks) < item.bytes:
+        if job.request.model_revision is not None:
+            return await self.queue.service.models.read(job.request.model_revision, index, authority(), offset, maximum)
+        while len(chunks) < maximum and offset + len(chunks) < item.bytes:
             _header, data = await self.queue.service.datasets.read(job.request.dataset.id, index, authority,
-                offset + len(chunks), min(262144, CHUNK - len(chunks)))
+                offset + len(chunks), min(262144, maximum - len(chunks)))
             chunks.extend(data)
         self.current(attempt, job)
         return chunks
@@ -129,6 +133,13 @@ class Inputs:
         return value
 
     def bind(self, request, delegation):
+        if request.model_revision is not None:
+            models = self.queue.service.models
+            value = models.bind(request.model_revision, self.queue.authority.current(delegation))
+            inputs = models.references(value)
+            if request.job.inputs != inputs:
+                raise Failure("model_inputs", "The service inputs differ from their immutable model revision.", 409)
+            return request
         value = self.dataset(request, lambda: self.queue.authority.current(delegation))
         if value is None:
             if any(item.delivery == "stream" for item in request.job.inputs):
@@ -161,7 +172,7 @@ class Inputs:
             if attempt.state != "prepared" or attempt.start_requested:
                 continue
             job = queue.records.get(attempt.job_id)
-            if job.request.dataset is None or queue.commands.observed.get(attempt.id, {}).get("ready"):
+            if (job.request.dataset is None and job.request.model_revision is None) or queue.commands.observed.get(attempt.id, {}).get("ready"):
                 continue
             try:
                 if await self.transfer(identity, attempt, job):
@@ -221,6 +232,8 @@ class Inputs:
                 progress["received_bytes"] = sum(current.offset for current in rows) + written.offset - offset
             finally:
                 self.discard(attempt.id)
+            if not written.complete:
+                self.prefetch(attempt, job, index, written.offset)
             return True
         self.discard(attempt.id)
         return False

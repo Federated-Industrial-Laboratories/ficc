@@ -179,7 +179,7 @@ def inventory(root, bundle=False, maintenance=False, database_required=True):
                         walk(child, name + "/")
                     finally:
                         os.close(child)
-                elif not bundle and name in {"windows-private", "state-private", "data-secrets", "secrets-private", "audit-private"}:
+                elif not bundle and name in {"windows-private", "state-private", "data-secrets", "secrets-private", "audit-private", "models", "federation"}:
                     checked(info, directory=True)
                 elif not bundle and name in {"service.lock", "state.sqlite3-wal", "state.sqlite3-shm", "state-provider.json",
                                              "state-binding", "policy-provider.json", "artifact-provider.json",

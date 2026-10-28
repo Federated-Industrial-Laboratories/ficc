@@ -53,6 +53,23 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/agent-runtimes" --ignore-scripts @openai/codex@0.160.1
           echo "FICC_TEST_OMP=$RUNNER_TEMP/omp" >> "$GITHUB_ENV"
           echo "FICC_TEST_CODEX=$RUNNER_TEMP/agent-runtimes/node_modules/.bin/codex" >> "$GITHUB_ENV"
+      - name: Verify installed native runtime readiness
+        run: |
+          python - <<'PYRUNTIME'
+          import os, subprocess, time
+          runtimes = (
+              ('OMP', os.environ['FICC_TEST_OMP'], {'omp/18.1.12', 'omp v18.1.12', 'omp 18.1.12', '18.1.12'}),
+              ('Codex', os.environ['FICC_TEST_CODEX'], {'codex-cli 0.160.1'}),
+          )
+          for name, binary, expected in runtimes:
+              started = time.monotonic()
+              result = subprocess.run([binary, '--version'], stdin=subprocess.DEVNULL,
+                                      capture_output=True, text=True, timeout=30, check=True)
+              version = result.stdout.strip()
+              if version not in expected:
+                  raise SystemExit(f'{name} returned an unexpected installed version: {version!r}')
+              print(f'{name}: {version}; first launch {time.monotonic() - started:.3f}s')
+          PYRUNTIME
       - run: python -m pip install --require-hashes -r requirements-dev.lock
       - run: npm ci --prefix web && npm run build --prefix web
       - name: Build and install the controller wheel

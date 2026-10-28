@@ -63,6 +63,8 @@ class Snapshot(Model):
     installation_id: Identity
     ledger_id: Identity | None = None
     admission_version: Literal[0, 1] = 0
+    endpoint_version: Literal[0, 1] = 0
+    input_chunk_bytes: Annotated[int, Field(ge=1, le=8 * 1024 * 1024)] = 1024 * 1024
     deployment_id: Identity
     node_id: Identity
     maximum_lease_seconds: Annotated[int, Field(ge=5, le=30)]
@@ -110,6 +112,15 @@ class InputResult(Fence):
         return self
 
 
+class EndpointResult(Fence):
+    ok: Literal[True]
+    stream_id: Identity
+    status: Annotated[int, Field(ge=0, le=599)]
+    data: Annotated[str, Field(max_length=87384)]
+    eof: bool
+    error: str | None = None
+
+
 class Refused(Fence):
     ok: Literal[False]
     error: Error
@@ -124,7 +135,7 @@ class Reply(Model):
 
 class BatchReply(Reply):
     ok: Literal[True]
-    results: Annotated[list[Result | ReadResult | InputResult | Refused], Field(min_length=1, max_length=64)]
+    results: Annotated[list[Result | ReadResult | InputResult | EndpointResult | Refused], Field(min_length=1, max_length=64)]
 
 
 class SnapshotReply(Reply):

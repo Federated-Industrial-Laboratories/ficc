@@ -18,6 +18,7 @@ from .protocol import (
     Admission,
     BoundRequest,
     Collect,
+    EndpointExchange,
     InputStatus,
     InputWrite,
     Prepare,
@@ -50,7 +51,7 @@ def dispatch(supervisor, request, uid):
         return {**header, "offer": supervisor.set_offer(request)}
     if isinstance(request, BoundRequest):
         supervisor.bind(request)
-    items = (request.attempts if isinstance(request, Prepare) else request.leases if isinstance(request, Renew)
+    items = (request.calls if isinstance(request, EndpointExchange) else request.attempts if isinstance(request, Prepare) else request.leases if isinstance(request, Renew)
              else request.objects if isinstance(request, InputStatus) else request.writes if isinstance(request, InputWrite)
              else request.reads if isinstance(request, Collect) else request.plans
              if isinstance(request, RejectAbsent | ReconcileAbsent) else request.attempts)
@@ -61,6 +62,9 @@ def dispatch(supervisor, request, uid):
                  "plan_digest": plan.digest()} if plan is not None else item.model_dump(
                      include={"attempt_id", "generation", "plan_digest"})
         try:
+            if request.action == "endpoint":
+                results.append({**asked, "ok": True, **supervisor.endpoints.exchange(item)})
+                continue
             if request.action == "prepare":
                 value = supervisor.prepare(item)
             elif request.action in {"reject_absent", "reconcile_absent"}:
@@ -92,6 +96,7 @@ class Service:
     def __init__(self, supervisor):
         self.supervisor, self.monitor = supervisor, Monitor(supervisor)
         self.connections = 0
+        self.request_bytes = 0
         self.servers, self.paths = [], []
         self.stop = asyncio.Event()
 
@@ -101,13 +106,20 @@ class Service:
             await writer.wait_closed()
             return
         self.connections += 1
+        held = 0
+        def reserve(length):
+            nonlocal held
+            if self.request_bytes + length > 16 * 1024 * 1024:
+                raise ValueError("The supervisor input frame budget is occupied.")
+            self.request_bytes += length
+            held = length
         try:
             uid = credentials(writer.get_extra_info("socket"))[1]
             allowed = {0, self.supervisor.settings.transport_uid, *self.supervisor.settings.local_owner_uids}
             if uid not in allowed:
                 return
             async with asyncio.timeout(3):
-                request = decode(await receive(reader, MAX_MESSAGE))
+                request = decode(await receive(reader, MAX_MESSAGE, reserve))
             try:
                 result = await asyncio.to_thread(dispatch, self.supervisor, request, uid)
             except Exception as exc:
@@ -119,6 +131,7 @@ class Service:
         except (ValueError, OSError, TimeoutError, asyncio.IncompleteReadError):
             pass
         finally:
+            self.request_bytes -= held
             self.connections -= 1
             writer.close()
             await writer.wait_closed()
@@ -144,7 +157,7 @@ class Service:
                 if not stat.S_ISSOCK(info.st_mode) or info.st_uid != uid:
                     raise ValueError("An executor socket path has another identity.")
                 path.unlink()
-            server = await asyncio.start_unix_server(self.accept, path=path, limit=MAX_MESSAGE + 4)
+            server = await asyncio.start_unix_server(self.accept, path=path, limit=65536)
             os.chown(path, uid, 0)
             path.chmod(0o600)
             self.servers.append(server)

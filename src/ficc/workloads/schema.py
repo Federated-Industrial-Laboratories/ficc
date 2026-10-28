@@ -33,6 +33,13 @@ class Submission(Model):
     job: Job
     node_ids: Annotated[list[Identity], Field(min_length=1, max_length=64)]
     dataset: DatasetSelection | None = None
+    model_revision: Identity | None = None
+
+    @model_validator(mode="after")
+    def input_source(self):
+        if self.dataset is not None and self.model_revision is not None:
+            raise ValueError("Choose one immutable input source.")
+        return self
 
     _nodes = field_validator("node_ids")(distinct)
 
@@ -41,6 +48,8 @@ class Submission(Model):
         result = handler(self)
         if self.dataset is None:
             result.pop("dataset", None)
+        if self.model_revision is None:
+            result.pop("model_revision", None)
         return result
 
 

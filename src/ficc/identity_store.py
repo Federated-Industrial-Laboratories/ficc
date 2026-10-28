@@ -14,6 +14,8 @@ PROJECT_SCOPES = frozenset({"workspaces:read", "workspaces:write", "modules:read
                             "modules:execute", "audio:playback", "nodes:read", "resources:read",
                             "observations:read", "observations:resources",
                             "jobs:read", "jobs:execute", "jobs:cancel", "jobs:logs",
+                            "federation:read", "federation:manage", "federation:invoke",
+                            "models:read", "models:manage", "inference:read", "inference:manage", "inference:invoke",
                             "files:read", "files:write", "files:delete", "files:mode",
                             "data:read", "data:export", "data:write", "data:manage",
                             "terminals:read", "terminals:execute", "terminals:stop",

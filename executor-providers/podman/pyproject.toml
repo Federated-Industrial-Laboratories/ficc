@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ficc-executor-podman"
-version = "0.2.5"
+version = "0.3.0.dev1"
 description = "Rootless Podman execution provider for the FICC local supervisor"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -18,7 +18,7 @@ podman = "ficc_executor_podman"
 where = ["src"]
 
 [tool.setuptools.package-data]
-ficc_executor_podman = ["barrier", "barrier.c"]
+ficc_executor_podman = ["barrier", "barrier.c", "socket-proxy", "socket-proxy.c"]
 
 [tool.ruff]
 target-version = "py312"

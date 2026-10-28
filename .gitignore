@@ -1,11 +1,11 @@
-.venv/
+.venv
 __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
-node_modules/
+node_modules
 dist/
 build/
 coverage/

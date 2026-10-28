@@ -12,7 +12,7 @@ from ..schema import Model
 from .offer import OfferSettings
 from .spec import Count, Digest, Fence, Identity, Plan, Renewal, Revision, distinct
 
-INPUT_CHUNK = 1024 * 1024
+INPUT_CHUNK = 8 * 1024 * 1024
 
 
 class Admission(Model):
@@ -115,7 +115,7 @@ class InputObject(Fence):
 
 class InputChunk(InputObject):
     offset: Count
-    data: Annotated[str, Field(max_length=1398104)]
+    data: Annotated[str, Field(max_length=11184812)]
     digest: Digest
 
     def decoded(self):
@@ -124,7 +124,7 @@ class InputChunk(InputObject):
         except (ValueError, binascii.Error) as exc:
             raise ValueError("The input chunk must use valid base64.") from exc
         if len(data) > INPUT_CHUNK or base64.b64encode(data).decode("ascii") != self.data:
-            raise ValueError("Use canonical base64 for at most 1 MiB of input bytes.")
+            raise ValueError("Use canonical base64 for at most 8 MiB of input bytes.")
         if "sha256:" + hashlib.sha256(data).hexdigest() != self.digest:
             raise ValueError("The input chunk digest does not match its bytes.")
         return data
@@ -153,8 +153,23 @@ class InputWrite(Request):
     def bounded(self):
         distinct([(item.attempt_id, item.object) for item in self.writes])
         if sum(len(item.decoded()) for item in self.writes) > INPUT_CHUNK:
-            raise ValueError("Write at most 1 MiB in each input batch. Continue with durable offsets.")
+            raise ValueError("Write at most 8 MiB in each input batch. Continue with durable offsets.")
         return self
+
+
+class EndpointCall(Fence):
+    stream_id: Identity
+    operation: Literal["open", "read", "cancel"]
+    path: Annotated[str, Field(max_length=128)] = "/health"
+    method: Literal["GET", "POST"] = "GET"
+    body: Annotated[str, Field(max_length=1048576)] = ""
+    input_object: Identity | None = None
+    deadline_seconds: Annotated[int, Field(ge=1, le=600)] = 120
+
+
+class EndpointExchange(Request):
+    action: Literal["endpoint"]
+    calls: Annotated[list[EndpointCall], Field(min_length=1, max_length=16)]
 
 
 class Snapshot(Request):
@@ -169,15 +184,15 @@ class SetOffer(Request):
     control: Literal["active", "paused", "draining", "stopped"]
 
 
-Message = Annotated[Prepare | RejectAbsent | ReconcileAbsent | Renew | Control | Collect | InputStatus | InputWrite | Snapshot | SetOffer,
+Message = Annotated[Prepare | RejectAbsent | ReconcileAbsent | Renew | Control | Collect | InputStatus | InputWrite | EndpointExchange | Snapshot | SetOffer,
                     Field(discriminator="action")]
 MESSAGE: TypeAdapter[Message] = TypeAdapter(Message)
-MAX_MESSAGE = 8 * 1024 * 1024
+MAX_MESSAGE = 12 * 1024 * 1024
 
 
 def decode(data: bytes):
     if len(data) > MAX_MESSAGE:
-        raise ValueError("The executor control message exceeds 8 MiB. Split the batch.")
+        raise ValueError("The executor control message exceeds 12 MiB. Split the batch.")
     return MESSAGE.validate_json(data)
 
 

@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>FICC | Federation setup</title><link rel="stylesheet" href="/static/console.css"><link rel="stylesheet" href="/static/theme.css"></head>
+<body><main class="main" tabindex="-1"><h1>Connect clusters through HyperNet</h1>
+<p>Each cluster keeps its own resources and policy. Prepare a dedicated HyperNet application companion for each FICC controller.</p>
+<ol><li>Use compatible HyperNet Core and Suite with application streams (first supported feature release: 0.9.0).</li>
+<li>Enroll each application principal. Approve action 30 for the exact other service; register each protocol 7 endpoint route.</li>
+<li>Offer and accept the exact service with protocol <code>ficc.federation/1</code>. Its owner and endpoint operator sign the route, binding and finite limits. Register with action 29.</li>
+<li>Generate the endpoint configuration with <code>streams endpoint-config</code>. Run <code>streams agent</code> with both its accepted <code>--binding</code> and approved <code>--targets</code>.</li>
+<li>If the authority runs on another machine, start <code>network authority-connector</code> from its own joined profile. Use its <code>Ingress</code> directory as Core's <code>--authority-connector-directory</code>.</li>
+<li>Start Core's consented endpoint with the companion's <code>Ingress</code> directory as <code>--application-directory</code>. Keep the SDK socket private to the FICC account.</li>
+<li>In Federation, select Configure connection, then enter the companion directory and cluster label. Verify the displayed identities.</li>
+<li>Send a pairing request to an approved target. The receiving operator selects resources and limits. Complete pairing on the initiating cluster.</li></ol>
+<p><a href="https://github.com/Federated-Industrial-Laboratories/HyperNetSuite/blob/master/Documentation/ApplicationStreams.md" target="_blank" rel="noopener">HyperNet commands and prerequisites</a></p>
+<h2>Operate and recover</h2><p>Use Share local resources for reverse access and Refresh remote access to select a new grant. Browse shared resources supports prompts, cancellation, deployment previews and verified model acquisition.</p>
+<p>Retain mutation IDs shown before dispatch. Inspect a retained operation after interruption before issuing a new action. Pause model transfers and resume the same immutable revision; only full SHA-256-verified files become usable.</p>
+<p>Revocation cancels requests. Services already created remain locally managed unless their grant selected stop-on-revoke. Remove peer revokes its local grants and closes outgoing requests without deleting models.</p>
+<p>A restored backup requires new companion configuration and explicit pairing. Never relax socket permissions or substitute a different identity to bypass a refusal.</p>
+<p>The installed documentation includes <code>docs/federation.md</code> and <code>sdk/federation.md</code> with grants, limits, API and CLI details.</p>
+<p><a href="/">Return to FICC</a></p></main></body></html>

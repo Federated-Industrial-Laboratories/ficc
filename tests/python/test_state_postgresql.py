@@ -24,24 +24,37 @@ def attached(tmp_path, config):
     return state, Store(state / "state.sqlite3")
 
 
-async def test_data_schema_upgrade_preserves_existing_state_and_dataset_recovery(tmp_path, postgres_config):
+@pytest.mark.parametrize("previous_schema", [12, 15, 16])
+async def test_data_schema_upgrade_preserves_existing_state_and_dataset_recovery(tmp_path, postgres_config, previous_schema):
     from test_datasets import registered
+    from test_inference_models import manifest
 
     state = tmp_path / "data-migration"
     write_provider(state, postgres_config)
     service = Service(settings(state))
     service.store.set_setting("migration_marker", {"retained": True})
+    _, owner = service.auth.issue("token")
+    model = service.models.create(manifest(), owner) if previous_schema >= 16 else None
     service.close()
-    # Schema 12 has all previous tables and no data-source or dataset tables.
+    additions = {
+        13: ("datasets",),
+        14: ("source_uploads", "source_runs", "source_queries", "source_connections"),
+        15: ("inspection_files", "inspection_runs", "dataset_objects", "dataset_lineage", "dataset_safety"),
+        16: ("model_revisions", "inference_services"),
+        17: ("federation_peers", "federation_offers", "federation_grants", "federation_operations"),
+    }
     with postgres_admin(postgres_config) as connection:
-        for table in ("inspection_files", "inspection_runs", "dataset_objects", "dataset_lineage", "dataset_safety",
-                      "source_uploads", "source_runs", "source_queries", "source_connections", "datasets"):
-            connection.execute("DROP TABLE " + table)
-        connection.execute("UPDATE ficc_state_metadata SET value='12' WHERE key='schema'")
+        for version, tables in sorted(additions.items(), reverse=True):
+            if version > previous_schema:
+                for table in tables:
+                    connection.execute("DROP TABLE " + table)
+        connection.execute("UPDATE ficc_state_metadata SET value=%s WHERE key='schema'", (str(previous_schema),))
     service = Service(settings(state))
     try:
         assert service.store.get_setting("migration_marker", None) == {"retained": True}
         _, actor = service.auth.issue("token")
+        if model is not None:
+            assert service.models.get(model["id"], actor)["manifest_digest"] == model["manifest_digest"]
         folder = tmp_path / "input"
         folder.mkdir()
         (folder / "values.csv").write_bytes(b"value\n41\n")
@@ -56,7 +69,7 @@ async def test_data_schema_upgrade_preserves_existing_state_and_dataset_recovery
         assert service.datasets.get(dataset["id"], actor.id)["manifest_digest"] == dataset["manifest_digest"]
         assert (await service.datasets.read(dataset["id"], 0, actor.id, 0))[1] == b"value\n41\n"
         with postgres_admin(postgres_config) as connection:
-            assert connection.execute("SELECT value FROM ficc_state_metadata WHERE key='schema'").fetchone()[0] == "15"
+            assert connection.execute("SELECT value FROM ficc_state_metadata WHERE key='schema'").fetchone()[0] == "17"
     finally:
         await service.files.close()
         service.close()

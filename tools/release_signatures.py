@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from ficc.policy_packages import public_key  # noqa: E402
 
 NAMESPACE = "ficc-release-v1"
+QUALIFICATION_NAMESPACE = "ficc-qualification-v1"
 FILES = {"RELEASE.pub", "SHA256SUMS.sig"}
 
 
@@ -30,7 +31,8 @@ def trusted_public(path):
     return public_key(read(path, 1024).decode("ascii"))
 
 
-def verify(output, trusted_key):
+def verify(output, trusted_key, *, qualification=False):
+    namespace = QUALIFICATION_NAMESPACE if qualification else NAMESPACE
     expected, fingerprint = trusted_public(trusted_key)
     supplied, _ = trusted_public(output / "RELEASE.pub")
     if supplied != expected:
@@ -39,10 +41,10 @@ def verify(output, trusted_key):
     signature = read(output / "SHA256SUMS.sig", 16384)
     with tempfile.TemporaryDirectory(prefix="ficc-release-verify-") as temporary:
         root = Path(temporary)
-        (root / "signers").write_text(f'ficc-release namespaces="{NAMESPACE}" {expected}\n')
+        (root / "signers").write_text(f'ficc-release namespaces="{namespace}" {expected}\n')
         (root / "signature").write_bytes(signature)
         result = subprocess.run(["/usr/bin/ssh-keygen", "-Y", "verify", "-f", str(root / "signers"),
-                                 "-I", "ficc-release", "-n", NAMESPACE, "-s", str(root / "signature")],
+                                 "-I", "ficc-release", "-n", namespace, "-s", str(root / "signature")],
                                 input=manifest, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                 timeout=30, check=False)
     if result.returncode:
@@ -50,10 +52,11 @@ def verify(output, trusted_key):
     return fingerprint
 
 
-def sign(output, key, trusted_key):
+def sign(output, key, trusted_key, *, qualification=False):
     from publish_release import validate
 
-    validate(output)
+    validate(output, qualification=qualification)
+    namespace = QUALIFICATION_NAMESPACE if qualification else NAMESPACE
     if any((output / name).exists() or (output / name).is_symlink() for name in FILES):
         raise ValueError("This release already contains signature files; verify them instead.")
     public, _ = trusted_public(trusted_key)
@@ -63,16 +66,16 @@ def sign(output, key, trusted_key):
         path.write_bytes(read(output / "SHA256SUMS", 131072))
         (root / "RELEASE.pub").write_text(public + "\n")
         result = subprocess.run(["/usr/bin/ssh-keygen", "-Y", "sign", "-f", str(key.resolve()),
-                                 "-n", NAMESPACE, str(path)], timeout=120, check=False)
+                                 "-n", namespace, str(path)], timeout=120, check=False)
         if result.returncode:
             raise ValueError("Release signing failed; check the explicitly selected key and its access.")
-        fingerprint = verify(root, trusted_key)
+        fingerprint = verify(root, trusted_key, qualification=qualification)
         if path.read_bytes() != read(output / "SHA256SUMS", 131072):
             raise ValueError("Release checksums changed during signing.")
         for name in sorted(FILES):
             with (output / name).open("xb") as target:
                 target.write((root / name).read_bytes())
-    verify(output, trusted_key)
+    verify(output, trusted_key, qualification=qualification)
     return fingerprint
 
 
@@ -83,16 +86,18 @@ def main():
     parser.add_argument("--trusted-key", type=Path, required=True,
                         help="Publisher public key obtained through an independent trusted channel.")
     parser.add_argument("--key", type=Path, help="Explicit signing key, used only by sign.")
+    parser.add_argument("--qualification", action="store_true",
+                        help="Use a separate candidate signature namespace; allow source-bound uncommitted changes. Publication rejects this signature.")
     args = parser.parse_args()
     if (args.command == "sign") != (args.key is not None):
         parser.error("Supply --key only when signing.")
     try:
         if args.command == "sign":
-            fingerprint = sign(args.output, args.key, args.trusted_key)
+            fingerprint = sign(args.output, args.key, args.trusted_key, qualification=args.qualification)
         else:
             from publish_release import validate
-            fingerprint = verify(args.output, args.trusted_key)
-            validate(args.output)
+            fingerprint = verify(args.output, args.trusted_key, qualification=args.qualification)
+            validate(args.output, qualification=args.qualification)
         print("Verified release publisher: " + fingerprint)
     except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
         parser.exit(1, str(exc) + "\n")

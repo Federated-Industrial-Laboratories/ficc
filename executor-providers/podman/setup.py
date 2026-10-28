@@ -13,10 +13,11 @@ class Build(build_py):
     def run(self):
         super().run()
         target = Path(self.build_lib) / "ficc_executor_podman"
-        subprocess.run(["cc", "-static", "-Os", "-std=c11", "-Wall", "-Wextra", "-Werror",
-                        "-fstack-protector-strong", "-Wl,--build-id=none", str(target / "barrier.c"),
-                        "-o", str(target / "barrier")], check=True)
-        (target / "barrier").chmod(0o755)
+        for name in ("barrier", "socket-proxy"):
+            subprocess.run(["cc", "-static", "-Os", "-std=c11", "-Wall", "-Wextra", "-Werror",
+                            "-fstack-protector-strong", "-Wl,--build-id=none", str(target / (name + ".c")),
+                            "-o", str(target / name)], check=True)
+            (target / name).chmod(0o755)
 
 
 class Platform(Distribution):

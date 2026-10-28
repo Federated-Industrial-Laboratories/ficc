@@ -46,6 +46,18 @@ def main():
     control = commands.add_parser("control", help="Change the local offer control without broadening its resource limits.")
     control.add_argument("--socket", required=True, type=Path)
     control.add_argument("control", choices=("active", "paused", "draining", "stopped"))
+    configure = commands.add_parser("reconfigure-offer", help="Apply the installed initial offer after all attempts are released and the service is stopped.")
+    configure.add_argument("--config", required=True, type=Path)
+    configure.add_argument("--expected-revision", required=True, type=int)
+    for action in ("list", "import", "evict"):
+        cache = commands.add_parser("model-cache-" + action, help="Administer the verified node model cache while the supervisor is stopped.")
+        cache.add_argument("--config", required=True, type=Path)
+        if action != "list":
+            cache.add_argument("--project", required=True)
+            cache.add_argument("--digest", required=True)
+        if action == "import":
+            cache.add_argument("--source", type=Path, required=True)
+            cache.add_argument("--bytes", type=int, required=True)
     recovery = commands.add_parser("recover-storage", help="Confirm an empty remounted slot while its service is stopped.")
     recovery.add_argument("--config", required=True, type=Path)
     recovery.add_argument("--attempt", required=True)
@@ -61,6 +73,15 @@ def main():
             print(json.dumps(asyncio.run(Client(arguments.socket).request(message)), indent=2))
         elif arguments.command in {"status", "control"}:
             print(json.dumps(asyncio.run(local_control(arguments)), indent=2))
+        elif arguments.command == "reconfigure-offer":
+            from .reconfigure import reconfigure
+            print(json.dumps(reconfigure(load(arguments.config), arguments.expected_revision), indent=2))
+        elif arguments.command.startswith("model-cache-"):
+            from .cache_admin import operate
+            fields = {key: getattr(arguments, key) for key in ("project", "digest", "source") if hasattr(arguments, key)}
+            if hasattr(arguments, "bytes"):
+                fields["size"] = arguments.bytes
+            print(json.dumps(operate(load(arguments.config), arguments.command.removeprefix("model-cache-"), **fields), indent=2))
         elif arguments.command == "recover-storage":
             asked = Fence(attempt_id=arguments.attempt, generation=arguments.generation, plan_digest=arguments.plan_digest)
             print(json.dumps(recover(load(arguments.config), asked, arguments.old_slot_generation), indent=2))

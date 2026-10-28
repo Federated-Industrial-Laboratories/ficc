@@ -82,6 +82,12 @@ class Service:
         self.auth.policy_check = self.policies.check
         from .workloads.queue import Queue
         self.workloads = Queue(self)
+        from .inference.service import Inference
+        from .models import Models
+        self.models = Models(self)
+        self.inference = Inference(self)
+        from .federation.service import Federation
+        self.federation = Federation(self)
         self.modules = Registry(self.store, settings.state_dir / "modules")
         self.module_runtime = Runtime(self.modules)
         self.workspaces = WorkspaceStore(self.store)

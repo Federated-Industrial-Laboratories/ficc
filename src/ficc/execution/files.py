@@ -33,7 +33,7 @@ def atomic(path: Path, value, mode=0o600):
     atomic_bytes(path, encoded(value), mode)
 
 
-def atomic_bytes(path: Path, data: bytes, mode=0o600):
+def atomic_bytes(path: Path, data: bytes, mode=0o600, *, before_publish=None):
     if len(data) > 1024 * 1024:
         raise ValueError("The executor receipt exceeds 1 MiB.")
     temp = path.with_name(path.name + "." + secrets.token_hex(8))
@@ -44,6 +44,8 @@ def atomic_bytes(path: Path, data: bytes, mode=0o600):
             stream.flush()
         os.fchmod(fd, mode)
         os.fsync(fd)
+        if before_publish is not None:
+            before_publish()
         os.replace(temp, path)
         parent = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
         try:
@@ -82,11 +84,16 @@ def fingerprint(path: Path, *, owner=0):
         before = os.fstat(fd)
         if not stat.S_ISREG(before.st_mode) or before.st_uid != owner or before.st_mode & 0o022 or before.st_nlink != 1:
             raise ValueError("An administrator input is not an immutable owned regular file.")
-        digest = hashlib.sha256()
+        digest, pending = hashlib.sha256(), 0
         while chunk := os.read(fd, 1024 * 1024):
             digest.update(chunk)
+            pending += len(chunk)
+            if pending >= 16 * 1024 * 1024:
+                os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+                pending = 0
         if identity(before) != identity(os.fstat(fd)):
             raise ValueError("An administrator input changed while it was read.")
+        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
         return {**identity(before), "digest": "sha256:" + digest.hexdigest()}
     finally:
         os.close(fd)

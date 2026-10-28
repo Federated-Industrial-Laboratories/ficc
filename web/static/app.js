@@ -13,6 +13,9 @@ import { workspaces } from './workspaces.js';
 import { remoteLogin } from './remote-login.js';
 import { contributors } from './contributors.js';
 import { workloads } from './workloads.js';
+import { inference } from './inference.js';
+import { models } from './models.js';
+import { federation } from './federation.js';
 import { sources } from './sources.js';
 import { operations } from './operations.js';
 import { initializeAppearance } from './theme.js';
@@ -29,7 +32,7 @@ let current, currentView, navigating = false, changingProject = false;
 
 function updateNavigation() {
   const scopes = { overview: 'nodes:read', jobs: 'jobs:read', files: 'files:read', terminals: 'terminals:read',
-    agents: 'agents:read', bus: 'bus:read', activity: 'audit:read', workspaces: 'workspaces:read', contributors: 'contributors:read', workloads: 'jobs:read', sources: 'data:read', operations: 'audit:read' };
+    agents: 'agents:read', bus: 'bus:read', activity: 'audit:read', workspaces: 'workspaces:read', contributors: 'contributors:read', workloads: 'jobs:read', inference: 'inference:read', models: 'models:read', federation: 'federation:read', sources: 'data:read', operations: 'audit:read' };
   for (const item of nav) item.disabled = !getSession() || changingProject ||
     (scopes[item.dataset.view] ? !allowed(scopes[item.dataset.view]) : false);
 }
@@ -42,7 +45,7 @@ async function navigate(view, focus = false) {
   if (current?.prepareLeave && !await current.prepareLeave()) return;
   for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
   current?.dispose();
-  current = ({ overview, jobs, files, terminals, agents, bus, access, activity, workspaces, contributors, workloads, sources, operations })[view]();
+  current = ({ overview, jobs, files, terminals, agents, bus, access, activity, workspaces, contributors, workloads, sources, operations, inference, models, federation })[view]();
   currentView = view;
   main.replaceChildren(current.element);
   for (const item of nav) {

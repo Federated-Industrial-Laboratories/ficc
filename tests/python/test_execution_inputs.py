@@ -72,6 +72,7 @@ def reply(s, action, **fields):
 
 def test_stream_reconnect_resumes_durable_offset_and_provider_links_verified_inputs(tmp_path):
     data = b"bounded input\n" * 180000
+    chunk_size = 1024 * 1024
     s, value, provider, _envelope, _clock = configure(tmp_path, [data, b""])
     calls, original = [], provider.call
 
@@ -101,19 +102,19 @@ def test_stream_reconnect_resumes_durable_offset_and_provider_links_verified_inp
         with pytest.raises(Conflict, match="runtime_preparing"):
             s.start(fence(value))
         # The acknowledgement is discarded, as if its connection was lost.
-        first = chunk(value, 0, data[:INPUT_CHUNK])
+        first = chunk(value, 0, data[:chunk_size])
         reply(s, "input_write", writes=[first.model_dump()])
         saved = reply(s, "input_status", objects=[object_(value).model_dump()])["results"][0]
-        assert saved["offset"] == INPUT_CHUNK and not saved["complete"] and saved["digest"] == sha(data)
+        assert saved["offset"] == chunk_size and not saved["complete"] and saved["digest"] == sha(data)
         with sqlite3.connect(s.ledger.path) as disk:
             durable = json.loads(disk.execute("SELECT value FROM attempts WHERE id=?", (value.attempt_id,)).fetchone()[0])
-        assert durable["input_progress"][first.object]["offset"] == INPUT_CHUNK
+        assert durable["input_progress"][first.object]["offset"] == chunk_size
         repeated = reply(s, "input_write", writes=[first.model_dump()])["results"][0]
         assert not repeated["ok"] and repeated["error"]["code"] == "input_offset_changed"
         assert s.prepare(admission(value))["input_progress"] == durable["input_progress"]
         assert not s.snapshot(None)["capacity"]["slots"][0]["available"]
-        for offset in range(INPUT_CHUNK, len(data), INPUT_CHUNK):
-            row = reply(s, "input_write", writes=[chunk(value, offset, data[offset:offset + INPUT_CHUNK]).model_dump()])["results"][0]
+        for offset in range(chunk_size, len(data), chunk_size):
+            row = reply(s, "input_write", writes=[chunk(value, offset, data[offset:offset + chunk_size]).model_dump()])["results"][0]
             assert row["ok"]
         assert row["complete"] and row["offset"] == len(data)
         settle(s)
@@ -279,7 +280,7 @@ def test_input_protocol_fences_identity_and_chunk_bounds_without_a_total_size_ca
             with pytest.raises(ValueError, match="transport"):
                 authorize(message, peer, s.settings)
         second = {**write.model_dump(), "object": identity(90001)}
-        with pytest.raises(ValueError, match="at most 1 MiB"):
+        with pytest.raises(ValueError, match="control message exceeds"):
             decode(encoded(request("input_write", writes=[write.model_dump(), second])))
         for change in ({"digest": sha(b"foreign")}, {"data": "!!!!"}, {"data": "YQ==\n"}, {"object": "../secret"}):
             with pytest.raises(ValueError):

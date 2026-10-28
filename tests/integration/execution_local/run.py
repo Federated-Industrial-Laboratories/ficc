@@ -12,7 +12,17 @@ import time
 from pathlib import Path
 
 from ficc.execution.client import Client
-from ficc.execution.protocol import Admission, Collect, Control, Prepare, Read, Renew, Snapshot
+from ficc.execution.protocol import (
+    Admission,
+    Collect,
+    Control,
+    EndpointCall,
+    EndpointExchange,
+    Prepare,
+    Read,
+    Renew,
+    Snapshot,
+)
 from ficc.execution.spec import Fence, Plan, Renewal
 
 
@@ -52,6 +62,62 @@ class Run:
                 pass
         self.save({"kernel": value, "unit": unit})
 
+    async def endpoint(self, path, body=None, *, cancel_after_data=False):
+        identity = secrets.token_hex(16)
+        response = bytearray()
+        operation = "open"
+        status = 0
+        try:
+            for _ in range(6000):
+                reply = await self.call(EndpointExchange, action="endpoint", calls=[EndpointCall(
+                    **self.fence.model_dump(), stream_id=identity, operation=operation, path=path,
+                    method="GET" if body is None else "POST", body=json.dumps(body) if body is not None else "", deadline_seconds=120)])
+                value = reply["results"][0]
+                status = value["status"] or status
+                data = base64.b64decode(value["data"], validate=True)
+                response.extend(data)
+                if len(response) > 2 * 1024 * 1024:
+                    raise ValueError("Inference fixture response exceeds its bound.")
+                if cancel_after_data and data or value["eof"]:
+                    return status, bytes(response)
+                operation = "read"
+                await asyncio.sleep(0.02)
+            raise ValueError("Inference fixture response timed out.")
+        finally:
+            await self.call(EndpointExchange, action="endpoint", calls=[EndpointCall(**self.fence.model_dump(), stream_id=identity, operation="cancel", path=path)])
+
+    async def inference(self):
+        end = time.monotonic() + 600
+        while time.monotonic() < end:
+            status, _body = await self.endpoint("/health")
+            if status == 200:
+                break
+            await asyncio.sleep(1)
+        else:
+            raise ValueError("The model did not become ready within ten minutes.")
+        gpu = subprocess.run(["nvidia-smi", "--query-gpu=uuid,index,memory.used", "--format=csv,noheader"], capture_output=True, text=True, check=True, timeout=5)
+        applications = subprocess.run(["nvidia-smi", "--query-compute-apps=gpu_uuid,pid,used_gpu_memory", "--format=csv,noheader"], capture_output=True, text=True, check=True, timeout=5)
+        selected = set(self.plan.job.limits.gpu_devices)
+        resident = set()
+        for line in applications.stdout.splitlines():
+            device, process, memory = [part.strip() for part in line.split(",")]
+            try:
+                group = (Path("/proc") / process / "cgroup").read_text()
+            except FileNotFoundError:
+                continue
+            if self.plan.attempt_id in group and int(memory.split()[0]) >= 64:
+                resident.add(device)
+        self.save({"gpu_resident": gpu.stdout, "gpu_processes": applications.stdout, "owned_gpu_devices": sorted(resident)})
+        if selected and resident != selected:
+            raise ValueError("The real engine did not become resident on every explicitly selected GPU.")
+        status, answer = await self.endpoint("/v1/chat/completions", {"model": "fixture", "messages": [{"role": "user", "content": "Reply with one sentence about a cat. /no_think"}], "stream": True, "max_tokens": 128})
+        if status != 200 or b"data:" not in answer or b"[DONE]" not in answer:
+            raise ValueError("The real model did not complete its bounded streaming response.")
+        status, partial = await self.endpoint("/v1/chat/completions", {"model": "fixture", "messages": [{"role": "user", "content": "Write a long story about a cat."}], "stream": True, "max_tokens": 4096}, cancel_after_data=True)
+        if status != 200 or not partial:
+            raise ValueError("The real model did not begin the cancellation request.")
+        self.save({"inference": {"stream_complete": True, "cancel_after_output": True, "answer": answer.decode()}})
+
     async def execute(self):
         before = (await self.call(Snapshot, action="snapshot", after=None))["snapshot"]
         if (before["deployment_id"], before["node_id"]) != (self.plan.deployment_id, self.plan.node_id):
@@ -62,7 +128,7 @@ class Run:
         service = "ficc-executor-" + before["installation_id"] + ".service"
         sequence = 1
         lease = Renewal(**self.fence.model_dump(), sequence=sequence, expires_at=time.time() + maximum - 1)
-        await self.call(Prepare, action="prepare", attempts=[Admission(plan=self.plan, lease=lease)])
+        await self.call(Prepare, action="prepare", installation_id=before["installation_id"], ledger_id=before["ledger_id"], admission_version=1, attempts=[Admission(plan=self.plan, lease=lease)])
         renew_at = time.monotonic() + maximum / 3
         end = time.monotonic() + self.args.fixture_timeout
         started, fault = False, False
@@ -90,7 +156,21 @@ class Run:
             if current["state"] == "running" and not fault and self.args.case != "complete":
                 fault = True
                 self.save({"fault": self.args.case, "service": service})
-                if self.args.case == "stop":
+                if self.args.case == "inference":
+                    async def maintain():
+                        nonlocal sequence
+                        while True:
+                            sequence += 1
+                            await self.call(Renew, action="renew", leases=[Renewal(**self.fence.model_dump(), sequence=sequence, expires_at=time.time() + maximum - 1)])
+                            await asyncio.sleep(maximum / 3)
+                    renewer = asyncio.create_task(maintain())
+                    try:
+                        await self.inference()
+                    finally:
+                        renewer.cancel()
+                        await asyncio.gather(renewer, return_exceptions=True)
+                        await self.call(Control, action="stop", attempts=[self.fence])
+                elif self.args.case == "stop":
                     await self.call(Control, action="stop", attempts=[self.fence])
                 elif self.args.case in {"restart", "watchdog"}:
                     signum = "SIGKILL" if self.args.case == "restart" else "SIGSTOP"
@@ -101,7 +181,7 @@ class Run:
             self.save({"status": "fixture_timeout", "cleanup": "retained"})
             raise ValueError("The fixture ended without a terminal observation. The lease will expire; retain its slot.")
         expected = {"complete": {"succeeded", "failed"}, "expire": {"expired"}, "stop": {"cancelled"},
-                    "restart": {"unknown"}, "watchdog": {"unknown"}}[self.args.case]
+                    "restart": {"unknown"}, "watchdog": {"unknown"}, "inference": {"cancelled"}}[self.args.case]
         if self.args.expected:
             expected = {self.args.expected}
         if current["state"] not in expected or not current["cleanup_confirmed"]:
@@ -126,7 +206,7 @@ if __name__ == "__main__":
     parser.add_argument("--socket", type=Path, required=True)
     parser.add_argument("--plan", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--case", choices=("complete", "expire", "stop", "restart", "watchdog"), default="complete")
+    parser.add_argument("--case", choices=("complete", "expire", "stop", "restart", "watchdog", "inference"), default="complete")
     parser.add_argument("--fixture-timeout", type=int, default=120)
     parser.add_argument("--expected", choices=("succeeded", "failed", "unknown", "expired", "cancelled"))
     asyncio.run(Run(parser.parse_args()).execute())

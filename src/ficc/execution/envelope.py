@@ -2,7 +2,6 @@
 """Keep attempt resource ceilings and supervisor dependencies in the system manager."""
 
 import os
-import time
 from pathlib import Path
 
 from .process import command, properties
@@ -20,6 +19,10 @@ def context(settings, slot, value):
             "binding": value["binding"], "directory": str(Path(slot.mount) / plan["attempt_id"]),
             "unit": unit, "description": "FICC attempt " + settings.installation_id + ":" + plan["attempt_id"],
             "cgroup": "/system.slice/" + unit, "supervisor": settings.service}
+
+
+class StopPending(ValueError):
+    """Kernel stop was requested; retained capacity awaits the exact empty proof."""
 
 
 class Envelope:
@@ -94,18 +97,12 @@ class Envelope:
         if before.get("LoadState") != "not-found":
             # Lease enforcement cannot wait out the unit's shutdown grace period.
             # A concurrent exit may leave no process to signal; idle() is authoritative.
-            command(["/usr/bin/systemctl", "kill", "--signal=SIGKILL", "--kill-whom=all", ctx["unit"]], okay=(0, 1))
-            command(["/usr/bin/systemctl", "stop", ctx["unit"]], timeout=4)
-        # Process exit and orphan reaping can trail the stop acknowledgement.
-        deadline = time.monotonic() + 0.75
-        while True:
-            try:
-                self.idle(ctx)
-                break
-            except ValueError:
-                if time.monotonic() >= deadline:
-                    raise
-                time.sleep(0.02)
+            command(["/usr/bin/systemctl", "kill", "--signal=SIGKILL", "--kill-whom=all", ctx["unit"]], timeout=0.5, okay=(0, 1))
+            command(["/usr/bin/systemctl", "stop", "--no-block", ctx["unit"]], timeout=0.5)
+        try:
+            self.idle(ctx)
+        except ValueError as error:
+            raise StopPending("The stopped attempt is still awaiting kernel process reaping.") from error
         return before
 
     def idle(self, ctx):
