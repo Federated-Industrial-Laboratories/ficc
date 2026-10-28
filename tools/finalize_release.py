@@ -13,12 +13,12 @@ import tarfile
 from pathlib import Path, PurePosixPath
 
 from release_lib.common import digest, write_json
-from release_lib.versions import arch_package, debian
+from release_lib.versions import arch_package, deb_package
 from release_signatures import FILES as SIGNATURE_FILES
 
 
 def required_artifacts(version: str) -> set[str]:
-    return {f"FICC-{version}-x86_64.AppImage", f"ficc_{debian(version)}_amd64.deb",
+    return {f"FICC-{version}-x86_64.AppImage", deb_package(version),
             f"ficc-{version}-linux-x86_64.tar.gz", f"ficc-{version}-arch-recipe.tar.gz",
             f"ficc-{version}-source.tar.gz", f"ficc-{version}-third-party-sources.tar.gz",
             f"ficc-{version}-py3-none-any.whl", f"ficc-{version}.tar.gz", f"ficc-{version}.cdx.json"}

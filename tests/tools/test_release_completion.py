@@ -4,6 +4,7 @@
 import hashlib
 import io
 import json
+import re
 import subprocess
 import sys
 import tarfile
@@ -78,6 +79,26 @@ def test_incomplete_or_changed_release_is_not_certified(tmp_path, name, change):
 def test_development_native_names_keep_the_same_upstream_payload(tmp_path):
     output, package = release(tmp_path, version="0.3.0.dev1")
     assert package.name == "ficc-bin-0.3.0dev1-1-x86_64.pkg.tar.zst"
-    assert (output / "ficc_0.3.0~dev1_amd64.deb").is_file()
+    assert (output / "ficc_0.3.0.dev1_amd64.deb").is_file()
     finalize(output, package)
     assert json.loads((output / "build.json").read_text())["formats_complete"] is True
+
+
+@pytest.mark.parametrize(("version", "native_version"), [
+    ("0.3.0.dev1", "0.3.0~dev1"), ("0.3.0rc1", "0.3.0~rc1"),
+])
+def test_debian_download_name_is_portable_and_preserves_prerelease_order(tmp_path, version, native_version):
+    from release_lib.formats import deb
+
+    payload, work, output = (tmp_path / name for name in ("payload", "work", "output"))
+    for directory in (payload, work, output):
+        directory.mkdir()
+    for name in ("ficc", "ficc.desktop", "ficc.svg", "NOTICE", "LICENSE", "package-guard.sh"):
+        (payload / name).write_text("fixture payload\n")
+    package = deb(payload, work, output, version, 123)
+    assert package.name == f"ficc_{version}_amd64.deb"
+    assert re.fullmatch(r"[A-Za-z0-9_.-]+", package.name)
+    assert package.name in required_artifacts(version)
+    actual = subprocess.check_output(["dpkg-deb", "--field", str(package), "Version"], text=True).strip()
+    assert actual == native_version
+    subprocess.run(["dpkg", "--compare-versions", actual, "lt", "0.3.0"], check=True)
