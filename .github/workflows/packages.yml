@@ -157,6 +157,8 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ficc-linux-x86_64
-          path: ${{ runner.temp }}/release/*.*
+          path: |
+            ${{ runner.temp }}/release/*.*
+            ${{ runner.temp }}/release/SHA256SUMS
           if-no-files-found: error
           retention-days: 7
