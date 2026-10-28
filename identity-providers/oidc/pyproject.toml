@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
-dependencies = ["Authlib==1.8.0", "joserfc==1.7.5", "httpx==0.28.1"]
+dependencies = ["Authlib==1.9.1", "joserfc==1.7.5", "httpx==0.28.1"]
 
 [project.entry-points."ficc.identity"]
 oidc = "ficc_identity_oidc"

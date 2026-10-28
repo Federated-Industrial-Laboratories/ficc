@@ -30,7 +30,7 @@ hashes. The tables below use license identifiers from those pinned distributions
 | annotated-doc | 0.0.5 | MIT |
 | annotated-types | 0.8.0 | MIT |
 | anyio | 4.15.1 | MIT |
-| certifi | 2026.7.22 | MPL-2.0 |
+| certifi | 2026.10.23 | MPL-2.0 |
 | cffi | 2.1.1 | MIT-0 |
 | click | 8.5.0 | BSD-3-Clause |
 | cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause |
