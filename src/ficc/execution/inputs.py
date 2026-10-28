@@ -43,8 +43,9 @@ def complete(ctx, progress):
 
 
 class Inputs:
-    def __init__(self):
+    def __init__(self, cache=None):
         self.hashes = {}
+        self.cache = cache
 
     def initialize(self, ctx):
         check = ctx["check"]
@@ -58,6 +59,11 @@ class Inputs:
         progress = {}
         for item in references(ctx):
             check()
+            if self.cache and ctx["plan"]["job"].get("endpoint"):
+                restored = self.cache.restore(ctx, item, path / item["id"])
+                if restored is not None:
+                    progress[item["id"]] = {"offset": item["bytes"], "complete": True, "identity": restored}
+                    continue
             value = hashlib.sha256()
             done = item["bytes"] == 0
             if done and item["digest"] != "sha256:" + value.hexdigest():

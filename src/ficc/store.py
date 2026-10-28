@@ -39,7 +39,7 @@ class Store:
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA synchronous=FULL")
         version = self.db.execute("PRAGMA user_version").fetchone()[0]
-        if version not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15):
+        if version not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17):
             self.db.close()
             raise ValueError("The state schema is not supported.")
         self.db.executescript("""
@@ -111,7 +111,11 @@ class Store:
             initialize_inspections(self.db)
             if version < 15:
                 backfill_inspections(self.db)
-            self.db.execute("PRAGMA user_version=15")
+            from .inference.records import initialize as initialize_inference
+            initialize_inference(self.db)
+            from .federation.records import initialize as initialize_federation
+            initialize_federation(self.db)
+            self.db.execute("PRAGMA user_version=17")
             self.db.commit()
         except BaseException:
             self.db.rollback()

@@ -1,6 +1,13 @@
 name: Linux packages
 on:
   workflow_dispatch:
+    inputs:
+      hypernet_sdk_url:
+        description: HTTPS URL of the trusted HyperNetSuite SDK wheel
+        type: string
+      hypernet_sdk_sha256:
+        description: SHA-256 from its trusted bundle inventory
+        type: string
   pull_request:
     branches: [master]
     paths:
@@ -12,6 +19,7 @@ on:
       - 'tools/build-modules.py'
       - 'tools/module_native_build.py'
       - 'tools/runtime_packages.py'
+      - 'tools/hypernet_runtime.py'
       - 'tools/*viewer*'
       - 'tools/*windows*'
       - 'install.sh'
@@ -42,11 +50,67 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y bubblewrap build-essential libssl-dev zstd squashfs-tools
       - name: Read package version
         run: |
-          python -c 'import tomllib; v=tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]; print("FICC_VERSION="+v); print("FICC_DEB_VERSION="+v.replace("rc", "~rc"))' >> "$GITHUB_ENV"
+          python -c 'import sys, tomllib; sys.path.insert(0, "tools"); from release_lib.versions import arch, debian; v=tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]; print("FICC_VERSION="+v); print("FICC_DEB_VERSION="+debian(v)); print("FICC_ARCH_VERSION="+arch(v))' >> "$GITHUB_ENV"
+      - name: Fetch the explicitly selected HyperNet SDK
+        if: inputs.hypernet_sdk_url || vars.HYPERNET_SDK_URL || inputs.hypernet_sdk_sha256 || vars.HYPERNET_SDK_SHA256
+        env:
+          SDK_URL: ${{ inputs.hypernet_sdk_url || vars.HYPERNET_SDK_URL }}
+          SDK_SHA256: ${{ inputs.hypernet_sdk_sha256 || vars.HYPERNET_SDK_SHA256 }}
+        run: |
+          python - <<'PY'
+          import os, pathlib, re, sys, urllib.parse, urllib.request
+          sys.path.insert(0, 'tools')
+          from hypernet_runtime import verify
+          url, checksum = os.environ['SDK_URL'], os.environ['SDK_SHA256']
+          parts = urllib.parse.urlsplit(url)
+          name = pathlib.PurePosixPath(parts.path).name
+          if parts.scheme != 'https' or parts.username or parts.password or not re.fullmatch(r'hypernet_streams-[A-Za-z0-9_.]+-py3-none-any.whl', name):
+              raise SystemExit('Set HYPERNET_SDK_URL and HYPERNET_SDK_SHA256 repository variables, or select both workflow inputs from a trusted Suite bundle.')
+          with urllib.request.urlopen(url, timeout=30) as response:
+              if urllib.parse.urlsplit(response.geturl()).scheme != 'https':
+                  raise SystemExit('The SDK redirect must retain HTTPS.')
+              data = response.read(4*1024*1024+1)
+          if len(data) > 4*1024*1024:
+              raise SystemExit('The SDK wheel exceeds its bounded package size.')
+          path = pathlib.Path(os.environ['RUNNER_TEMP']) / name
+          path.write_bytes(data)
+          verify(path, checksum)
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'HYPERNET_SDK_WHEEL={path}\nHYPERNET_SDK_SHA256={checksum}\n')
+          PY
+      - name: Build the HyperNet SDK from the qualified source revision
+        if: env.HYPERNET_SDK_WHEEL == ''
+        env:
+          SDK_REVISION: a7a53ae53f90d9cbfad01f0d524c51d57eddf68d
+        run: |
+          sdk_source="$RUNNER_TEMP/hypernet-suite"
+          git init "$sdk_source"
+          git -C "$sdk_source" remote add origin https://github.com/Federated-Industrial-Laboratories/HyperNetSuite.git
+          git -C "$sdk_source" fetch --depth=1 origin "$SDK_REVISION"
+          test "$(git -C "$sdk_source" rev-parse FETCH_HEAD)" = "$SDK_REVISION"
+          git -C "$sdk_source" checkout --detach FETCH_HEAD
+          SOURCE_DATE_EPOCH="$(git -C "$sdk_source" show -s --format=%ct HEAD)" \
+            python -m pip wheel --no-deps --no-build-isolation \
+            --wheel-dir "$RUNNER_TEMP/hypernet-sdk" "$sdk_source/SDK"
+          python - <<'PYSDK'
+          import hashlib, os, pathlib, sys
+          sys.path.insert(0, 'tools')
+          from hypernet_runtime import verify
+          wheels = list((pathlib.Path(os.environ['RUNNER_TEMP']) / 'hypernet-sdk').glob('*.whl'))
+          if len(wheels) != 1:
+              raise SystemExit('The qualified SDK source must produce exactly one wheel.')
+          path = wheels[0]
+          checksum = hashlib.sha256(path.read_bytes()).hexdigest()
+          verify(path, checksum)
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'HYPERNET_SDK_WHEEL={path}\nHYPERNET_SDK_SHA256={checksum}\n')
+          print(f'HyperNetSuite source {os.environ["SDK_REVISION"]}; SDK SHA-256 {checksum}')
+          PYSDK
       - name: Assemble pinned formats
         run: |
           python tools/release.py --cache "$RUNNER_TEMP/inputs" \
-            --work "$RUNNER_TEMP/build" --output "$RUNNER_TEMP/release"
+            --work "$RUNNER_TEMP/build" --output "$RUNNER_TEMP/release" \
+            --hypernet-sdk-wheel "$HYPERNET_SDK_WHEEL" --hypernet-sdk-sha256 "$HYPERNET_SDK_SHA256"
       - name: Build the Arch package
         run: |
           docker build -t ficc-arch -f packaging/Containerfile.arch packaging
@@ -61,13 +125,13 @@ jobs:
               cp *.pkg.tar.zst /release/
             '
           python tools/finalize_release.py --output "$RUNNER_TEMP/release" \
-            --arch-package "$RUNNER_TEMP/release/ficc-bin-${FICC_VERSION}-1-x86_64.pkg.tar.zst"
+            --arch-package "$RUNNER_TEMP/release/ficc-bin-${FICC_ARCH_VERSION}-1-x86_64.pkg.tar.zst"
       - name: Check Arch lifecycle
         run: |
           docker run --rm --network=none -e FICC_DISPOSABLE_CONTAINER=1 \
             -v "$PWD/tools:/checks:ro" -v "$RUNNER_TEMP/release:/release:ro" \
             ficc-arch sh /checks/qualify_native.sh arch \
-            /release/ficc-bin-${FICC_VERSION}-1-x86_64.pkg.tar.zst
+            /release/ficc-bin-${FICC_ARCH_VERSION}-1-x86_64.pkg.tar.zst
       - name: Check Debian and Ubuntu lifecycle
         run: |
           for base in \

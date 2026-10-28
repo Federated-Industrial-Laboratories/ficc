@@ -35,6 +35,7 @@ class Channel:
         self.service = service
         self.pending: dict[str, Pending] = {}
         self.polling: set[str] = set()
+        self.waiting: dict[str, asyncio.Event] = {}
         self.closed = False
 
     def session(self, node_id):
@@ -56,6 +57,8 @@ class Channel:
         future = asyncio.get_running_loop().create_future()
         pending = Pending(message, current["id"], current["fingerprint"], check, future)
         self.pending[node_id] = pending
+        if event := self.waiting.get(node_id):
+            event.set()
         try:
             async with asyncio.timeout(timeout):
                 reply = await future
@@ -76,6 +79,8 @@ class Channel:
         if identity in self.polling:
             raise Failure("executor_busy", "One execution poll is already active for this contributor.", 409)
         self.polling.add(identity)
+        event = asyncio.Event()
+        self.waiting[identity] = event
         try:
             pending = self.pending.get(identity)
             if message.response is not None:
@@ -90,6 +95,7 @@ class Channel:
                     if not pending.future.done():
                         pending.future.set_result(reply)
             for _ in range(10):
+                event.clear()
                 nodes.guard(identity, message.session_id, fingerprint)
                 pending = self.pending.get(identity)
                 if pending and not pending.delivered:
@@ -102,10 +108,14 @@ class Channel:
                         raise
                     pending.delivered = True
                     return self.envelope(node, message, pending.message.model_dump())
-                await asyncio.sleep(0.1)
+                try:
+                    await asyncio.wait_for(event.wait(), timeout=0.1)
+                except TimeoutError:
+                    pass
             nodes.guard(identity, message.session_id, fingerprint)
             return self.envelope(node, message, None)
         finally:
+            self.waiting.pop(identity, None)
             self.polling.discard(identity)
 
     def bound(self, identity, pending, session_id, fingerprint):
@@ -126,3 +136,5 @@ class Channel:
             if not pending.future.done():
                 pending.future.set_exception(Failure("executor_stopped", "The controller execution channel stopped.", 503))
         self.pending.clear()
+        for event in self.waiting.values():
+            event.set()

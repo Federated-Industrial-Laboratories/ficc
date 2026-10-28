@@ -35,19 +35,45 @@ def copy_input(source, destination, expected, uid, gid, check):
         before = os.fstat(first)
         if not stat.S_ISREG(before.st_mode) or before.st_uid != 0 or before.st_mode & 0o022 or before.st_size != expected["bytes"]:
             raise ValueError("The staged input no longer has its approved identity.")
-        value = hashlib.sha256()
+        value, pending = hashlib.sha256(), 0
         with os.fdopen(os.dup(second), "wb") as output:
             while chunk := os.read(first, 1024 * 1024):
                 check()
                 value.update(chunk)
                 output.write(chunk)
+                pending += len(chunk)
+                if pending >= 16 * 1024 * 1024:
+                    output.flush()
+                    os.fdatasync(second)
+                    os.posix_fadvise(second, 0, 0, os.POSIX_FADV_DONTNEED)
+                    os.posix_fadvise(first, 0, 0, os.POSIX_FADV_DONTNEED)
+                    pending = 0
         if "sha256:" + value.hexdigest() != expected["digest"] or identity(before) != identity(os.fstat(first)):
             raise ValueError("The staged input changed while it was copied.")
         os.fsync(second)
+        os.posix_fadvise(first, 0, 0, os.POSIX_FADV_DONTNEED)
+        os.posix_fadvise(second, 0, 0, os.POSIX_FADV_DONTNEED)
         os.fchown(second, uid, gid)
+        if uid == 0:
+            os.fchmod(second, 0o440)
     finally:
         os.close(first)
         os.close(second)
+
+
+def shared_archive(path):
+    """Use only an already public, administrator-owned immutable archive."""
+    source = Path(path)
+    info = source.lstat()
+    if (not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_nlink != 1
+            or info.st_mode & 0o222 or not info.st_mode & 0o004):
+        return None
+    for parent in source.parents:
+        observed = parent.lstat()
+        if (not stat.S_ISDIR(observed.st_mode) or observed.st_uid != 0
+                or observed.st_mode & 0o022 or not observed.st_mode & 0o001):
+            return None
+    return identity(info)
 
 
 def staged_input(ctx, item, *, owner=0):
@@ -111,9 +137,11 @@ def create(driver, ctx):
     mkdir(root / "cdi", 0, gid, 0o550)
     job = ctx["plan"]["job"]
     image = driver.images[job["runtime"]["image_digest"]]
-    local_image = runtime / "image.oci.tar"
-    copy_input(image.archive, local_image, {"bytes": driver.identities[image.archive]["bytes"],
-               "digest": image.archive_digest}, uid, gid, check)
+    image_identity = shared_archive(image.archive)
+    local_image = Path(image.archive) if image_identity else runtime / "image.oci.tar"
+    if image_identity is None:
+        copy_input(image.archive, local_image, {"bytes": driver.identities[image.archive]["bytes"],
+                   "digest": image.archive_digest}, uid, gid, check)
     for item in job["inputs"]:
         check()
         if item.get("delivery", "local") == "stream":
@@ -122,7 +150,7 @@ def create(driver, ctx):
         source = driver.inputs.get(item["id"])
         if source is None or (source.digest, source.bytes) != (item["digest"], item["bytes"]):
             raise ValueError("An input is not staged with the exact approved digest and size.")
-        copy_input(source.path, root / "inputs" / item["name"], item, uid, gid, check)
+        copy_input(source.path, root / "inputs" / item["name"], item, 0, gid, check)
     gpu = driver.devices.select(job["limits"]["gpu_devices"])
     if gpu["cdi"] is not None:
         atomic(root / "cdi/gpu.json", gpu["cdi"], 0o440)
@@ -144,10 +172,19 @@ def create(driver, ctx):
               bind(root / "control", "/ficc/control"), bind(barrier, "/ficc/barrier"), resolver(root), *gpu["mounts"]]
     request = {"context": ctx, "image": str(local_image), "image_digest": image.digest,
                "containers_config": str(containers), "barrier": str(barrier), "gpu": gpu}
+    if image_identity is not None:
+        request["image_identity"] = image_identity
+    if job.get("endpoint"):
+        proxy = Path(__file__).parent / "socket-proxy"
+        fingerprint(proxy)
+        mounts.append(bind(proxy, "/ficc/socket-proxy"))
+        request["socket_proxy"] = str(proxy)
     atomic(root / "request.json", request, 0o440)
     os.chown(root / "request.json", 0, gid)
     check()
     return {"argv": [sys.executable, "-I", "-B", "-m", "ficc_executor_podman.runner", str(root / "request.json")],
             "devices": gpu["devices"], "mounts": mounts, "barrier": str(barrier),
+            **({"overlay_helper": fingerprint(Path("/usr/bin/fuse-overlayfs"))} if job.get("endpoint") else {}),
             "generated_targets": ["/run/.containerenv", "/etc/hostname"],
+            "shared_memory_bytes": min(1024 * 1024 * 1024, job["limits"]["memory_bytes"] // 4) if job.get("endpoint") else 0,
             "positive_devices": gpu["positive"], "negative_devices": gpu["negative"]}

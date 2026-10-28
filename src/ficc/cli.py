@@ -100,6 +100,10 @@ def parser() -> argparse.ArgumentParser:
     add_file_commands(commands)
     from .workloads.cli import add_commands as add_workload_commands
     add_workload_commands(commands)
+    from .inference.cli import add_commands as add_inference_commands
+    add_inference_commands(commands)
+    from .federation.cli import add_commands as add_federation_commands
+    add_federation_commands(commands)
     from .backup import add_commands as add_backup_commands
     add_backup_commands(commands)
     from .history import add_commands as add_history_commands
@@ -169,6 +173,12 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command.startswith(("contributor-", "node-")) or args.command == "contributors-configure":
             from .contributor_cli import execute as execute_contributors
             execute_contributors(args)
+        elif args.command.startswith("federation-"):
+            from .federation.cli import execute as execute_federation
+            execute_federation(args)
+        elif args.command.startswith(("inference-", "model-")):
+            from .inference.cli import execute as execute_inference
+            execute_inference(args)
         elif args.command.startswith("workload-") or args.command == "workloads-configure":
             from .workloads.cli import execute as execute_workloads
             execute_workloads(args)

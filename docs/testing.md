@@ -431,3 +431,25 @@ See [native macOS](macos.md#shared-agent-and-ci-checks) for the exact scope.
 Linux sandbox, workload and package checks remain separate; macOS does not
 claim Linux-only capabilities. Provider model calls and physical GPU
 qualification require their separate explicitly configured checks.
+
+## Installed inference and federation
+
+Use `tests/integration/inference_workflow.py` with a verified model, an isolated
+controller and explicit GPU UUIDs. It checks real owned GPU residency, streamed
+output, cancellation and confirmed release. It does not accept CPU inference as
+proof of GPU placement.
+
+`tests/integration/federation_workflow.py` uses two installed HTTPS controllers
+and their real HyperNet companions. Each private connection JSON contains
+`origin`, `ca` (trusted CA file) and a finite owner `credential`. Keep these files
+mode 0600 outside the repository and revoke the credentials afterwards. The public
+plan selects both companion directories, model/node IDs and a managed service
+`spec`. Optional `transfer_model` and `transfer_bytes` enable interrupted
+multi-GiB acquisition; use an uncached immutable fixture with sufficient allowance.
+
+The workflow pairs, verifies scoped denial, creates a remote service with an exact
+retry receipt, streams and cancels inference, then revokes and checks cleanup.
+Its cleanup revokes its grants and removes its pairing. It retains model files and
+operation receipts. Record output outside the repository. Administrative HTTPS
+access to both controllers orchestrates the check; every tested inter-cluster
+operation uses HyperNet.

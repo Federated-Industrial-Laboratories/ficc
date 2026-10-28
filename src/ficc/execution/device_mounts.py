@@ -71,10 +71,11 @@ def validate(row, host, host_node, payload_node, mount_count):
             "host_directory": directory, "host_node": host_node, "payload_node": payload_node}
 
 
-def verify(row, pid, mounts):
+def verify(row, pid, mounts, *, payload_node=None):
     name, mounted = target(row)
     host = host_identity()
     host_node = metadata(os.lstat("/dev/" + name))
-    payload_node = metadata(os.lstat(Path("/proc") / str(pid) / "root" / mounted["target"].lstrip("/")))
+    payload_node = metadata(payload_node if payload_node is not None else
+                            os.lstat(Path("/proc") / str(pid) / "root" / mounted["target"].lstrip("/")))
     count = sum(item.split()[4] == mounted["target"] for item in mounts)
     return validate(row, host, host_node, payload_node, count)

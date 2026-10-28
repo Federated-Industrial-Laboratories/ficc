@@ -29,8 +29,21 @@ class Input(Model):
 class Library(Model):
     path: Absolute
     digest: Digest
+    targets: Annotated[list[Absolute], Field(max_length=8)] = []
 
     _path = field_validator("path")(absolute)
+
+    @field_validator("targets")
+    @classmethod
+    def aliases(cls, values):
+        import re
+        from pathlib import PurePosixPath
+        distinct(values)
+        for value in values:
+            absolute(value)
+            if not value.startswith(("/usr/lib/", "/usr/lib64/", "/lib/", "/lib64/")) or not re.fullmatch(r"lib(?:cuda|nvidia[-A-Za-z0-9]*)\.so(?:\.[A-Za-z0-9.]+)?", PurePosixPath(value).name):
+                raise ValueError("GPU library targets must name explicit CUDA driver shared libraries.")
+        return values
 
 
 class GPU(Model):

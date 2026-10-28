@@ -421,3 +421,11 @@ select a candidate or supply subject_id/project_id for another identity's
 membership ceiling. A normal preview uses the authenticated credential.
 The runtime decision contract is documented in [the policy SDK](../sdk/policies.md).
 See [policy operations](policies.md) for revocation, rollback and restore.
+
+## Inference and models
+
+See the [inference API contract](../sdk/inference.md) for model acquisition, service lifecycle and compatible streaming endpoints.
+
+## Cluster federation
+
+See the [federation API](../sdk/federation.md) for project-scoped pairing, grants, compatible inference, remote management and resumable model acquisition.

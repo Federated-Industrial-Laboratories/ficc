@@ -13,8 +13,8 @@ from ficc_node.job_spec import TERMINAL as JOB_TERMINAL
 from .backup_io import MAX_DATABASE
 from .state_provider import BoundConnection
 
-SCHEMA = 15
-SUPPORTED = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, SCHEMA}
+SCHEMA = 17
+SUPPORTED = {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, SCHEMA}
 LEGACY_TABLES = {
     "nodes": ("id value", 64),
     "credentials": ("id digest kind label scopes nodes expires csrf roots", 512),
@@ -94,13 +94,22 @@ WORKLOAD_TABLES = {**CONTRIBUTOR_TABLES,
 DATASET_TABLES = {**WORKLOAD_TABLES, "datasets": ("id subject_id project_id key digest value", 2**63 - 1)}
 SOURCE_TABLES = {**DATASET_TABLES, **{name: ("id subject_id project_id key digest value", 2**63 - 1)
                             for name in ("source_connections", "source_queries", "source_runs", "source_uploads")}}
-TABLES = {**SOURCE_TABLES,
+INSPECTION_TABLES = {**SOURCE_TABLES,
     "dataset_safety": ("id value", 2**63 - 1),
     "dataset_lineage": ("dataset_id parent_id", 2**63 - 1),
     "dataset_objects": ("dataset_id project_id kind path_key sha256 bytes", 2**63 - 1),
     "inspection_runs": ("id subject_id project_id dataset_id key digest value", 2**63 - 1),
     "inspection_files": ("run_id file_index value", 2**63 - 1),
 }
+
+
+INFERENCE_TABLES = {**INSPECTION_TABLES, "model_revisions": ("id project_id value", 4096),
+          "inference_services": ("id project_id value", 2048)}
+
+TABLES = {**INFERENCE_TABLES, "federation_peers": ("id project_id value", 128),
+          "federation_offers": ("id project_id value", 256),
+          "federation_grants": ("id project_id value", 256),
+          "federation_operations": ("id project_id value", 2048)}
 
 
 def version(db):
@@ -113,7 +122,7 @@ def tables(db):
         raise ValueError("The state schema is not supported.")
     return {4: LEGACY_TABLES, 5: MODULE_TABLES, 6: ADAPTER_TABLES, 7: IDENTITY_TABLES,
             8: RESOURCE_TABLES, 9: POLICY_TABLES, 10: EXTERNAL_TABLES, 11: CONTRIBUTOR_TABLES, 12: WORKLOAD_TABLES, 13: DATASET_TABLES,
-            14: SOURCE_TABLES, SCHEMA: TABLES}[revision]
+            14: SOURCE_TABLES, 15: INSPECTION_TABLES, 16: INFERENCE_TABLES, SCHEMA: TABLES}[revision]
 
 
 def connect(path: Path, readonly=False):
@@ -222,6 +231,12 @@ def quiescent(db):
     if version(db) >= 15:
         from .inspection_store import validate_records as inspection_records
         inspection_records(db)
+    if version(db) >= 16:
+        from .inference.records import validate_records as inference_records
+        inference_records(db)
+    if version(db) >= 17:
+        from .federation.records import validate_records as federation_records
+        federation_records(db)
     for node in records(db, "nodes"):
         if not isinstance(node.get("id"), str):
             raise ValueError("A machine record identity is invalid.")
@@ -284,6 +299,12 @@ def sanitize(path: Path, restored=False):
             if version(db) >= 12:
                 from .workloads.records import suspend as suspend_workloads
                 suspend_workloads(db)
+            if version(db) >= 16:
+                from .inference.records import suspend as suspend_inference
+                suspend_inference(db)
+            if version(db) >= 17:
+                from .federation.records import suspend as suspend_federation
+                suspend_federation(db)
             if version(db) >= 14:
                 for value in records(db, "source_connections"):
                     value.update(enabled=False, revision=value["revision"] + 1)

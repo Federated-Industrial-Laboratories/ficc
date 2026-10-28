@@ -15,10 +15,12 @@ def credentials(connection):
     return pid, uid, gid
 
 
-async def receive(reader, maximum):
+async def receive(reader, maximum, reserve=None):
     length = struct.unpack("!I", await reader.readexactly(4))[0]
     if not 0 < length <= maximum:
         raise ValueError("The local executor frame exceeds its declared bound.")
+    if reserve is not None:
+        reserve(length)
     return await reader.readexactly(length)
 
 

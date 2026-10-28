@@ -130,3 +130,19 @@ python -m ficc.execution control --socket /run/ficc-executor/owner-1000.sock act
 
 The administrator uses `admin.sock`. The transport uses `transport.sock` and
 cannot issue local offer changes. Every command checks actual socket peer UID.
+
+### Change an installed runtime offer
+
+A provider package update changes its approved digest. Drain the installation,
+release every retained attempt, stop its executor service, and install the new
+package and administrator configuration. Preserve the ledger and installation
+identity. Apply the new configuration's initial offer with the current revision:
+
+```sh
+/path/to/python -I -B -m ficc.execution reconfigure-offer \
+  --config /private/executor.json --expected-revision REVISION
+```
+
+The command refuses an active supervisor, retained attempts or a stale revision.
+It validates the new offer against the installed ceiling and increments its
+revision. Start the same executor service and inspect its advertised capacity.

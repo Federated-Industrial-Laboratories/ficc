@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 
 from .common import archive_tree, digest, normalize_tree, run
+from .versions import arch, debian
 
 
 def executable(path: Path, text: str) -> None:
@@ -28,7 +29,7 @@ def deb(payload: Path, work: Path, output: Path, version: str, epoch: int) -> Pa
     install_tree(payload, root)
     control = root / "DEBIAN"
     control.mkdir()
-    deb_version = version.replace("rc", "~rc")
+    deb_version = debian(version)
     size = sum(p.stat().st_size for p in payload.rglob("*") if p.is_file()) // 1024 + 1
     (control / "control").write_text(
         f"Package: ficc\nVersion: {deb_version}\nArchitecture: amd64\nSection: admin\nPriority: optional\n"
@@ -81,7 +82,8 @@ def arch_recipe(payload: Path, portable: Path, output: Path, version: str, epoch
         "# SPDX-License-Identifier: Apache-2.0\n"
         "# Package the verified upstream runtime for the native package manager.\n"
         "pkgname=ficc-bin\n"
-        f"pkgver={version}\npkgrel=1\n"
+        f"pkgver={arch(version)}\npkgrel=1\n"
+        f"_upstream_version={version}\n"
         "pkgdesc='Local Linux cluster administration console'\n"
         "arch=('x86_64')\n"
         "url='https://github.com/Federated-Industrial-Laboratories/ficc'\n"
@@ -93,7 +95,7 @@ def arch_recipe(payload: Path, portable: Path, output: Path, version: str, epoch
         f"source=('{portable.name}')\nsha256sums=('{digest(portable)}')\n\n"
         "package() {\n"
         "  install -d \"$pkgdir/opt\" \"$pkgdir/usr/bin\" \"$pkgdir/usr/share/applications\"\n"
-        "  cp -a \"$srcdir/ficc-$pkgver-linux-x86_64\" \"$pkgdir/opt/ficc\"\n"
+        "  cp -a \"$srcdir/ficc-$_upstream_version-linux-x86_64\" \"$pkgdir/opt/ficc\"\n"
         "  ln -s ../../opt/ficc/ficc \"$pkgdir/usr/bin/ficc\"\n"
         "  install -Dm644 \"$pkgdir/opt/ficc/ficc.desktop\" \"$pkgdir/usr/share/applications/ficc.desktop\"\n"
         "  install -Dm644 \"$pkgdir/opt/ficc/ficc.svg\" \"$pkgdir/usr/share/icons/hicolor/scalable/apps/ficc.svg\"\n"

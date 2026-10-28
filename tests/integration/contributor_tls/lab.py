@@ -48,7 +48,7 @@ class Lab:
         self.output = None
         self.admin = None
 
-    def start(self):
+    def start(self, scopes=None):
         from ficc.cli import local_request
         from ficc.local_client import client
 
@@ -64,7 +64,7 @@ class Lab:
         else:
             raise AssertionError("The private controller did not start.")
         grant = local_request(self.state, {"action": "token", "label": "TLS integration",
-            "lifetime": 3600, "scopes": ["contributors:read", "contributors:manage"]})
+            "lifetime": 3600, "scopes": scopes or ["contributors:read", "contributors:manage"]})
         self.redactions.append(grant["credential"])
         self.admin = client(grant, self.state)
         for _ in range(100):
@@ -84,12 +84,12 @@ class Lab:
     def listing(self):
         return {row["id"]: row for row in self.api("GET", "/api/v1/contributors")["contributors"]}
 
-    async def enroll(self, index=0):
+    async def enroll(self, index=0, mode="voluntary"):
         from ficc import contributor_client
         from ficc.contributor_client_state import NodeState
 
         invitation = self.api("POST", "/api/v1/contributor-invitations",
-                              json={"name": f"TLS node {index}", "mode": "voluntary"})
+                              json={"name": f"TLS node {index}", "mode": mode})
         path = self.directory / ("node-" + invitation["node_id"])
         state = NodeState(path)
         private(path / "invitation.json", json.dumps(invitation))

@@ -4,11 +4,12 @@
 import concurrent.futures
 import logging
 import threading
+import time
 from pathlib import Path
 
 from . import gate, inputs, storage
 from .clock import Clock, active
-from .envelope import Envelope, context
+from .envelope import Envelope, StopPending, context
 from .ledger import TERMINAL, Conflict, Ledger
 from .offer import Offer, validate_offer
 from .spec import AttemptResult, Fence, Plan, digest
@@ -37,9 +38,15 @@ class Supervisor:
         self.ledger = Ledger(Path(settings.state), settings.installation_id)
         self.slots = {slot.id: slot for slot in settings.slots}
         self.lock = threading.RLock()
+        self.cleanup_started = {}
+        self.releasing = set()
         self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=min(8, len(self.slots)))
         self.pending = {}
-        self.inputs, self.input_busy = inputs.Inputs(), set()
+        from .model_cache import ModelCache
+        self.model_cache = ModelCache(settings.model_cache, self.ledger.retained) if settings.model_cache else None
+        self.inputs, self.input_busy = inputs.Inputs(self.model_cache), set()
+        from .endpoints import Endpoints
+        self.endpoints = Endpoints(self)
         self.recovered = False
         if self.ledger.offer() is None:
             self.ledger.save_offer(settings.initial_offer, 0)
@@ -174,6 +181,10 @@ class Supervisor:
                 current, _item, _receipt = self.input_record(request)
                 value = self.ledger.annotate(request, input_progress={**current["input_progress"], item["id"]: saved})
                 self.inputs.committed(request, hashed)
+                if saved["complete"] and self.model_cache and value["plan"]["job"].get("endpoint"):
+                    # Cache fill runs separately so acknowledgements and lease renewal stay bounded.
+                    cache_ctx = {**ctx, "check": lambda: self.check(request)}
+                    self.model_cache.publish(cache_ctx, item, inputs.root(ctx) / item["id"])
                 self.queue_preparation(value)
                 return self.input_status(request)
         except Exception as exc:
@@ -289,6 +300,13 @@ class Supervisor:
             result = AttemptResult.model_validate({**fence(value).model_dump(), "state": state, "reason": reason,
                 "exit_code": code, "output_bytes": observed.get("stdout_bytes", 0),
                 "error_bytes": observed.get("stderr_bytes", 0), "cleanup_confirmed": True})
+        except StopPending:
+            started = self.cleanup_started.setdefault(value["plan"]["attempt_id"], time.monotonic())
+            if time.monotonic() - started >= 10:
+                raise ValueError("Workload cleanup exceeded its ten-second bound; stop the supervisor.") from None
+            if not value.get("pending_stop") and value["state"] != "unknown":
+                self.ledger.annotate(fence(value), pending_stop=reason or "runtime_outcome_unknown")
+            return
         except Exception as exc:
             logging.getLogger(__name__).warning("Executor cleanup failed during %s (%s).", stage, type(exc).__name__)
             result = AttemptResult(**fence(value).model_dump(), state="unknown", reason="cleanup_unconfirmed", exit_code=None,
@@ -298,6 +316,8 @@ class Supervisor:
             result = result.model_copy(update={key: value[key] for key in
                 ("state", "reason", "exit_code", "output_bytes", "error_bytes")})
         self.ledger.finish(result)
+        if result.cleanup_confirmed:
+            self.cleanup_started.pop(value["plan"]["attempt_id"], None)
 
     def collect(self, request):
         value = self.ledger.fenced(request.attempt_id, request.generation, request.plan_digest)
@@ -317,17 +337,29 @@ class Supervisor:
             if value["state"] == "released":
                 return value
             if (value["state"] not in TERMINAL | {"unknown"} or not value["cleanup_confirmed"]
-                    or asked.attempt_id in self.pending or asked.attempt_id in self.input_busy):
+                    or asked.attempt_id in self.pending or asked.attempt_id in self.input_busy
+                    or asked.attempt_id in self.releasing):
                 raise Conflict("The attempt outcome or cleanup remains unconfirmed.")
             if value["slot"] is None and value.get("admission_rejection"):
                 return self.ledger.release(asked)
             ctx = self.ctx(value)
+            self.releasing.add(asked.attempt_id)
+        try:
+            # Recursive image deletion and durable input removal can outlast a
+            # watchdog interval. The ledger keeps the slot reserved throughout.
             self.slot_probe(self.slots[value["slot"]], value["binding"], idle=True)
             self.call(ctx, "release")
             if inputs.references(ctx):
                 self.inputs.release(ctx)
             self.slot_probe(self.slots[value["slot"]], value["binding"], idle=True)
-            return self.ledger.release(asked)
+            with self.lock:
+                current = self.ledger.fenced(asked.attempt_id, asked.generation, asked.plan_digest)
+                if current["slot"] != value["slot"] or current["binding"] != value["binding"]:
+                    raise Conflict("The retained storage binding changed during release.")
+                return self.ledger.release(asked)
+        finally:
+            with self.lock:
+                self.releasing.discard(asked.attempt_id)
 
     def snapshot(self, after):
         attempts, more = self.ledger.page(after)
@@ -353,7 +385,7 @@ class Supervisor:
                     for device in value["plan"]["job"]["limits"]["gpu_devices"]}
         resources["gpu_devices"] = [device for device in resources["gpu_devices"] if device not in occupied]
         return {"installation_id": self.settings.installation_id, "deployment_id": self.settings.deployment_id,
-                "ledger_id": self.ledger.identity, "admission_version": 1,
+                "ledger_id": self.ledger.identity, "admission_version": 1, "endpoint_version": 1, "input_chunk_bytes": 8 * 1024 * 1024,
                 "node_id": self.settings.node_id, "maximum_lease_seconds": self.settings.maximum_lease_seconds,
                 "offer": offer.model_dump(),
                 "capacity": {"slots": slots, "providers": [{"id": item.id, "package_digest": item.package_digest}
@@ -363,5 +395,8 @@ class Supervisor:
                 "next": attempts[-1]["plan"]["attempt_id"] if more else None}
 
     def close(self):
+        self.endpoints.close()
+        if self.model_cache:
+            self.model_cache.close()
         self.pool.shutdown(wait=True, cancel_futures=True)
         self.ledger.close()

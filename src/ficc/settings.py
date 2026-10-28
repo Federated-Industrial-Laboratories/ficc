@@ -19,6 +19,8 @@ PROFILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\Z")
 SCOPES = {"nodes:read", "nodes:write", "resources:read", "observations:read", "observations:resources",
           "tokens:manage", "identities:manage", "policies:manage", "audit:read",
           "jobs:read", "jobs:execute", "jobs:cancel", "jobs:logs",
+                            "federation:read", "federation:manage", "federation:invoke",
+                            "models:read", "models:manage", "inference:read", "inference:manage", "inference:invoke",
           "files:read", "files:write", "files:mode", "files:delete",
           "data:read", "data:export", "data:write", "data:manage",
           "terminals:read", "terminals:execute", "terminals:stop",

@@ -10,6 +10,7 @@ from ficc.execution.files import fingerprint, identity, read_json
 from ficc.execution.protocol import Read
 from ficc.execution.storage import mount_rows
 
+from .archive import verify as verify_archive
 from .configuration import Configuration
 from .devices import Devices
 from .prepare import create, verify_inputs
@@ -27,6 +28,7 @@ class Driver:
             saved = fingerprint(Path(item.archive))
             if saved["digest"] != item.archive_digest:
                 raise ValueError("An approved image archive changed.")
+            verify_archive(item.archive, item.digest, saved)
             self.identities[item.archive] = saved
         for source in self.configuration.inputs:
             saved = fingerprint(Path(source.path))

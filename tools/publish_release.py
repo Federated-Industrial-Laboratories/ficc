@@ -11,6 +11,7 @@ from pathlib import Path
 
 from finalize_release import required_artifacts, verify_original
 from release_lib.common import digest
+from release_lib.versions import arch_package, checked, prerelease
 from release_signatures import FILES as SIGNATURE_FILES
 from release_signatures import verify as verify_signature
 
@@ -31,15 +32,14 @@ def gh(*arguments: str, missing_ok: bool = False):
     return json.loads(result.stdout) if result.stdout.strip() else None
 
 
-def validate(output: Path) -> tuple[dict, dict]:
+def validate(output: Path, *, qualification: bool = False) -> tuple[dict, dict]:
     build = json.loads((output / 'build.json').read_text())
-    version = build['version']
-    if not re.fullmatch(r'\d+\.\d+\.\d+(?:rc\d+|\.post[1-9]\d*)?', version):
-        raise ValueError('Unsupported release version')
-    if (build.get('formats_complete') is not True or build['source'].get('dirty') is not False
+    version = checked(build['version'])
+    dirty = build['source'].get('dirty')
+    if (build.get('formats_complete') is not True or type(dirty) is not bool or dirty and not qualification
             or not re.fullmatch('[0-9a-f]{40}', build['source']['commit'])):
         raise ValueError('Release requires complete formats and a clean source commit')
-    arch = f'ficc-bin-{version}-1-x86_64.pkg.tar.zst'
+    arch = arch_package(version)
     if set(build['artifacts']) != required_artifacts(version) | {arch}:
         raise ValueError('Release requires every package and source format')
     verify_original(output, build, arch)
@@ -80,7 +80,7 @@ def publish(output: Path, repo: str, notes: Path, publish_now: bool, tag: str | 
     version, commit = build['version'], build['source']['commit']
     default_tag = 'v' + re.sub(r'\.post([1-9]\d*)$', r'r\1', version)
     allowed_tags = {default_tag}
-    if 'rc' not in version:
+    if not prerelease(version):
         allowed_tags.update({default_tag + '-stable', default_tag + '-final'})
     tag = default_tag if tag is None else tag
     if tag not in allowed_tags:
@@ -120,8 +120,8 @@ def publish(output: Path, repo: str, notes: Path, publish_now: bool, tag: str | 
         if existing_tag and gh('api', endpoint + '/commits/' + tag)['sha'] != commit:
             raise ValueError('Version tag changed during upload; retain the draft for review')
         subprocess.run(['gh', 'release', 'edit', tag, '--repo', repo, '--draft=false',
-                        '--prerelease=' + str('rc' in version).lower(),
-                        '--latest=' + str('rc' not in version).lower(), '--notes-file', str(notes)], check=True)
+                        '--prerelease=' + str(prerelease(version)).lower(),
+                        '--latest=' + str(not prerelease(version)).lower(), '--notes-file', str(notes)], check=True)
         release = gh('api', release_endpoint)
         verify_assets(release['assets'], assets, complete=True)
         if release['draft'] or gh('api', endpoint + '/commits/' + tag)['sha'] != commit:

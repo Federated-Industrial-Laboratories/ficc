@@ -28,6 +28,8 @@ from release_lib.runtimes import verify_windows_sources  # noqa: E402
 PROBE = '''import asyncio,io,json,pathlib,sys,zipfile
 import importlib.metadata as metadata
 import ficc_node
+from hypernet_streams import Agent, Stream
+assert all(callable(getattr(Agent,name,None)) for name in ('connect','accept','status','cancel'))
 from ficc.ssh import archive
 from ficc.terminal_pty import TerminalPTY
 members={p.name:p.read_bytes() for p in pathlib.Path(ficc_node.__file__).parent.glob('*.py')}
@@ -101,6 +103,7 @@ def qualify(command: Path, payload: Path, service_log: Path | None = None) -> di
     check("helper archive", native["helper_modules"] > 20)
     check("terminal child", native["pty"] is True)
     check("installed runtime providers", native["runtime_packages"] > 0 and bool(native["providers"]))
+    check("HyperNet SDK inventory", (payload / "hypernet-sdk/index.json").is_file())
     collector = subprocess.run([str(payload / "python/bin/ficc-audit-collector"), "--help"],
                                env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=15, check=False)
     check("audit collector command", collector.returncode == 0)

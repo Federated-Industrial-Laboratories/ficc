@@ -9,6 +9,7 @@
 <details>
 <summary>On this page</summary>
 
+- [0.3.0 development candidate](#030-development-candidate)
 - [Debian and Ubuntu](#debian-and-ubuntu)
 - [Arch Linux](#arch-linux)
 - [AppImage](#appimage)
@@ -70,6 +71,37 @@ Run the checksum command only after signature verification succeeds, and confirm
 that it reports the exact package you intend to install. A checksum alone detects
 corruption; the pinned signing key establishes which publisher signed those bytes.
 Key rotation requires independent confirmation before replacing the trusted key.
+
+## 0.3.0 development candidate
+
+Version `0.3.0.dev1` adds managed local inference and federation through HyperNet
+Core and Suite 0.9.0. Select models, verify and cache their weights, reserve GPUs,
+start services, stream responses and stop services through the UI, CLI or API.
+Adapters support llama.cpp, Ollama and optional vLLM through their supported
+interfaces. Multiple GPUs on one contributor can host a model; replicas can run
+on separate contributors. Cross-host tensor parallelism is not supported.
+
+Paired clusters can share selected inference services, delegate explicitly granted
+lifecycle operations and transfer verified model files with pause and resume.
+Scoped client credentials and federation grants control access. Revocation cancels
+active remote requests. HyperNet remains a separately configured installation;
+binary FICC packages include its application-stream SDK.
+
+Managed inference qualification covers Linux with NVIDIA GPUs. Other platforms
+retain their existing FICC support but have no new managed GPU-runtime claim.
+Engine images and model weights are optional, separately approved downloads.
+See [inference](inference.md) and [federation](federation.md) for prerequisites,
+capability limits and operator procedures.
+
+Back up controller state before upgrading. The database migration adds model,
+inference and federation records; rollback requires the matching pre-upgrade
+backup. Restored federation and inference state requires explicit operator
+reconciliation before resuming work. Keep durable control state separate from
+bulk model and task storage where I/O contention can block durable writes.
+
+The candidate uses Debian version `0.3.0~dev1` and Arch version `0.3.0dev1`.
+It is a development candidate, not a published stable release. The download
+examples below continue to identify the published 0.2.6 revision.
 
 ## Debian and Ubuntu
 

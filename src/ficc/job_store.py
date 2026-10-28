@@ -43,6 +43,8 @@ class JobStore:
         with self.store.lock, self.store.db:
             if self.store.db.execute("SELECT count(*) FROM operations").fetchone()[0] >= 2048:
                 raise Failure("capacity", "Retained operation capacity is full.", 409)
+            from .inference.admission import require_free
+            require_free(self.store, [item["uuid"] for target in operation["targets"] for item in target.get("reservations", [])])
             self.store.db.execute("INSERT INTO operations (id,actor,key,digest,value,subject_id,project_id) "
                                   "VALUES (:p0,:p1,:p2,:p3,:p4,:p5,:p6)",
                                   (operation["id"], operation["actor"], operation["key"], operation["digest"], encode(operation),

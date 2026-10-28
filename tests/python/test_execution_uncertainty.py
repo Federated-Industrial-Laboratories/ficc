@@ -22,6 +22,7 @@ def unknown(supervisor, values, provider, envelope, *, clean, released=False):
         for index, plan in enumerate(values):
             provider.states[plan.attempt_id] = {"phase": "payload", "payload_pid": index + 1000}
         Monitor(supervisor).tick()
+        settle(supervisor)
     envelope.fail_stop = not clean
     for index, plan in enumerate(values):
         provider.states[plan.attempt_id] = {"phase": "waiting", "stdout_bytes": index + 5,

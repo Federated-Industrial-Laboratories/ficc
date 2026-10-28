@@ -151,3 +151,7 @@ uncertain records remain retained until their outcome can be resolved.
 <p align="center"><img src="../.github/assets/divider.svg" width="720" alt=""></p>
 
 [Return to the project README](../README.md)
+
+Managed model and service workflows: [Inference](inference.md).
+
+[Cluster federation](federation.md) covers HyperNet setup, pairing, grants, remote inference and verified model ranges.

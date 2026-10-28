@@ -84,6 +84,15 @@ class Provider(Model):
         return value
 
 
+class CacheSettings(Model):
+    directory: Absolute
+    filesystem_uuid: Annotated[str, Field(pattern=r"^[A-Za-z0-9-]{8,80}$")]
+    maximum_bytes: Positive
+    maximum_files: Annotated[int, Field(ge=1, le=4096)] = 256
+
+    _directory = field_validator("directory")(absolute)
+
+
 class Settings(Model):
     version: Literal[1]
     installation_id: Identity
@@ -100,6 +109,7 @@ class Settings(Model):
     initial_offer: Offer
     slots: Annotated[list[Slot], Field(min_length=1, max_length=64)]
     providers: Annotated[list[Provider], Field(min_length=1, max_length=64)]
+    model_cache: CacheSettings | None = None
 
     _paths = field_validator("state", "sockets")(absolute)
     _owners = field_validator("local_owner_uids")(distinct)
@@ -122,6 +132,8 @@ class Settings(Model):
         if self.transport_uid in workload_uids or set(self.local_owner_uids) & (workload_uids | {self.transport_uid}):
             raise ValueError("Transport, workload, and local owner accounts must be separate.")
         paths = [Path(self.state), Path(self.sockets), *[Path(slot.mount) for slot in self.slots]]
+        if self.model_cache:
+            paths.append(Path(self.model_cache.directory))
         if any(a == b or a in b.parents or b in a.parents for index, a in enumerate(paths) for b in paths[index + 1:]):
             raise ValueError("State, sockets, and storage slots must use separate directories.")
         providers = {item.id: item.package_digest for item in self.providers}

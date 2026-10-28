@@ -11,10 +11,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools'))
 from finalize_release import required_artifacts  # noqa: E402
 from publish_release import validate, verify_assets  # noqa: E402
 from release_lib.common import digest  # noqa: E402
+from release_lib.versions import arch_package, prerelease  # noqa: E402
 
 
 def local_release(root, version='1.0.0'):
-    names = required_artifacts(version) | {f'ficc-bin-{version}-1-x86_64.pkg.tar.zst'}
+    names = required_artifacts(version) | {arch_package(version)}
     for name in names:
         (root / name).write_text('distinct synthetic ' + name)
     build = {'version': version, 'source': {'commit': 'a' * 40, 'dirty': False}, 'formats_complete': True,
@@ -76,6 +77,7 @@ def test_remote_assets_are_checked_individually(count, failure):
 @pytest.mark.parametrize(('version', 'tag'), [
     ('1.0.0', None), ('1.0.0', 'v1.0.0-stable'), ('0.2.6.post1', 'v0.2.6r1-stable'),
     ('0.2.6.post4', 'v0.2.6r4-final'),
+    ('0.3.0.dev1', 'v0.3.0.dev1'),
 ])
 def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, monkeypatch, failure, version, tag):
     import publish_release as module
@@ -108,7 +110,8 @@ def test_publication_occurs_only_after_source_and_remote_assets_match(tmp_path, 
         calls.append(command)
         if command[:3] == ['gh', 'release', 'edit']:
             assert command[3] == release['tag_name']
-            assert '--prerelease=false' in command and '--latest=true' in command
+            assert '--prerelease=' + str(prerelease(version)).lower() in command
+            assert '--latest=' + str(not prerelease(version)).lower() in command
             release['draft'] = False
 
     # A nonempty ref object models an existing version tag.
@@ -198,6 +201,7 @@ def test_pending_draft_uses_its_id_and_uploads_before_publication(tmp_path, monk
     ('0.2.6.post4', 'v0.2.6r3-final'), ('0.2.6.post4', 'v0.2.6r4-final/extra'),
     ('0.2.6.post1', 'v0.2.6-stable'), ('0.2.6.post1', 'v0.2.6r2-stable'),
     ('0.2.6.post1', 'v0.2.6.post1-stable'),
+    ('0.3.0.dev1', 'v0.3.0.dev1-stable'), ('0.3.0.dev1', 'v0.3.0.dev1-final'),
 ])
 def test_invalid_release_tag_is_refused_before_remote_access(tmp_path, monkeypatch, version, tag):
     import publish_release as module
@@ -247,4 +251,33 @@ def test_real_release_signature_requires_the_trusted_key_and_exact_bytes(tmp_pat
     (output / 'SHA256SUMS').write_bytes(original)
     (output / 'ficc-1.0.0-py3-none-any.whl').write_bytes(b'altered package')
     with pytest.raises(ValueError, match='changed'):
+        publication.publish(output, 'example/ficc', tmp_path / 'notes', False, trusted_key=public)
+
+
+@pytest.mark.parametrize('dirty', [False, True])
+def test_qualification_signature_cannot_authorize_publication(tmp_path, monkeypatch, dirty):
+    import subprocess
+
+    import publish_release as publication
+    from release_signatures import sign, verify
+
+    output = tmp_path / 'candidate'
+    output.mkdir()
+    build = local_release(output, '0.3.0.dev1')
+    build['source']['dirty'] = dirty
+    (output / 'build.json').write_text(json.dumps(build))
+    sums(output)
+    key = tmp_path / 'candidate-key'
+    subprocess.run(['/usr/bin/ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', str(key)], check=True)
+    public = key.with_suffix('.pub')
+    fingerprint = sign(output, key, public, qualification=True)
+    assert verify(output, public, qualification=True) == fingerprint
+    with pytest.raises(ValueError, match='signature is invalid'):
+        verify(output, public)
+
+    def unexpected(*args, **kwargs):
+        pytest.fail('A qualification signature must fail before GitHub access')
+
+    monkeypatch.setattr(publication, 'gh', unexpected)
+    with pytest.raises(ValueError):
         publication.publish(output, 'example/ficc', tmp_path / 'notes', False, trusted_key=public)

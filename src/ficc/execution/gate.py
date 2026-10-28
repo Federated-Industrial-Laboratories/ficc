@@ -6,7 +6,7 @@ import re
 import stat
 from pathlib import Path
 
-from . import device_mounts
+from . import device_mounts, layered, mount_probe
 from .files import atomic
 from .storage import mount_rows
 
@@ -21,9 +21,9 @@ def core_limit(value):
             "The payload can write a core dump outside its reserved storage.")
 
 
-def bind(row, expected, root):
+def bind(row, expected, root, observed=None):
     source = Path(expected["source"]).lstat()
-    target = (root / row["target"].lstrip("/")).lstat()
+    target = observed if observed is not None else (root / row["target"].lstrip("/")).lstat()
     saved = expected["identity"]
     require(all((item.st_dev, item.st_ino, item.st_mode) ==
                 (saved["device"], saved["inode"], saved["mode"]) for item in (source, target)),
@@ -59,14 +59,22 @@ def filesystem(ctx, prepared, pid, rows, raw):
         counts[row["target"]] = counts.get(row["target"], 0) + 1
     require(counts.get("/") == 1, "The payload root mount is not unique.")
     main = next(row for row in rows if row["target"] == "/")
-    require(main["fstype"] in {"overlay", "fuse-overlayfs"} and "ro" in main["options"],
+    require(main["fstype"] in {"overlay", "fuse.fuse-overlayfs"} and "ro" in main["options"],
             "The payload root is not a read-only layered filesystem.")
     runtime = str(Path(ctx["directory"]) / "runtime")
-    options = dict(item.split("=", 1) for item in main["super_options"].split(",") if "=" in item)
-    for name in ("lowerdir", "upperdir", "workdir"):
-        require(name in options and all(path.startswith(runtime + "/storage/") and "/../" not in path
-                                        for path in options[name].split(":")),
-                "The payload root storage is outside the reserved filesystem.")
+    metadata, shared_bytes = {}, None
+    if main["fstype"] == "fuse.fuse-overlayfs":
+        proof = layered.verify(ctx, prepared, main)
+        atomic(Path(ctx["directory"]) / "overlay-inspection.json", proof)
+        targets = [row["target"] for row in rows if row["target"] != "/"]
+        metadata, shared_bytes = mount_probe.inspect(pid, targets, bool(prepared.get("shared_memory_bytes")))
+    else:
+        require(not prepared.get("overlay_helper"), "The runtime ignored its approved userspace overlay backend.")
+        options = dict(item.split("=", 1) for item in main["super_options"].split(",") if "=" in item)
+        for name in ("lowerdir", "upperdir", "workdir"):
+            require(name in options and all(path.startswith(runtime + "/storage/") and "/../" not in path
+                                            for path in options[name].split(":")),
+                    "The payload root storage is outside the reserved filesystem.")
     mounts = {item["target"]: item for item in prepared["mounts"]}
     require(len(mounts) == len(prepared["mounts"]), "Payload mount targets are not unique.")
     require(all(counts.get(target) == 1 for target in mounts), "An approved payload bind is absent or covered.")
@@ -75,7 +83,7 @@ def filesystem(ctx, prepared, pid, rows, raw):
     for row in rows:
         target, kind, flags = row["target"], row["fstype"], set(row["options"])
         if target in mounts:
-            bind(row, mounts[target], root)
+            bind(row, mounts[target], root, metadata.get(target))
         elif target == "/":
             continue
         elif target in prepared["generated_targets"]:
@@ -85,6 +93,13 @@ def filesystem(ctx, prepared, pid, rows, raw):
         elif kind == "proc":
             require(target == "/proc" or target.startswith("/proc/") and "ro" in flags,
                     "A process filesystem mount has unexpected access.")
+        elif kind == "tmpfs" and target == "/dev/shm" and prepared.get("shared_memory_bytes"):
+            if shared_bytes is None:
+                space = os.statvfs(root / "dev/shm")
+                shared_bytes = space.f_blocks * space.f_frsize
+            require(counts[target] == 1 and {"rw", "nosuid", "nodev", "noexec"} <= flags
+                    and shared_bytes <= prepared["shared_memory_bytes"],
+                    "The private inference shared-memory mount exceeds its admitted bound.")
         elif kind in {"sysfs", "cgroup2", "tmpfs"}:
             require("ro" in flags and (target.startswith("/sys") or target.startswith("/proc/")
                                        or target in {"/dev", "/dev/shm"}),
@@ -94,7 +109,7 @@ def filesystem(ctx, prepared, pid, rows, raw):
                     and {"nosuid", "noexec"} <= flags, "A private device filesystem has unexpected access.")
         else:
             original = next(line for line in raw if line.split()[0] == row["id"])
-            device_mounts.verify(original, pid, raw)
+            device_mounts.verify(original, pid, raw, payload_node=metadata.get(target))
 
 
 def inspect(ctx, prepared, pid):
@@ -104,7 +119,7 @@ def inspect(ctx, prepared, pid):
     status = (path / "status").read_text()
     fields = dict(line.split(":", 1) for line in status.splitlines() if ":" in line)
     raw_mounts = (path / "mountinfo").read_text().splitlines()
-    group = (path / "cgroup").read_text().strip()
+    group = next((line for line in (path / "cgroup").read_text().splitlines() if line.startswith("0::")), "")
     limits = (path / "limits").read_text()
     descriptors = [os.readlink(item) for item in (path / "fd").iterdir()]
     observed = {"pid": pid, "start_time": started, "status": status, "mountinfo": raw_mounts,

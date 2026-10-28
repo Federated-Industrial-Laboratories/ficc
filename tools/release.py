@@ -12,6 +12,7 @@ import shutil
 import tomllib
 from pathlib import Path
 
+import hypernet_runtime
 from release_lib import formats, notices, payload
 from release_lib.common import archive_tree, digest, fetch, snapshot, write_json
 
@@ -26,7 +27,10 @@ def main() -> None:
     parser.add_argument("--allow-dirty", action="store_true", help="Build a marked qualification candidate")
     parser.add_argument("--viewer-runtime", type=Path, help="Include a trusted local native viewer runtime")
     parser.add_argument("--windows-runtime", type=Path, help="Include a trusted local Windows transport runtime")
+    parser.add_argument("--hypernet-sdk-wheel", type=Path, required=True, help="Trusted HyperNetSuite application-stream SDK wheel")
+    parser.add_argument("--hypernet-sdk-sha256", required=True, help="SHA-256 from the trusted SDK bundle inventory")
     args = parser.parse_args()
+    hypernet_runtime.verify(args.hypernet_sdk_wheel, args.hypernet_sdk_sha256)
     if platform.system() != "Linux" or platform.machine() != "x86_64":
         raise ValueError("This release target requires Linux x86_64")
     source, work, output, cache = [p.resolve() for p in (args.source, args.work, args.output, args.cache)]
@@ -50,6 +54,7 @@ def main() -> None:
     notices.sources(inputs, lock, work, output, version, provenance["epoch"])
     tree, version = payload.build(source, work, inputs, provenance, lock,
                                  viewer_runtime=args.viewer_runtime, windows_runtime=args.windows_runtime,
+                                 hypernet_sdk_wheel=args.hypernet_sdk_wheel, hypernet_sdk_sha256=args.hypernet_sdk_sha256,
                                  module_cache=cache / "modules")
     epoch = provenance["epoch"]
     portable = output / (tree.name + ".tar.gz")

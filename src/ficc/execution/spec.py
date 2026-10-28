@@ -102,6 +102,20 @@ class Output(Model):
         return value
 
 
+class Endpoint(Model):
+    socket: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_.-]{0,63}$")]
+    paths: Annotated[list[str], Field(min_length=1, max_length=16)]
+    concurrency: Annotated[int, Field(ge=1, le=34)] = 3
+
+    @field_validator("paths")
+    @classmethod
+    def routes(cls, values):
+        allowed = {"/health", "/v1/models", "/v1/chat/completions", "/v1/embeddings", "/api/version", "/api/blobs", "/api/create", "/api/show", "/api/ps", "/api/chat", "/api/embed"}
+        if not set(values).issubset(allowed):
+            raise ValueError("The endpoint contains an unsupported inference route.")
+        return distinct(values)
+
+
 class Job(Model):
     name: Annotated[str, Field(min_length=1, max_length=80)]
     runtime: Runtime
@@ -110,6 +124,14 @@ class Job(Model):
     inputs: Annotated[list[ObjectReference], Field(max_length=64)]
     outputs: Annotated[list[Output], Field(max_length=64)]
     sensitive: bool
+    endpoint: Endpoint | None = None
+
+    @model_serializer(mode="wrap")
+    def serialize_endpoint(self, handler):
+        value = handler(self)
+        if self.endpoint is None:
+            value.pop("endpoint", None)
+        return value
 
     @model_validator(mode="after")
     def unique_inputs(self):

@@ -10,7 +10,9 @@ virtual environment. Use the same interpreter for the commands below.
 
 ```sh
 python tools/release.py --cache /tmp/ficc-inputs \
-  --work /tmp/ficc-build --output /tmp/ficc-release
+  --work /tmp/ficc-build --output /tmp/ficc-release \
+  --hypernet-sdk-wheel /path/to/hypernet_streams-VERSION-py3-none-any.whl \
+  --hypernet-sdk-sha256 TRUSTED_SHA256
 ```
 
 Work and output directories must be new and outside the source checkout.
@@ -183,3 +185,36 @@ CI artifacts are temporary qualification output; they are not release downloads.
 For `0.2.6r4-final`, package metadata uses `0.2.6.post4`.
 Pass `--tag v0.2.6r4-final` to `publish_release.py` for the final revision tag.
 This closes the 0.2.6 revision series; subsequent changes require a new version.
+
+## 0.3.0 nightly inference
+
+The nightly candidate uses Python version `0.3.0.dev1` and controller schema 17.
+Debian packages use `0.3.0~dev1`; Arch packages use `0.3.0dev1`. Both sort
+before the stable `0.3.0` package. Portable archives, wheel metadata and the
+application display retain the Python version. Development releases are
+prereleases and cannot use a stable or final tag.
+
+A complete `--allow-dirty` build can be signed and verified for isolated
+qualification by adding `--qualification` to `release_signatures.py`. This
+uses the separate `ficc-qualification-v1` signature namespace. It retains
+the source inventory and dirty marker. The publication command rejects both
+uncommitted source and qualification signatures; a release requires the normal
+release signature after source qualification.
+The Podman provider wheel includes the static `socket-proxy` connector beside its
+existing barrier. Qualify the rebuilt provider digest and approved engine images
+before enabling inference. No model weights or engine images are bundled in the
+controller wheel. The optional node cache requires a private directory on an
+explicit filesystem UUID. See [inference deployment](../docs/inference.md).
+
+## HyperNet application-stream SDK
+
+Release builds require `--hypernet-sdk-wheel PATH --hypernet-sdk-sha256 HASH`. Use the maintained pure-Python wheel and its digest from a trusted HyperNetSuite bundle. The builder verifies the wheel, installs it without dependency resolution, checks the SDK interface and retains `hypernet-sdk/index.json` in the payload. The normal SBOM and payload hashes include the distribution. Core and Suite remain separately installed and explicitly configured. Source installation accepts the same options to enable federation.
+
+The package workflow takes an SDK HTTPS URL and digest as explicit dispatch inputs,
+or repository variables `HYPERNET_SDK_URL` and `HYPERNET_SDK_SHA256`. Configure
+these from an independently verified Suite artifact when selecting a published wheel.
+Without an override, CI builds the SDK from the exact qualified HyperNetSuite
+commit recorded in the workflow, verifies its package interface and retains the
+built wheel's digest. This permits coordinated candidate qualification before a
+Suite release is published. A partial or invalid override refuses the build;
+CI cannot silently omit federation support.

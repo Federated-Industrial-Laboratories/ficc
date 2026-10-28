@@ -100,6 +100,8 @@ class Records:
                 raise Failure("lease_expired", "The first workload lease is invalid or expired.", 409)
             held = [item for item in self.attempts(plan.node_id) if item.state != "released"]
             limits = plan.job.limits
+            from ..inference.admission import require_free
+            require_free(self.store, limits.gpu_devices, workload=True)
             if not limits.fits(capacity):
                 raise Failure("capacity", "The workload exceeds the offered node capacity.", 409)
             for key in ("cpu_millis", "memory_bytes", "swap_bytes", "processes", "storage_bytes", "storage_inodes"):

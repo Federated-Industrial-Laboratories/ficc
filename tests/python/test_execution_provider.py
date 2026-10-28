@@ -19,6 +19,131 @@ devices = importlib.import_module("ficc_executor_podman.devices")
 prepare = importlib.import_module("ficc_executor_podman.prepare")
 
 
+def approved_archive(path, kind="oci", *, damaged=False, duplicate=False):
+    import hashlib
+    import io
+    import json
+    import tarfile
+
+    def encoded(value):
+        return json.dumps(value, separators=(",", ":")).encode()
+    config = encoded({"architecture": "amd64", "os": "linux", "config": {"Entrypoint": ["/runtime"]}, "rootfs": {"type": "layers", "diff_ids": []}})
+    digest = "sha256:" + hashlib.sha256(config).hexdigest()
+    def descriptor(data):
+        return {"digest": "sha256:" + hashlib.sha256(data).hexdigest(), "size": len(data)}
+    if kind == "oci":
+        manifest = encoded({"schemaVersion": 2, "config": descriptor(config), "layers": []})
+        index = encoded({"schemaVersion": 2, "manifests": [{**descriptor(manifest), "annotations": {"org.opencontainers.image.ref.name": "sha256:" + "a" * 64}}]})
+        files = [("index.json", index), ("blobs/sha256/" + descriptor(manifest)["digest"][7:], manifest),
+                 ("blobs/sha256/" + digest[7:], config.replace(b"runtime", b"changed") if damaged else config)]
+    else:
+        files = [("manifest.json", encoded([{"Config": digest[7:] + ".json", "RepoTags": ["example:latest"], "Layers": []}])), (digest[7:] + ".json", config)]
+    if duplicate:
+        files.append(files[0])
+    with tarfile.open(path, "w") as archive:
+        for name, data in files:
+            member = tarfile.TarInfo(name)
+            member.size = len(data)
+            archive.addfile(member, io.BytesIO(data))
+    path.chmod(0o444)
+    return digest
+
+
+@pytest.mark.parametrize("kind", ["oci", "docker"])
+def test_provider_refuses_source_image_id_before_advertising_exported_image(tmp_path, monkeypatch, kind):
+    import ficc_executor_podman as provider
+
+    from ficc.execution.files import fingerprint
+
+    path = tmp_path / "runtime.tar"
+    exported = approved_archive(path, kind)
+    saved = fingerprint(path, owner=os.getuid())
+    monkeypatch.setattr(provider, "fingerprint", lambda _: saved)
+    configuration = {"version": 1, "images": [{"digest": "sha256:" + "a" * 64, "archive": str(path), "archive_digest": saved["digest"]}], "inputs": [], "gpu": None}
+    with pytest.raises(ValueError, match="Use its config ID: " + exported):
+        provider.Driver(configuration)
+    configuration["images"][0]["digest"] = exported
+    assert list(provider.Driver(configuration).images) == [exported]
+
+
+@pytest.mark.parametrize("damage,duplicate,reason", [(True, False, "differs from its descriptor"), (False, True, "ambiguous")])
+def test_provider_archive_metadata_is_unambiguous_and_digest_bound(tmp_path, damage, duplicate, reason):
+    from ficc_executor_podman.archive import verify
+
+    from ficc.execution.files import fingerprint
+
+    path = tmp_path / "runtime.tar"
+    expected = approved_archive(path, damaged=damage, duplicate=duplicate)
+    with pytest.raises(ValueError, match=reason):
+        verify(path, expected, fingerprint(path, owner=os.getuid()))
+
+
+def test_distribution_digest_is_portable_but_binds_runtime_bytes(tmp_path, monkeypatch):
+    import base64
+    import csv
+    import hashlib
+    import importlib.metadata
+
+    from ficc.execution import providers
+
+    current = []
+    monkeypatch.setattr(importlib.metadata, "entry_points", lambda **kwargs: current)
+    def installed(name, code=b"API_VERSION = 1\n"):
+        root = tmp_path / name
+        root.mkdir(mode=0o700)
+        metadata = root / "example-1.dist-info"
+        metadata.mkdir(mode=0o700)
+        files = {"example.py": code, "example-1.dist-info/METADATA": b"Name: example\nVersion: 1\n",
+                 "example-1.dist-info/direct_url.json": ('{"url":"file:///different/' + name + '.whl"}').encode()}
+        rows = []
+        for path, data in files.items():
+            target = root / path
+            target.write_bytes(data)
+            target.chmod(0o600)
+            encoded = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).decode().rstrip("=")
+            rows.append([path, "sha256=" + encoded, str(len(data))])
+        with (metadata / "RECORD").open("w") as stream:
+            csv.writer(stream).writerows([*rows, ["example-1.dist-info/RECORD", "", ""]])
+        current[:] = [SimpleNamespace(dist=importlib.metadata.PathDistribution(metadata), value="example:configure")]
+        return providers.distribution("example", owner=os.getuid())[1]
+    first = installed("first")
+    assert installed("second") == first
+    assert installed("changed", b"API_VERSION = 2\n") != first
+    (tmp_path / "changed/example.py").write_bytes(b"unrecorded replacement")
+    with pytest.raises(ValueError, match="package record"):
+        providers.distribution("example", owner=os.getuid())
+
+
+def test_shared_archive_requires_public_immutable_owned_path(monkeypatch):
+    values = {"/library/model.oci": SimpleNamespace(st_mode=stat.S_IFREG | 0o444, st_uid=0, st_nlink=1,
+        st_dev=1, st_ino=2, st_size=100, st_mtime_ns=3, st_ctime_ns=4),
+        "/library": SimpleNamespace(st_mode=stat.S_IFDIR | 0o755, st_uid=0),
+        "/": SimpleNamespace(st_mode=stat.S_IFDIR | 0o755, st_uid=0)}
+    monkeypatch.setattr(Path, "lstat", lambda path: values[str(path)])
+    assert prepare.shared_archive("/library/model.oci")["inode"] == 2
+    values["/library"].st_mode = stat.S_IFDIR | 0o700
+    assert prepare.shared_archive("/library/model.oci") is None
+    values["/library"].st_mode = stat.S_IFDIR | 0o755
+    values["/library/model.oci"].st_mode = stat.S_IFREG | 0o644
+    assert prepare.shared_archive("/library/model.oci") is None
+    values["/library/model.oci"].st_mode = stat.S_IFREG | 0o444
+    values["/library/model.oci"].st_uid = 1000
+    assert prepare.shared_archive("/library/model.oci") is None
+
+
+def test_engine_timeout_reports_the_operation_in_workload_logs(tmp_path, monkeypatch):
+    import subprocess
+    engine = object.__new__(runner.Engine)
+    engine.root, engine.prefix, engine.environment = tmp_path, ["/usr/bin/podman"], {}
+    def timeout(argv, **kwargs):
+        assert kwargs["timeout"] == 30
+        raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+    monkeypatch.setattr(subprocess, "run", timeout)
+    with pytest.raises(ValueError, match="image operation exceeded"):
+        engine.call(["image", "inspect", "sha256:" + "a" * 64])
+    assert (tmp_path / "stderr").read_text() == "The rootless engine image operation exceeded its 30 second bound.\n"
+
+
 @pytest.mark.parametrize("count", [1, pytest.param(64, marks=pytest.mark.scale)])
 def test_payload_arguments_cannot_change_engine_flags_or_host_environment(tmp_path, count):
     for index in range(count):
@@ -40,6 +165,12 @@ def test_payload_arguments_cannot_change_engine_flags_or_host_environment(tmp_pa
         assert "--security-opt=no-new-privileges" in args[:boundary]
         assert "--http-proxy=false" in args[:boundary] and "--log-driver=none" in args[:boundary]
         assert "--cap-drop=ALL" in args[:boundary] and "--pull=never" in args[:boundary]
+        ordinary = runner.Engine(request)
+        assert not any(item.startswith("--storage-opt=") for item in ordinary.prefix)
+        request["context"]["plan"]["job"]["endpoint"] = {"port": 8080}
+        managed = runner.Engine(request)
+        assert "--storage-driver=overlay" in managed.prefix
+        assert "--storage-opt=overlay.mount_program=/usr/bin/fuse-overlayfs" in managed.prefix
         values = runner.environment(root, request)
         assert "LD_PRELOAD" not in values and values["CONTAINERS_CONF"] == str(root / "containers.conf")
         assert set(values) == {"PATH", "LANG", "LC_ALL", "HOME", "XDG_RUNTIME_DIR", "XDG_CONFIG_HOME",

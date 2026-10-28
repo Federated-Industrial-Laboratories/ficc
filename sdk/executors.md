@@ -92,7 +92,7 @@ start, observe, stop, collect, stage inputs, release, reject an absent new admis
 snapshots. It cannot set offers or acknowledge an absent legacy attempt.
 
 Requests and replies use a four-byte unsigned network-order length followed by
-UTF-8 JSON. Requests are at most 8 MiB and replies at most 2 MiB. These are control
+UTF-8 JSON. Requests are at most 12 MiB and replies at most 2 MiB. These are control
 frame bounds, not total job-data limits. Each collect batch reads at most 1 MiB;
 use returned offsets to read larger results. Only declared output names and the
 two log streams can be read. Files must be regular and below the reserved storage.
@@ -101,7 +101,8 @@ two log streams can be read. Files must be regular and below the reserved storag
 the attempt fence and `object`, the declared streamed input ID. `input_write`
 has a `writes` list of one through 64 entries, adding `offset`, canonical base64
 `data`, and `digest`, the SHA256 of that chunk. Aggregate decoded data is at most
-1 MiB per request. Offsets and declared sizes use nonnegative 64-bit integers;
+the snapshot's `input_chunk_bytes` per request (8 MiB on current executors;
+1 MiB when the field is absent). Offsets and declared sizes use nonnegative 64-bit integers;
 clients must preserve integer precision. Empty chunks are valid only for an
 empty object, whose declared full digest must equal SHA256 of empty bytes.
 

@@ -1,6 +1,6 @@
 {
   "name": "ficc-console",
-  "version": "0.2.6",
+  "version": "0.3.0-dev.1",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",

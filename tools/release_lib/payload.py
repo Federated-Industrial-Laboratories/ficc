@@ -13,6 +13,7 @@ import tarfile
 import tomllib
 from pathlib import Path
 
+import hypernet_runtime
 import runtime_packages
 from viewer_runtime import install as install_viewer
 
@@ -95,7 +96,8 @@ def repair_records(site: Path, payload: Path) -> None:
 
 def build(source: Path, work: Path, inputs: dict[str, Path], provenance: dict, lock: dict,
           *, viewer_runtime: Path | None = None, windows_runtime: Path | None = None,
-          module_cache: Path | None = None) -> tuple[Path, str]:
+          module_cache: Path | None = None, hypernet_sdk_wheel: Path,
+          hypernet_sdk_sha256: str) -> tuple[Path, str]:
     version = tomllib.loads((source / "pyproject.toml").read_text())["project"]["version"]
     if windows_runtime is not None:
         from .runtimes import verify_windows_sources
@@ -131,6 +133,8 @@ def build(source: Path, work: Path, inputs: dict[str, Path], provenance: dict, l
     runtime_wheels = payload / "runtime-packages"
     providers = runtime_packages.build(source, runtime_wheels, sys.executable, env=env)
     runtime_packages.install(python, runtime_wheels, providers, env=env)
+    hypernet_runtime.install(python, hypernet_sdk_wheel, hypernet_sdk_sha256,
+                            payload / "hypernet-sdk", env=env)
     (payload / "python/bin/ficc").write_text(CLI)
     (payload / "python/bin/ficc").chmod(0o755)
     (payload / "python/bin/ficc-audit-collector").write_text(CLI.replace("-m ficc.cli", "-m ficc_audit_https.collector"))

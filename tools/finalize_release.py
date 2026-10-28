@@ -13,11 +13,12 @@ import tarfile
 from pathlib import Path, PurePosixPath
 
 from release_lib.common import digest, write_json
+from release_lib.versions import arch_package, debian
 from release_signatures import FILES as SIGNATURE_FILES
 
 
 def required_artifacts(version: str) -> set[str]:
-    return {f"FICC-{version}-x86_64.AppImage", f"ficc_{version.replace('rc', '~rc')}_amd64.deb",
+    return {f"FICC-{version}-x86_64.AppImage", f"ficc_{debian(version)}_amd64.deb",
             f"ficc-{version}-linux-x86_64.tar.gz", f"ficc-{version}-arch-recipe.tar.gz",
             f"ficc-{version}-source.tar.gz", f"ficc-{version}-third-party-sources.tar.gz",
             f"ficc-{version}-py3-none-any.whl", f"ficc-{version}.tar.gz", f"ficc-{version}.cdx.json"}
@@ -46,7 +47,7 @@ def finalize(output: Path, package: Path) -> None:
     if any((output / name).exists() or (output / name).is_symlink() for name in SIGNATURE_FILES):
         raise ValueError("Finalize the release formats before signing its checksums")
     build = json.loads((output / "build.json").read_text())
-    expected = f"ficc-bin-{build['version']}-1-x86_64.pkg.tar.zst"
+    expected = arch_package(build['version'])
     if package.name != expected:
         raise ValueError("Arch package name differs from this release")
     verify_original(output, build, expected)

@@ -39,7 +39,7 @@ GENERATED = frozenset({"audit", "module_history"})
 
 
 def metadata():
-    if SCHEMA != 15:
+    if SCHEMA != 17:
         raise ValueError("This state driver does not support the controller schema.")
     result = MetaData()
     for name, (columns, _) in TABLES.items():
@@ -131,7 +131,7 @@ def initialize(connection, binding, *, create):
         if "ficc_state_metadata" not in names:
             raise ValueError("The configured database is not a complete controller state database.")
         values = dict(connection.execute(text("SELECT key,value FROM ficc_state_metadata")).all())
-        if (values.get("schema") not in {"7", "8", "9", "10", "11", "12", "13", "14", str(SCHEMA)} or values.get("binding") != binding
+        if (values.get("schema") not in {"7", "8", "9", "10", "11", "12", "13", "14", "15", "16", str(SCHEMA)} or values.get("binding") != binding
                 or set(values) - {"schema", "binding", "import_sha256"}):
             raise ValueError("The database schema or local state binding does not match.")
         if values["schema"] == "7":
@@ -176,5 +176,15 @@ def initialize(connection, binding, *, create):
                 def execute(self, query, values=()):
                     return connection.execute(text(query), {f"p{index}": value for index, value in enumerate(values)})
             backfill(Migration())
+            connection.execute(text("UPDATE ficc_state_metadata SET value=:schema WHERE key='schema'"), {"schema": str(SCHEMA)})
+        if int(values["schema"]) < 16:
+            model = metadata()
+            for table in ("model_revisions", "inference_services"):
+                model.tables[table].create(connection)
+            connection.execute(text("UPDATE ficc_state_metadata SET value=:schema WHERE key='schema'"), {"schema": str(SCHEMA)})
+        if int(values["schema"]) < 17:
+            model = metadata()
+            for table in ("federation_peers", "federation_offers", "federation_grants", "federation_operations"):
+                model.tables[table].create(connection)
             connection.execute(text("UPDATE ficc_state_metadata SET value=:schema WHERE key='schema'"), {"schema": str(SCHEMA)})
         validate(connection, TABLES)

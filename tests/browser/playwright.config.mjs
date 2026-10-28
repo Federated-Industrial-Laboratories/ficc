@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const windowPosition = process.env.FICC_BROWSER_WINDOW_POSITION;
+const acceptedSpki = process.env.FICC_BROWSER_SPKI;
+if (acceptedSpki && !/^[A-Za-z0-9+/]{43}=$/.test(acceptedSpki)) throw new Error('FICC_BROWSER_SPKI must name one SHA-256 certificate public-key digest.');
 if (windowPosition && !/^-?\d+,-?\d+$/.test(windowPosition)) {
   throw new Error('FICC_BROWSER_WINDOW_POSITION must contain two integer coordinates, separated by a comma.');
 }
@@ -17,7 +19,7 @@ export default defineConfig({
     browserName: 'chromium', headless: process.env.FICC_HEADED !== '1',
     launchOptions: {
       executablePath: process.env.FICC_BROWSER || '/opt/google/chrome/chrome',
-      args: ['--no-sandbox', ...(windowPosition ? [`--window-position=${windowPosition}`] : [])],
+      args: ['--no-sandbox', ...(windowPosition ? [`--window-position=${windowPosition}`] : []), ...(acceptedSpki ? [`--ignore-certificate-errors-spki-list=${acceptedSpki}`] : [])],
     },
     viewport: { width: 1280, height: 1000 }, trace: 'off', screenshot: 'off', video: 'off',
   },

@@ -69,15 +69,18 @@ class Devices:
                 raise ValueError("The CDI map does not bind each UUID to one NVIDIA character node.")
             self.mapping[entry["name"]] = nodes[0]
         self.shared = {item["path"]: item for item in self.source["containerEdits"]["deviceNodes"]}
-        mounts = {item["hostPath"]: item for item in self.source["containerEdits"]["mounts"]}
+        mounts = {(item["hostPath"], item["containerPath"]): item for item in self.source["containerEdits"]["mounts"]}
         for library in configuration.libraries:
             info = fingerprint(Path(library.path))
             if info["digest"] != library.digest:
                 raise ValueError("An approved GPU library changed.")
-            item = mounts[library.path]
-            if item["containerPath"] != library.path or set(item["options"]) != {"ro", "nosuid", "nodev", "rbind", "rprivate"}:
-                raise ValueError("A GPU library has unapproved CDI mount edits.")
-            self.libraries.append({"source": library.path, "target": library.path, "read_only": True, "identity": info})
+            for target in library.targets or [library.path]:
+                item = mounts.get((library.path, target))
+                if item is None or set(item["options"]) != {"ro", "nosuid", "nodev", "rbind", "rprivate"}:
+                    raise ValueError("A GPU library has unapproved CDI mount edits.")
+                if any(saved["target"] == target for saved in self.libraries):
+                    raise ValueError("GPU libraries cannot share a container target.")
+                self.libraries.append({"source": library.path, "target": target, "read_only": True, "identity": info})
 
     def select(self, uuids):
         current = inventory() if Path("/proc/driver/nvidia/gpus").exists() else {}

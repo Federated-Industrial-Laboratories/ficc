@@ -30,9 +30,14 @@ workload accounts for separate storage slots. CPU, memory, process, and device
 limits belong to the root-owned ancestor service. Podman uses cgroupfs below
 that service. No privileged or cgroups-disabled fallback exists.
 
-Each image has an administrator-owned OCI archive, its archive SHA256, and its
-exact loaded image digest. The provider copies the archive into the bounded slot
-before the rootless engine loads it. It never pulls from a registry. Local inputs
+Each image has an administrator-owned OCI or Docker archive, its archive SHA256,
+and its exact loaded image digest. Before advertising the runtime, the provider
+verifies that image ID against bounded archive metadata without extracting files.
+OCI export can change the source image ID; use the exported config digest, not
+the registry manifest digest or archive reference name. A mismatch reports the
+available config IDs. The provider copies private archives into the bounded slot;
+an immutable public administrator archive can be loaded directly through its
+verified descriptor. It never pulls from a registry. Local inputs
 have administrator-approved paths, object IDs, sizes, and SHA256 digests. Each
 local input is copied into the bounded slot. Streamed inputs arrive through the
 host's authenticated input protocol after the slot is reserved. The host verifies
@@ -87,3 +92,16 @@ GPU allocation, or isolation from other machine-administrator workloads.
 
 See [the executor SDK](../../sdk/executors.md) and
 [local installation](../../packaging/remote/executor/README.md).
+
+Managed inference explicitly selects the approved `fuse-overlayfs` backend.
+Before release, the host verifies its administrator-owned executable, task
+account and cgroup, kernel FUSE connection identity, and open backing directory
+identities on the reserved filesystem. A bounded trusted child reads payload
+metadata after entering its retained user namespace and root; it executes no
+payload code. The supervisor retains its credentials and compares the observed
+metadata with administrator-owned sources, then rechecks process/root identity.
+The kernel must expose `fuse_connection`
+in the helper's `/proc/<pid>/fdinfo`; missing proof refuses launch. This is a
+capability requirement rather than a pinned kernel version. Ordinary jobs retain
+the existing native-overlay path verification. Numeric native-overlay layer
+references cannot establish the required backing identity and are refused.
