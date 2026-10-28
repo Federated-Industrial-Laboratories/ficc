@@ -5,8 +5,10 @@
 <p align="center">A modular console for cluster operations, remote teams and compute workloads.</p>
 
 <p align="center">
-  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.2.6r4 | Python 3.12 or later | OpenSSH">
+  <img src=".github/assets/badges.svg" width="720" alt="Apache 2.0 | Version 0.3.0.dev1 | Python 3.12 or later | OpenSSH">
 </p>
+
+The [first 0.3.0 nightly](https://github.com/Federated-Industrial-Laboratories/ficc/releases/tag/v0.3.0.dev1) adds managed local inference and cluster federation through HyperNet 0.9.0. It is a prerelease; see the [release notes](docs/releases.md) for support, upgrade and download instructions.
 
 <p align="center">
   <a href="docs/install.md">Install</a> |

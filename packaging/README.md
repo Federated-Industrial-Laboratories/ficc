@@ -52,7 +52,7 @@ docker run --rm --network=none \
     cp *.pkg.tar.zst /release/
   '
 python tools/finalize_release.py --output /tmp/ficc-release \
-  --arch-package /tmp/ficc-release/ficc-bin-0.2.6.post4-1-x86_64.pkg.tar.zst
+  --arch-package /tmp/ficc-release/ficc-bin-0.3.0dev1-1-x86_64.pkg.tar.zst
 ```
 
 ## Qualification
@@ -188,7 +188,7 @@ This closes the 0.2.6 revision series; subsequent changes require a new version.
 
 ## 0.3.0 nightly inference
 
-The nightly candidate uses Python version `0.3.0.dev1` and controller schema 17.
+The first nightly uses Python version `0.3.0.dev1` and controller schema 17.
 Debian packages use `0.3.0~dev1`; Arch packages use `0.3.0dev1`. Both sort
 before the stable `0.3.0` package. Portable archives, wheel metadata and the
 application display retain the Python version. Development releases are

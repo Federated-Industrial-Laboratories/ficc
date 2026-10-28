@@ -9,7 +9,7 @@
 <details>
 <summary>On this page</summary>
 
-- [0.3.0 development candidate](#030-development-candidate)
+- [0.3.0 first nightly](#030-first-nightly)
 - [Debian and Ubuntu](#debian-and-ubuntu)
 - [Arch Linux](#arch-linux)
 - [AppImage](#appimage)
@@ -20,14 +20,13 @@
 </details>
 
 Download FICC from [GitHub Releases](https://github.com/Federated-Industrial-Laboratories/ficc/releases).
-Use a Linux x86_64 package below. The examples use version 0.2.6.post4.
-Check the published release version before downloading. These manuals also cover the current source version.
-
-The revision release designation is `0.2.6r4-final`, with tag `v0.2.6r4-final`.
-Application and package versions use `0.2.6.post4` for Python and native package compatibility.
-This version sorts after `0.2.6`; the public release name retains the `r4` designation.
-This is the final revision of the 0.2.6 series. Subsequent changes use a new version.
-Select the matching release and verify its signed `SHA256SUMS` file.
+Use a Linux x86_64 package below. The examples use the first 0.3.0 nightly,
+[`0.3.0.dev1`](https://github.com/Federated-Industrial-Laboratories/ficc/releases/tag/v0.3.0.dev1).
+This is a prerelease for operators who want the new inference and federation
+workflows. The latest stable 0.2.6 revision remains
+[`0.2.6r4-final`](https://github.com/Federated-Industrial-Laboratories/ficc/releases/tag/v0.2.6r4-final),
+with application and package version `0.2.6.post4`. Select the intended release
+and verify its signed `SHA256SUMS` file.
 
 VM providers require their documented host versions, transports and explicit grants.
 See [provider support](testing.md#runtime-modules-and-providers) before installing VM modules.
@@ -72,7 +71,7 @@ that it reports the exact package you intend to install. A checksum alone detect
 corruption; the pinned signing key establishes which publisher signed those bytes.
 Key rotation requires independent confirmation before replacing the trusted key.
 
-## 0.3.0 development candidate
+## 0.3.0 first nightly
 
 Version `0.3.0.dev1` adds managed local inference and federation through HyperNet
 Core and Suite 0.9.0. Select models, verify and cache their weights, reserve GPUs,
@@ -99,21 +98,20 @@ backup. Restored federation and inference state requires explicit operator
 reconciliation before resuming work. Keep durable control state separate from
 bulk model and task storage where I/O contention can block durable writes.
 
-The candidate uses Debian version `0.3.0~dev1` and Arch version `0.3.0dev1`.
-It is a development candidate, not a published stable release. The download
-examples below continue to identify the published 0.2.6 revision.
+The nightly uses Debian version `0.3.0~dev1` and Arch version `0.3.0dev1`.
+It is a published prerelease; it does not replace the latest stable release.
 
 ## Debian and Ubuntu
 
 ```sh
-sudo apt install ./ficc_0.2.6.post4_amd64.deb
+sudo apt install ./ficc_0.3.0~dev1_amd64.deb
 ficc desktop
 ```
 
 ## Arch Linux
 
 ```sh
-sudo pacman -U ./ficc-bin-0.2.6.post4-1-x86_64.pkg.tar.zst
+sudo pacman -U ./ficc-bin-0.3.0dev1-1-x86_64.pkg.tar.zst
 ficc desktop
 ```
 
@@ -125,8 +123,8 @@ Extract it and run `makepkg` as a regular user to build the package locally.
 Run the executable from a directory owned by the desktop account.
 
 ```sh
-chmod +x FICC-0.2.6.post4-x86_64.AppImage
-./FICC-0.2.6.post4-x86_64.AppImage
+chmod +x FICC-0.3.0.dev1-x86_64.AppImage
+./FICC-0.3.0.dev1-x86_64.AppImage
 ```
 
 On first desktop use, FICC verifies and copies the bundled runtime into
@@ -139,7 +137,7 @@ Opening the AppImage requires a working FUSE installation. Without FUSE, extract
 into the directory where FICC will remain:
 
 ```sh
-./FICC-0.2.6.post4-x86_64.AppImage --appimage-extract
+./FICC-0.3.0.dev1-x86_64.AppImage --appimage-extract
 ./squashfs-root/AppRun desktop
 ```
 
@@ -151,8 +149,8 @@ extraction directory must remain available while its launcher is installed.
 ## Portable archive
 
 ```sh
-tar -xzf ficc-0.2.6.post4-linux-x86_64.tar.gz
-./ficc-0.2.6.post4-linux-x86_64/ficc desktop
+tar -xzf ficc-0.3.0.dev1-linux-x86_64.tar.gz
+./ficc-0.3.0.dev1-linux-x86_64/ficc desktop
 ```
 
 The first desktop start creates a private on-demand user service and opens the
