@@ -22,6 +22,11 @@ def arch_package(version: str) -> str:
     return f"ficc-bin-{arch(version)}-1-x86_64.pkg.tar.zst"
 
 
+def deb_package(version: str) -> str:
+    # Hosted release assets normalise '~'; keep Debian ordering in control metadata.
+    return f"ficc_{checked(version)}_amd64.deb"
+
+
 def prerelease(version: str) -> bool:
     checked(version)
     return ".dev" in version or "rc" in version

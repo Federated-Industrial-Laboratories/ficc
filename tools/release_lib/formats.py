@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 
 from .common import archive_tree, digest, normalize_tree, run
-from .versions import arch, debian
+from .versions import arch, deb_package, debian
 
 
 def executable(path: Path, text: str) -> None:
@@ -45,7 +45,7 @@ def deb(payload: Path, work: Path, output: Path, version: str, epoch: int) -> Pa
     executable(control / "preinst", guard)
     executable(control / "prerm", guard)
     normalize_tree(root, epoch)
-    target = output / f"ficc_{deb_version}_amd64.deb"
+    target = output / deb_package(version)
     run(["dpkg-deb", "--root-owner-group", "-Zxz", "--build", str(root), str(target)],
         env=dict(os.environ, SOURCE_DATE_EPOCH=str(epoch)))
     return target

@@ -99,12 +99,14 @@ reconciliation before resuming work. Keep durable control state separate from
 bulk model and task storage where I/O contention can block durable writes.
 
 The nightly uses Debian version `0.3.0~dev1` and Arch version `0.3.0dev1`.
+The Debian download filename uses `0.3.0.dev1`; its internal package version
+retains `~dev1` for the correct upgrade order.
 It is a published prerelease; it does not replace the latest stable release.
 
 ## Debian and Ubuntu
 
 ```sh
-sudo apt install ./ficc_0.3.0~dev1_amd64.deb
+sudo apt install ./ficc_0.3.0.dev1_amd64.deb
 ficc desktop
 ```
 
