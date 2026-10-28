@@ -50,7 +50,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y bubblewrap build-essential libssl-dev zstd squashfs-tools
       - name: Read package version
         run: |
-          python -c 'import sys, tomllib; sys.path.insert(0, "tools"); from release_lib.versions import arch, debian; v=tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]; print("FICC_VERSION="+v); print("FICC_DEB_VERSION="+debian(v)); print("FICC_ARCH_VERSION="+arch(v))' >> "$GITHUB_ENV"
+          python -c 'import sys, tomllib; sys.path.insert(0, "tools"); from release_lib.versions import arch, deb_package; v=tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]; print("FICC_VERSION="+v); print("FICC_DEB_PACKAGE="+deb_package(v)); print("FICC_ARCH_VERSION="+arch(v))' >> "$GITHUB_ENV"
       - name: Fetch the explicitly selected HyperNet SDK
         if: inputs.hypernet_sdk_url || vars.HYPERNET_SDK_URL || inputs.hypernet_sdk_sha256 || vars.HYPERNET_SDK_SHA256
         env:
@@ -140,7 +140,7 @@ jobs:
             docker build --build-arg BASE="$base" -t ficc-debian -f packaging/Containerfile.debian packaging
             docker run --rm --network=none -e FICC_DISPOSABLE_CONTAINER=1 \
               -v "$PWD/tools:/checks:ro" -v "$RUNNER_TEMP/release:/release:ro" \
-              ficc-debian sh /checks/qualify_native.sh deb /release/ficc_${FICC_DEB_VERSION}_amd64.deb
+              ficc-debian sh /checks/qualify_native.sh deb "/release/$FICC_DEB_PACKAGE"
           done
       - name: Check portable and extracted AppImage
         run: |
